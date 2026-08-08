@@ -36,7 +36,9 @@ from pathlib import Path
 
 def parse_args():
     ap = argparse.ArgumentParser(description="Colour-LoRA img2img inference + strength sweep.")
-    ap.add_argument("--lora", required=True, help="Path to trained LoRA dir (contains pytorch_lora_weights.safetensors).")
+    ap.add_argument("--lora", default=None,
+                    help="Path to trained LoRA dir (contains pytorch_lora_weights.safetensors). "
+                         "Omit for the A0 baseline ablation -- runs the frozen SD1.5 base with no adapter.")
     ap.add_argument("--model", default="stable-diffusion-v1-5/stable-diffusion-v1-5")
     ap.add_argument("--root", required=True, help="Dataset root (heldout paths are relative to this).")
     ap.add_argument("--heldout", required=True, help="heldout_frames.csv.")
@@ -78,14 +80,18 @@ def main():
     (out_dir / "outputs").mkdir(parents=True, exist_ok=True)
     (out_dir / "reference").mkdir(parents=True, exist_ok=True)
 
-    # ---- pipeline: SD 1.5 img2img + trained colour LoRA, DDIM ----
-    print(f"Loading SD 1.5 img2img pipeline + LoRA ({args.lora}) ...")
+    # ---- pipeline: SD 1.5 img2img, optionally + trained colour LoRA, DDIM ----
+    if args.lora:
+        print(f"Loading SD 1.5 img2img pipeline + LoRA ({args.lora}) ...")
+    else:
+        print("Loading SD 1.5 img2img pipeline (A0 baseline -- no adapter) ...")
     pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
         args.model, torch_dtype=torch.float16, safety_checker=None, requires_safety_checker=False)
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-    # weight_name must be explicit: diffusers normally auto-detects it via a Hub
-    # API call, which is unavailable under HF_HUB_OFFLINE=1 (set above deliberately).
-    pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
+    if args.lora:
+        # weight_name must be explicit: diffusers normally auto-detects it via a Hub
+        # API call, which is unavailable under HF_HUB_OFFLINE=1 (set above deliberately).
+        pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
     pipe.to(device)
     pipe.set_progress_bar_config(disable=True)
 
