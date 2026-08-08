@@ -62,8 +62,22 @@ but is empty.
   Resolved: added canonical `mitos_heldout/` folder (see CLAUDE.md's cluster data
   layout section) and uploaded `mitos_atypia_2014_testing_{aperio,hamamatsu}/`
   (~10.4GB) there; `MITOS_ROOT` now points at it.
-**Next step:** confirm the upload finished cleanly, then re-submit
-`infer_colour_lora.slurm a2h_r8` → `score_outputs.slurm a2h_r8`.
+- **Fourth blocker, also found while fixing:** `heldout_frames.csv` (Do NOT touch —
+  fixed in code instead) stores Windows backslash-separated relative paths;
+  `Path()` on Linux doesn't treat `\` as a separator, so every join with
+  `MITOS_ROOT` would have failed. Fixed in `infer_colour_lora.py`: paths are
+  normalised to `/` right after the CSV is read. Verified directly against real
+  files on the cluster before re-submitting.
+- **Re-submitted with all 4 fixes → job 36713, FAILED again, 3:29 elapsed.** Got
+  much further this time: SD1.5 pipeline loaded from cache fine (42s). New error:
+  `ValueError: When using the offline mode, you must specify a weight_name.` —
+  `pipe.load_lora_weights(args.lora)` normally auto-detects the weight filename via
+  a Hub API call, which is blocked by `HF_HUB_OFFLINE=1` (set deliberately in the
+  script). **Fifth blocker, fixed:** pass `weight_name="pytorch_lora_weights.safetensors"`
+  explicitly — confirmed this is the actual filename diffusers saved for all 3
+  existing runs (a2h_r8, a2h_r4, h2a_r8).
+**Next step:** re-submit `infer_colour_lora.slurm a2h_r8` with all 5 fixes now in
+place; verify against `.out`/`.err` before assuming success.
 
 ## P2-05 — Evaluation run: A2H rank 4
 **Status:** TODO — depends on P1-03b (done) + P2-03 (done); just needs submitting
