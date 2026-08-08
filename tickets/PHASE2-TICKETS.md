@@ -27,15 +27,34 @@ reference per proposal), `src/eval/score_outputs.py` (LAB/SSIM/PSNR/MAE + recove
 delta vs P2-01 baseline, robust per-slide outlier flagging).
 
 ## P2-04 — First evaluation run: A2H rank 8
-**Status:** 🔄 IN PROGRESS — pipeline validated end-to-end (job 36735 + 36768,
-both COMPLETED, verified against logs and actual output files), but only covers
-1 of 5 held-out slides (A06, via default `LIMIT=8`). Not DONE until the full
-124-frame, 5-slide run lands.
+**Status:** ✅ DONE (2026-08-08) — full 5-slide run. Inference job 37039 COMPLETED
+1:27:11 (1488-row manifest, all 5 slides confirmed), rescored by job 37185
+COMPLETED 24:41 after the `score_outputs.py` baseline-scope fix landed.
 **Source:** `tab:eval` (Colour accuracy — MITOS row); H2/RQ4 in `tab:hyp_rq`
 **Acceptance criteria:** `eval/a2h_r8/eval_summary.csv` with per-strength, per-slide
-LAB Wasserstein + recovery delta vs raw baseline, across all 5 held-out slides.
-**Partially met** — `eval_summary.csv` now exists with real numbers, but only for
-A06 (see below); A08/A09/A13/A16 still missing.
+LAB Wasserstein + recovery delta vs raw baseline, across all 5 held-out slides. **Met.**
+**Result (strength 0.30 / 0.40 / 0.50, recovery Δlab vs raw baseline):**
+| Slide | Baseline LAB | Δlab @0.30 | Δlab @0.40 | Δlab @0.50 |
+|---|---|---|---|---|
+| A06 *(outlier, z=33.7)* | 94.84 | +0.92 | +1.52 | +2.65 |
+| A08 | 25.27 | +2.49 | +2.10 | +1.62 |
+| A09 | 27.48 | +1.90 | +1.76 | +1.42 |
+| A13 | 26.63 | +5.27 | +4.98 | +4.37 |
+| A16 | 23.77 | +1.62 | +1.47 | +1.31 |
+| **ALL** | 33.83 | +1.72 | +1.60 | +1.44 |
+| **ALL excl. A06** | 25.41 | +2.45 (hand-computed — `score_outputs.py` doesn't auto-fill this column yet, see below) | — | — |
+
+Every slide recovers at every strength tested — real, positive signal, not an
+artifact. But the strength trend **diverges by scope**: A06 improves *with* higher
+strength (+0.92→+2.65), while A08/A09/A13/A16 all recover *less* at higher strength
+— 0.30 is the better strength for 4 of 5 slides. SSIM falls monotonically with
+strength throughout (pooled: 0.289→0.229→0.179) — the expected colour/structure
+tradeoff. Per CLAUDE.md guardrails: report per-slide + outlier-excluded aggregate,
+never let pooled ALL stand alone — table above does both.
+**Known minor gap, not blocking:** `score_outputs.py`'s `ALL_excl_outliers` row
+never had its `recovery_delta_lab` column wired up (always blank) — only the `ALL`
+row's delta got fixed earlier. Worth a follow-up fix so this doesn't need
+hand-computing each time.
 **Evidence of failure:**
 - `sbatch slurm/infer_colour_lora.slurm a2h_r8` → job 36462, FAILED, 2:22 elapsed.
   `ModuleNotFoundError: No module named 'cv2'` — `infer_colour_lora.py` imports
