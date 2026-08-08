@@ -23,8 +23,8 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-MITOS_ROOT=/datasets/mhoosen/stain-norm/data/mitos     # <-- edit if your held-out data root differs
-HELDOUT=${DATA_ROOT}/scanner_lora_pairs/heldout_frames.csv   # <-- edit if elsewhere
+MITOS_ROOT=/datasets/mhoosen/stain-norm/data/mitos     # NOTE: raw held-out testing frames not yet uploaded here -- see CLAUDE.md
+HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
 LORA_ROOT=${DATA_ROOT}/lora
 export HF_HOME=/datasets/mhoosen/hf_cache
 
@@ -46,8 +46,8 @@ mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
 conda activate stainnorm
-if ! python -c "import transformers, peft, accelerate, safetensors, diffusers" 2>/dev/null; then
-    pip install --quiet transformers peft accelerate safetensors diffusers
+if ! python -c "import transformers, peft, accelerate, safetensors, diffusers, cv2" 2>/dev/null; then
+    pip install --quiet transformers peft accelerate safetensors diffusers opencv-python-headless
 fi
 
 echo "=================================================================="

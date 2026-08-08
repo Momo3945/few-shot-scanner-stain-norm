@@ -22,7 +22,7 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-BASELINE=${DATA_ROOT}/eval/baseline_metrics/baseline_summary.csv   # <-- edit to your baseline path
+BASELINE=${DATA_ROOT}/pairs/baseline_metrics/baseline_summary.csv
 
 LORA_TAG=${1:?"Usage: sbatch score_outputs.slurm LORA_TAG"}
 EVAL_DIR=${DATA_ROOT}/eval/${LORA_TAG}
