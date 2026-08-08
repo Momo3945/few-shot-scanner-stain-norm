@@ -12,7 +12,9 @@ the proposal's own risk table if compute or time is tight.
 ---
 
 ## PR-00 — Fix SD3.5 model weight download
-**Status:** TODO — BLOCKING, and worse than P3-02's bug class. Two separate issues.
+**Status:** ✅ DONE (2026-08-08) — job 37073 COMPLETED 16:49; verified with real file
+checks, not exit code: `models--stabilityai--stable-diffusion-3.5-large/` = 55G,
+16 `.safetensors` files present.
 **Source:** infrastructure prerequisite
 **Issue 1 (same `--include` bug as P3-02, fixed):** `slurm/fetch_models.slurm` now
 uses repeated `--include` flags. Confirmed via `--dry-run` this is necessary but

@@ -20,7 +20,9 @@ evidence. Three possible outcomes per the proposal:
        primary contribution regardless.
 
 ## P3-02 — Fix SDXL model weight download
-**Status:** ✅ ROOT CAUSE FOUND, FIX APPLIED (2026-08-08) — re-download not yet run.
+**Status:** ✅ DONE (2026-08-08) — job 37073 COMPLETED 16:49; verified with real file
+checks, not exit code: `models--stabilityai--stable-diffusion-xl-base-1.0/` = 33G,
+13 `.safetensors` files present.
 **Source:** infrastructure prerequisite for all of Phase 3
 **Root cause (confirmed via `--dry-run`, not guessed):** `hf download`'s `--include`
 is a single-value option (Click-based CLI: `hf download [OPTIONS] REPO_ID
