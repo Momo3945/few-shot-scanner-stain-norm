@@ -61,13 +61,27 @@ only its compatibility with the trained adapters is evaluated (4-step LCM vs 50-
 DDIM on held-out MITOS; SSIM/PSNR + artefact inspection per `sec:experiments`).
 
 ## P1-06 — A5 histopathology warm-start LoRA training
-**Status:** TODO — data pool ready
-**Source:** `sec:hist_lora`; rank 32, 3,000 steps, 3,000 patches
+**Status:** TODO — code + data both ready, not yet run.
+**Source:** `sec:hist_lora`; rank 32, batch 1, 3,000 steps, 3,000 patches
 (1,000 PanNuke + 1,500 TCGA-BRCA + 500 MITOS)
 **Evidence pool ready:** `/datasets/mhoosen/stain-norm/hist_lora_pool/` (3,000 files,
-manifests present, held-out leak check passed at build time).
+manifests present, held-out leak check passed at build time; `composition.json`
+confirms 1000/1500/500 split matches the proposal exactly).
+**Code (2026-08-08):** `src/train/train_hist_lora.py` + `slurm/train_hist_lora.slurm`
+written — the existing `train_colour_lora.py` can't do this (hardcoded to paired
+A/H crops with a required `--direction`; the hist pool is unpaired, different
+naming, no direction concept). Training loop mirrors `train_colour_lora.py`
+(already validated by 4 real completed runs) — same `LoraConfig`, confirmed
+identical to HF's own official `train_text_to_image_lora.py` example. New code
+is `load_pool_manifest()`, which independently re-checks the pool for the 5
+held-out MITOS slides (exact `slide_id` match, not substring) before training —
+verified against real cluster data (exactly 3000 patches loaded, zero leaks, all
+spot-checked files exist) and against a synthetic injected leak (correctly
+aborts).
 **Constraint (sec:training_order):** must be trained and FROZEN before colour-LoRA
 training begins for this leg — do not train jointly.
+**Next step:** `sbatch slurm/train_hist_lora.slurm` (smoke test first:
+`SMOKE=1 sbatch --time=00:15:00 -J hist_smoke slurm/train_hist_lora.slurm`).
 
 ## P1-07 — A5 full ablation: hist LoRA + colour LoRA + ControlNet + LCM
 **Status:** TODO — blocked on P1-06 and P1-04
