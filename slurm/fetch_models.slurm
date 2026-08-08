@@ -34,8 +34,19 @@ hf download latent-consistency/lcm-lora-sdv1-5
 echo "== ControlNet Canny (SD1.5) =="
 hf download lllyasviel/sd-controlnet-canny
 echo "== SDXL base (safetensors only) =="
-hf download stabilityai/stable-diffusion-xl-base-1.0 --include "*.safetensors" "*.json" "*.txt" "*.model"
+# NOTE: --include only takes ONE pattern per flag (hf CLI is Click-based, `--include TEXT`,
+# not nargs). The old space-separated form silently bound only "*.safetensors" to --include
+# and turned "*.json" "*.txt" "*.model" into positional FILENAMES, which switches hf download
+# to a different code path that ignores --include entirely -- confirmed via --dry-run: it
+# fetched only the 17 config/tokenizer files (3.2M), zero .safetensors. Repeated --include
+# flags is the documented correct syntax (see `hf download --help` examples).
+hf download stabilityai/stable-diffusion-xl-base-1.0 --include "*.safetensors" --include "*.json" --include "*.txt" --include "*.model"
 echo "== SD 3.5 large (safetensors only) =="
-hf download stabilityai/stable-diffusion-3.5-large --include "*.safetensors" "*.json" "*.txt" "*.model"
+# NOTE: this repo is GATED. Confirmed via --dry-run: "Error: Access denied. This repository
+# requires approval." even with the --include fix above. Requires: (1) requesting/accepting
+# access at https://huggingface.co/stabilityai/stable-diffusion-3.5-large with your HF
+# account, and (2) `hf auth login` (or HF_TOKEN) on this cluster -- currently "Not logged in".
+# Neither can be done from a script; this line will keep failing until both are done manually.
+hf download stabilityai/stable-diffusion-3.5-large --include "*.safetensors" --include "*.json" --include "*.txt" --include "*.model"
 
 echo "ALL DOWNLOADS COMPLETE"
