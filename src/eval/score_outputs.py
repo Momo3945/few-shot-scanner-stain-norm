@@ -40,7 +40,7 @@ def read_rgb_png(path):
 
 
 def read_baseline_lab(path):
-    """Return the RAW baseline ALL lab_total (and per-slide) for recovery delta."""
+    """Return the RAW baseline ALL lab_total, and per-slide (lab_total, n_crops)."""
     out = {"ALL": None, "per_slide": {}}
     with open(path, newline="") as fh:
         for row in csv.DictReader(fh):
@@ -52,8 +52,33 @@ def read_baseline_lab(path):
             if scope == "ALL":
                 out["ALL"] = lab
             elif scope.startswith("A"):
-                out["per_slide"][scope] = lab
+                try:
+                    n = int(row["n_crops"])
+                except (ValueError, KeyError):
+                    n = None
+                out["per_slide"][scope] = (lab, n)
     return out
+
+
+def baseline_all_for_slides(baseline, present_slides):
+    """Crop-weighted baseline ALL restricted to the slides actually present in this
+    run. Comparing a partial run's pooled ALL against the full-baseline ALL (which
+    may include slides this run never touched) is an apples-to-oranges scope
+    mismatch -- this is what recovery_delta_lab must be computed against instead.
+    Falls back to the full baseline["ALL"] only when it can't be restricted (missing
+    n_crops) or when the run's slide set already matches the full baseline exactly.
+    """
+    per_slide = baseline["per_slide"]
+    if set(present_slides) >= set(per_slide):
+        return baseline["ALL"]
+    weighted, total_n = 0.0, 0
+    for s in present_slides:
+        if s not in per_slide or per_slide[s][1] is None:
+            return None
+        lab, n = per_slide[s]
+        weighted += lab * n
+        total_n += n
+    return weighted / total_n if total_n else None
 
 
 def main():
@@ -113,12 +138,15 @@ def main():
                        sum(len(slides[s]) for s in slides if s not in exclude)
 
             allm, alln = pool()
-            delta = (round(baseline["ALL"] - allm["lab_total"], 4)
-                     if baseline and baseline["ALL"] and allm["lab_total"] is not None else "")
+            base_all = baseline_all_for_slides(baseline, slides) if baseline else None
+            delta = (round(base_all - allm["lab_total"], 4)
+                     if base_all is not None and allm["lab_total"] is not None else "")
+            partial_note = "" if (baseline and set(slides) >= set(baseline["per_slide"])) \
+                else f" [baseline restricted to {','.join(sorted(slides))}]"
             print(f"\n  strength {strength}:")
             print(f"    ALL ({len(slides)} slides, n={alln}): lab {allm['lab_total']}  "
                   f"ssim {allm['ssim']}  psnr {allm['psnr']}  mae {allm['mae']}"
-                  + (f"   recovery Δlab {delta}" if delta != "" else ""))
+                  + (f"   recovery Δlab {delta}{partial_note}" if delta != "" else ""))
             w.writerow([strength, "ALL", alln, allm["lab_total"], allm["ssim"],
                         allm["psnr"], allm["mae"], "", "", delta])
 
@@ -133,7 +161,7 @@ def main():
                 sm = {k: _mean_finite([m[k] for m in slides[s]]) for k in keys}
                 sdelta = ""
                 if baseline and s in baseline["per_slide"] and sm["lab_total"] is not None:
-                    sdelta = round(baseline["per_slide"][s] - sm["lab_total"], 4)
+                    sdelta = round(baseline["per_slide"][s][0] - sm["lab_total"], 4)
                 flag = "*** OUTLIER" if flags[s]["outlier"] else ""
                 print(f"      {s}: lab {sm['lab_total']:.2f}  ssim {sm['ssim']:.3f}  "
                       f"mae {sm['mae']:.2f}  z={flags[s]['z']:.2f}  {flag}"
