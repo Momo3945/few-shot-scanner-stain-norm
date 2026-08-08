@@ -1,0 +1,735 @@
+\documentclass[a4paper,twoside,12pt]{report}
+% Richard Klein (2020,2021)
+
+% Include Packages
+\usepackage{fullpage}
+\usepackage{float}
+\usepackage{url}
+\usepackage{charter}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\usepackage{pdfpages}
+\usepackage[table]{xcolor}
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\setlength{\emergencystretch}{3em}
+\newcommand{\gbar}{\cellcolor{black!35}}
+\newcommand{\gopt}{\cellcolor{black!15}}
+\usepackage{parskip}
+\setlength{\parskip}{0.45\baselineskip plus 1pt}
+\usepackage[all]{nowidow}
+\setnoclub[2]
+\setnowidow[2]
+
+% Referencing
+\usepackage{varioref}
+\usepackage[bookmarks=true,bookmarksopen=true]{hyperref}
+\usepackage[all]{hypcap} % anchor hyperref jumps to the top of figures/tables, not after captions
+\usepackage{cleveref}
+\hypersetup{
+  colorlinks   = true,
+  urlcolor     = blue,
+  linkcolor    = blue,
+  citecolor    = blue
+}
+\crefname{table}{table}{tables}
+\Crefname{table}{Table}{Tables}
+\crefname{figure}{figure}{figures}
+\Crefname{figure}{Figure}{Figures}
+\crefname{equation}{equation}{equations}
+\Crefname{equation}{Equation}{Equations}
+
+% Wits Citation Style
+\usepackage{natbib} \input{natbib-add}
+\bibliographystyle{named-wits}
+\bibpunct{[}{]}{;}{a}{}{}
+\setlength{\skip\footins}{1.5cm}
+\newcommand{\citets}[1]{\citeauthor{#1}'s \citeyearpar{#1}}
+\renewcommand\bibname{References}
+
+\pagestyle{plain}
+\pagenumbering{roman}
+
+\renewenvironment{abstract}{\ \vfill\begin{center}\textbf{Abstract}\end{center}\addcontentsline{toc}{section}{Abstract}}{\vfill\vfill\newpage}
+\newenvironment{declaration}{\ \vfill\begin{center}\textbf{Declaration}\end{center}\addcontentsline{toc}{section}{Declaration}}{\vfill\vfill\newpage}
+\newenvironment{acknowledgements}{\ \vfill\begin{center}\textbf{Acknowledgements}\end{center}\addcontentsline{toc}{section}{Acknowledgements}}{\vfill\vfill\newpage}
+
+\begin{document}
+\onecolumn
+\thispagestyle{empty}
+
+\setcounter{page}{0}
+\addcontentsline{toc}{chapter}{Preface}
+\begin{center}
+  \vfill
+  {
+  \huge \bf \textsc{Few-Shot Histopathology Stain Normalisation via Latent Consistency Models, LoRA and ControlNet}\\[20pt]
+  \large School of Computer Science \& Applied Mathematics\\
+  \large University of the Witwatersrand\\[20pt]
+  \normalsize
+  Muhammad Hoosen\\
+  2552770\\[20pt]
+  Supervised by Prof.\ Richard Klein\\[10pt]
+  \today
+  }
+
+  \vfill
+  \vfill
+  \includegraphics[width=1.5cm]{images/wits}
+  \vspace{10pt}\\
+  \small{Ethics Clearance Number: Public datasets only}\\[10pt]
+  \small{A proposal submitted to the Faculty of Science, University of the Witwatersrand, Johannesburg,
+in partial fulfilment of the requirements for the degree of Bachelor of Science with Honours}\\
+\end{center}
+\vfill
+\newpage
+
+\pagestyle{plain}
+\setcounter{page}{1}
+
+% ------------------------------------------------------------------
+% AI DECLARATION
+% ------------------------------------------------------------------
+\phantomsection
+\begin{declaration}
+I, Muhammad Hoosen, hereby declare the contents of this research proposal to be my own work.
+This proposal is submitted for the degree of Bachelor of Science with Honours in Computer Science at the University of the Witwatersrand.
+This work has not been submitted to any other university, or for any other degree.
+
+\end{declaration}
+% ------------------------------------------------------------------
+% AI DECLARATION FORM
+% ------------------------------------------------------------------
+\phantomsection
+\includepdf[
+    pages=1,
+    pagecommand={
+        \thispagestyle{plain}
+        \addcontentsline{toc}{section}{AI Declaration Form}
+    }
+]{images/"PG student AI declaration (2)1-pages.pdf"}
+% ------------------------------------------------------------------
+% ACKNOWLEDGEMENTS
+% ------------------------------------------------------------------
+
+% ------------------------------------------------------------------
+% ABSTRACT
+% ------------------------------------------------------------------
+\phantomsection
+\begin{abstract}
+Haematoxylin and Eosin (H\&E) stained histopathology slides vary systematically in colour across institutions due to differences in scanner hardware, reagent concentrations, and staining protocols. This scanner-induced domain shift can cause AI diagnostic models trained on one institution's data to degrade significantly when deployed on another's --- a practical barrier to equitable AI-assisted pathology, particularly in resource-constrained settings such as South Africa's National Health Laboratory Service (NHLS). Existing normalisation methods each address one or two of the three critical requirements --- fast inference, structural safety, and data efficiency --- but existing methods do not clearly satisfy all three simultaneously. This project proposes a unified few-shot stain normalisation pipeline combining Latent Consistency Model distillation (LCM-LoRA) for 4-step inference acceleration, Low-Rank Adaptation (LoRA) for data-efficient scanner domain mapping from fewer than 50 paired examples, and ControlNet for empirically tested morphological preservation through structural conditioning. The pipeline is developed in three phases: Phase 1 establishes the full component ablation ladder on a frozen Stable Diffusion 1.5 base; Phase 2 evaluates colour fidelity, structural safety, cycle consistency, clinical utility, and multi-centre generalisation; Phase 3 transfers only the best-performing configuration to Stable Diffusion XL (SDXL) as a compatibility-preserving portability check. In addition, a small optional SD~3.5 feasibility probe is defined to test whether the colour-mapping and structural-conditioning ideas remain plausible on a newer MMDiT-family architecture, without treating SD~3.5 as a direct implementation of the full LCM-LoRA pipeline. The pipeline is evaluated on MITOS-ATYPIA-14 paired scanner acquisitions using cycle consistency verification, downstream atypia classification and mitosis detection benchmarks, and HoVer-Net nuclear geometry verification. Generalisation is tested across five institutional centres of the CAMELYON17 dataset. To the best of our knowledge, this work addresses an under-explored position in the literature: a stain normalisation pipeline that is simultaneously fast (4-step inference via LCM), structure-safe (empirically tested ControlNet conditioning), and few-shot ($<$50 paired training examples).
+\end{abstract}
+
+% ------------------------------------------------------------------
+% FRONT MATTER
+% ------------------------------------------------------------------
+\phantomsection
+\addcontentsline{toc}{section}{Table of Contents}
+\tableofcontents
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\newpage
+\phantomsection
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\newpage
+\pagenumbering{arabic}
+
+
+% ==================================================================
+% CHAPTER 1: INTRODUCTION
+% ==================================================================
+\chapter{Introduction}
+
+A patient presenting with a breast cancer biopsy at a rural National Health Laboratory Service (NHLS) facility in Limpopo Province should receive the same quality of AI-assisted diagnostic support as a patient at a major academic hospital in Johannesburg. In practice, this is not guaranteed. AI diagnostic models trained on international datasets --- including large resources such as the Cancer Genome Atlas (TCGA) --- can degrade when deployed at NHLS facilities if the colour profiles of local scanners differ from those used to produce the training data. The biology has not changed. The scanner has.
+
+Haematoxylin and Eosin (H\&E) staining is the universal standard for tissue-level cancer diagnosis. Despite standardised chemistry, the final visual output of H\&E staining varies substantially across institutions due to differences in reagent brand and concentration, staining duration, tissue fixation method, and whole-slide scanner hardware. The relationship between tissue preparation and pixel intensity follows Beer-Lambert's law, meaning that microscopic differences in preparation produce non-linear, exponential changes in the output colour profile. Modern AI cancer detection models can learn features that are entangled with protocol-dependent colour distributions, retaining scanner-specific signatures in their feature embeddings even after large-scale training, retaining scanner-specific signatures in their feature embeddings in some settings. Reported studies show substantial scanner-induced performance degradation in mitosis detection and cancer grading --- not because the biology changed, but because the image acquisition conditions did \citep{breen2024gans}.
+
+Stain normalisation is the computational intervention that addresses this directly. By preprocessing input slides to match a standardised target colour distribution before they reach any classifier, normalisation decouples the downstream model from scanner-specific variation without requiring wet-lab protocol standardisation, hardware upgrades, or classifier retraining. It is the most directly modular intervention because it sits entirely within the computational pipeline and can be deployed in front of existing AI diagnostic tools.
+
+Existing normalisation methods each fail along at least one critical axis. Classical methods \citep{macenko2009normalisation, reinhard2001colortransfer} are fast and require minimal training data but assume linear stain matrices and fail under the non-linear domain shifts produced by different scanner hardware. GAN-based approaches \citep{shaban2019staingan} improve colour transfer but routinely hallucinate biological structures --- deleting mitotic figures and inserting non-biological texture patterns into stroma --- and require large paired training sets. Lightweight CNN methods \citep{kang2021stainnet} are fast but cannot generalise to scanner distributions outside their training set. Standard diffusion models produce high perceptual quality but require 50 to 1000 inference steps per patch, making whole-slide processing clinically infeasible.
+
+This project proposes that Latent Consistency Models (LCM), Low-Rank Adaptation (LoRA), and ControlNet --- composed within a frozen Stable Diffusion 1.5 base ---  are designed to address all three failure modes simultaneously. LoRA provides data-efficient domain mapping from fewer than 50 paired examples. ControlNet provides explicit structural conditioning whose preservation effect is tested empirically rather than assumed. LCM acceleration reduces per-patch inference to 4 steps. To the best of our knowledge, no prior work applies this exact combination to histopathology stain normalisation.
+
+The pipeline is trained and evaluated on the MITOS-ATYPIA-14 dataset \citep{roux2014mitos}, which provides paired acquisitions of the same breast-cancer tissue scanned on Aperio and Hamamatsu scanners. Training uses coordinate-corresponding rather than pixel-exact A03/H03 crop pairs, while held-out pixel-level comparisons are computed only after registration. Generalisation is tested across five institutional centres of the CAMELYON17 dataset \citep{bandi2018camelyon17}. The target colour distribution is constructed from a curated subset of TCGA-BRCA (breast invasive carcinoma) slides, ensuring tissue-type consistency with the training domain.
+
+The remainder of this proposal is structured as follows. Chapter 2 combines clinical background with related work in diffusion models, parameter-efficient adaptation, and stain normalisation. Chapter 3 presents the research methodology, including hypotheses, objectives, datasets, ablations, training order, SDXL portability, and the auxiliary SD~3.5 probe. Chapter 4 contains the research plan: time plan, risks, and ethics. Chapter 5 concludes.
+
+% ==================================================================
+% CHAPTER 2: BACKGROUND AND RELATED WORK
+% ==================================================================
+\chapter{Background and Related Work}
+
+\section{H\&E Staining and Scanner-Induced Variation}
+
+Haematoxylin and Eosin staining makes cellular structures visible under a microscope by binding haematoxylin to cell nuclei (producing blue/purple colouration) and eosin to cytoplasm and connective tissue (producing pink/red colouration). Despite standardised staining chemistry, the final colour output varies substantially across institutions due to reagent concentration differences, staining duration and tissue fixation method variations, and the optical calibration of whole-slide scanner hardware.
+
+The physical relationship between tissue preparation and pixel intensity is governed by Beer-Lambert's law, which states that the absorbance of a material is proportional to its concentration and path length. In histopathology this means that microscopic differences in staining duration or tissue thickness produce non-linear, exponential changes in the pixel colour profile of the digitised image. Scanner hardware compounds this: different scanners use different light sources, sensors, and colour correction profiles, producing systematically different colour outputs for the same physical tissue.
+
+\section{Why Scanner Variation Breaks AI Models}
+
+Many computational pathology models are developed or benchmarked using public datasets such as TCGA, which remains one of the most widely used open resources for cancer histopathology and therefore represents an important training colour distribution. Models trained on such datasets can learn cancer-discriminative features that are partially entangled with the colour distribution of their training slides. When deployed on slides from scanners with different colour profiles, two problems arise: the learned colour features no longer match the input distribution, and the model has no mechanism to distinguish scanner-induced colour variation from biologically meaningful variation. The result is a domain shift that can degrade diagnostic accuracy when the deployment distribution differs from the training distribution.
+
+This is not a theoretical concern. \citet{breen2024gans} systematically document that scanner-induced domain shift causes significant performance degradation in mitosis detection and cancer grading across multiple GAN-based normalisation studies. The degradation is reliably recovered when normalisation is applied as a preprocessing step.
+
+\section{Why Computational Normalisation is the Right Intervention}
+
+Three strategies exist for addressing scanner-induced domain shift: input normalisation (preprocessing slides before the classifier sees them), robust training (training on diverse multi-institutional data), and test-time adaptation (adapting the classifier at inference). Normalisation is the most directly modular strategy because it requires no modification to existing classifiers and can operate without additional institutional classifier training data. In the NHLS context --- where regional laboratories use a diverse and heterogeneous mix of scanners and protocols, and where validated AI tools for local populations are not available --- a modular preprocessing layer that requires minimal training data and deploys in front of any existing tool is a practically viable intervention.
+
+% ------------------------------------------------------------------
+% Related work within Chapter 2
+% ------------------------------------------------------------------
+
+\section{Diffusion, LoRA, ControlNet and LCM}
+
+Diffusion models generate images by learning to reverse a noise process. DDPMs introduced high-quality iterative denoising \citep{ho2020ddpm}, and Latent Diffusion Models moved this process into a compressed latent space, reducing memory and compute while preserving perceptual quality \citep{rombach2022ldm}. Stable Diffusion is part of this latent-diffusion family and is therefore a practical base for this project because it already supports mature image-to-image inference, LoRA adapters, ControlNet conditioning, and LCM-LoRA acceleration.
+
+The main deployment obstacle for diffusion-based stain normalisation is inference cost. Standard samplers often require tens of steps per patch, which becomes infeasible when processing whole-slide images containing thousands of patches. Latent Consistency Models address this by distilling the denoising trajectory into a few-step mapping \citep{luo2023lcm}. LCM-LoRA packages this acceleration as an adapter that can be loaded alongside other LoRAs \citep{luo2023lcmlora}. In this project, LCM-LoRA is not treated as a theoretical novelty by itself; it is tested as a practical acceleration module whose effect on colour fidelity and morphology must be measured against a 50-step DDIM baseline.
+
+Low-Rank Adaptation (LoRA) provides the data-efficient adaptation mechanism. Instead of updating the full model, LoRA injects trainable low-rank matrices into frozen attention layers:
+
+\begin{equation}
+h = W_0 x + \Delta W x = W_0 x + BAx,
+\quad B \in \mathbb{R}^{d \times r},\; A \in \mathbb{R}^{r \times k},\; r \ll \min(d,k)
+\label{eq:lora}
+\end{equation}
+
+Only matrices $B$ and $A$ are trained \citep{hu2021lora}. This makes LoRA appropriate for scanner-domain colour transfer: the adapter should learn the low-complexity colour delta between two scanner profiles, not new biological semantics. ControlNet provides the complementary spatial mechanism by injecting edge, depth, or mask-style conditioning into a frozen diffusion backbone \citep{zhang2023controlnet}. In this proposal, ControlNet is used with Canny or HoVer-Net-derived nuclear boundary maps, and preservation is evaluated empirically rather than assumed.
+
+\section{Stain Normalisation as Domain Adaptation}
+\label{sec:stainnorm}
+
+H\&E stain variation arises from reagent concentration, staining duration, tissue fixation, scanner optics, and colour calibration. Since diagnostic models often learn scanner-specific colour statistics, deployment across institutions creates a domain shift that can degrade mitosis detection and cancer grading \citep{breen2024gans}. Stain normalisation addresses this by mapping input slides toward a target colour distribution before downstream classification.
+
+Classical methods such as Macenko and Reinhard are fast and require no training data, but rely on statistical colour or optical-density assumptions that can fail under non-linear scanner shift \citep{macenko2009normalisation,reinhard2001colortransfer}. GAN-based methods such as StainGAN improve colour transfer but can hallucinate biological structures \citep{shaban2019staingan}. StainNet improves speed through a fast pixelwise learned mapping \citep{kang2021stainnet}, while ParamNet extends this direction with dynamic parameters for multi-to-one normalisation \citep{kang2024paramnet}. However, both remain learned normalisation approaches rather than few-shot scanner-specific adapter methods. Multi-reference statistical approaches improve robustness but do not solve the structure-safety and few-shot constraints simultaneously \citep{ivanov2024multitarget}.
+
+One of the strongest direct comparison points on MITOS-ATYPIA-14 is the 2025 attention-residual normalisation method, which reports structure-preserving results on the same paired scanner dataset \citep{madusanka2025attentionresidual}. It is therefore treated as a state-of-the-art colour-fidelity baseline. However, it does not test the same few-shot setting and does not address diffusion-style few-step inference. This proposal targets an under-addressed intersection of three requirements: few-shot scanner adaptation, explicit structural conditioning, and clinically practical inference speed.
+
+Recent work such as HistDiST \citep{grosskopf2025histdist} addresses H\&E-to-IHC stain translation through dual conditioning, but this is a different problem from the present work: this project performs H\&E-to-H\&E scanner-domain adaptation, where the stain type remains fixed and the target variation is scanner-induced colour shift rather than modality translation.
+\newpage
+\section{Position of the Proposed Pipeline}
+
+The closest architectural precedent is the SD~1.5 + LoRA + ControlNet plant-domain adaptation pipeline of \citet{hartley2024plant}, which showed that LoRA and ControlNet can support domain-targeted transfer from few examples. That work was not medical, did not evaluate nuclear geometry, and used standard diffusion inference rather than LCM acceleration. This project transfers the same general idea to H\&E stain normalisation but adds: paired scanner evaluation on MITOS-ATYPIA-14, HoVer-Net/Lizard structural-safety testing, LCM-vs-DDIM quality checks, downstream clinical utility evaluation, and a staged A0--A5 ablation ladder to isolate component contributions.
+
+% ==================================================================
+% CHAPTER 3: RESEARCH METHODOLOGY
+% ==================================================================
+\chapter{Research Methodology}
+\label{chap:methodology}
+
+This chapter states the research questions and hypotheses that drive the project, lists the experimental objectives, and describes the methodology --- including pipeline architecture, datasets, training protocol, and evaluation framework --- used to answer them.
+
+
+\section{Hypotheses, Research Questions and Objectives}
+
+\Cref{tab:hyp_rq} maps the main hypotheses, research questions, and experimental evidence used to test them.
+
+
+{
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{longtable}{L{0.08\textwidth}L{0.24\textwidth}L{0.30\textwidth}L{0.26\textwidth}}
+\caption{Hypotheses, research questions, and primary evidence.}
+\label{tab:hyp_rq} \\
+\toprule
+\textbf{H / RQ} & \textbf{Hypothesis} & \textbf{Research question} & \textbf{Primary evidence} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{H / RQ} & \textbf{Hypothesis} & \textbf{Research question} & \textbf{Primary evidence} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{4}{r}{\footnotesize\emph{Continued on next page}} \\
+\endfoot
+\bottomrule
+\endlastfoot
+H1 / RQ1 & $\leq$ 50 coordinate-corresponding A03/H03 crop pairs are sufficient to train the scanner-colour LoRA. & Can direction-specific LoRAs generalise to five held-out MITOS slide pairs without retraining? & Train on $\leq$ 50 A03/H03 pairs; evaluate on A06, A08, A09, A13, A16. \\
+\midrule
+H2 / RQ4 & The A$\rightarrow$H adapter improves colour fidelity over raw inputs and classical baselines. & Does colour fidelity improve on paired MITOS ground truth and across unseen CAMELYON17 centres? & MITOS: LAB Wasserstein vs real Hamamatsu. CAMELYON17: pairwise LAB Wasserstein, $D_{\text{post}} < D_{\text{pre}}$. \\
+\midrule
+H3 / RQ2 & ControlNet conditioning preserves nuclear morphology with Relative Dice $\geq 0.95$. & Does HoVer-Net-boundary conditioning prevent geometric degradation during colour transfer? & Lizard DigestPath/GlaS: Relative Dice = $\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$. \\
+\midrule
+H4 / RQ3 & Four-step LCM inference matches 50-step DDIM quality after weight-balance tuning. & What denoising-strength window and LoRA weight balance preserve quality under LCM acceleration? & 4-step LCM vs 50-step DDIM on held-out MITOS; SSIM, PSNR, artefact inspection. \\
+\end{longtable}
+}
+The project objectives are to train the direction-specific colour LoRAs; verify structural preservation under ControlNet conditioning; quantify the 4-step LCM quality/speed trade-off; isolate component contributions through A0--A5; test CAMELYON17 generalisation; transfer only the best SD~1.5 configuration to SDXL; and keep SD~3.5 as a bounded auxiliary feasibility probe rather than a core deliverable.
+
+\section{Methodology}
+\label{sec:methodology}
+
+The methodology consists of three coupled components: the pipeline architecture (Section~\ref{sec:pipeline_arch}), the datasets and their distinct roles (Section~\ref{sec:datasets}), and the experimental protocol that links the ablation conditions to the hypotheses (Section~\ref{sec:experiments}). Each component is described below in that order.
+
+% ------------------------------------------------------------------
+% Section under Methodology: Pipeline Architecture
+% ------------------------------------------------------------------
+\section{Pipeline Architecture}
+\label{sec:pipeline_arch}
+
+The proposed pipeline composes three components over a frozen Stable Diffusion 1.5 base. The SD~1.5 base weights are never updated during the experiment. Its role is to provide generic colour, texture, and image-generation priors. Structural preservation is the responsibility of the ControlNet-conditioned inference pathway and is verified empirically; scanner-specific colour adaptation is the responsibility of LoRA. \Cref{fig:overview_all_phases} provides a high-level overview of all three experimental phases; \Cref{fig:pipeline} illustrates the full single-patch normalisation pipeline from conditioning map extraction through VAE decode.
+\section{Phase 1: Ablation Pipeline}
+\label{sec:phase1_sec}
+\subsection{Methodological Approach: Incremental Ablation}
+\label{sec:ablation_methodology}
+
+A central methodological commitment of this project is that the three components (colour LoRA, ControlNet, LCM-LoRA) are never evaluated only in combination. If all three are activated simultaneously and the pipeline fails, the failure cannot be attributed to any specific component. The project therefore builds the pipeline in six sequential ablation conditions, summarised in \Cref{tab:ablation_ladder}, and reports results for each condition independently before activating the next.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Incremental ablation ladder. Each successive configuration adds exactly one component, isolating its contribution. A5 tests whether a histopathology-domain warm-start LoRA contributes beyond the vanilla base.}
+\label{tab:ablation_ladder}
+\begin{tabularx}{\textwidth}{cYcccc}
+\toprule
+\textbf{\#} & \textbf{Configuration} & \textbf{Hist.\ LoRA} & \textbf{Colour LoRA} & \textbf{ControlNet} & \textbf{LCM-LoRA} \\
+\midrule
+A0 & Base SD~1.5 only (img2img)                                & ---        & ---        & ---        & ---        \\
+A1 & Base + ControlNet                                          & ---        & ---        & \checkmark & ---        \\
+A2 & Base + colour LoRA                                         & ---        & \checkmark & ---        & ---        \\
+A3 & Base + ControlNet + colour LoRA                            & ---        & \checkmark & \checkmark & ---        \\
+A4 & Full pipeline (with LCM-LoRA)                              & ---        & \checkmark & \checkmark & \checkmark \\
+A5 & Warm-start: hist.\ LoRA + colour LoRA + ControlNet + LCM    & \checkmark & \checkmark & \checkmark & \checkmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A0 establishes the frozen-base zero baseline. A1 and A2 isolate structural conditioning and colour adaptation independently; A3 tests their combination before acceleration; A4 adds LCM-LoRA; and A5 tests whether a histopathology warm-start LoRA contributes beyond the vanilla base. Reporting all metrics per condition prevents the full stack from becoming an uninterpretable black box. \Cref{fig:phase1_ablation} provides a visual summary of the A0--A5 ablation ladder and the component additions at each step.
+
+\subsection{Sequential Adapter Training and Freezing Order}
+\label{sec:training_order}
+
+The order in which the trainable adapters are prepared and frozen is important. Two LoRAs trained jointly may interfere during gradient updates, and the pretrained LCM-LoRA should be evaluated only after the stain-normalisation adapters are fixed. The project therefore adopts the following sequential protocol for the full warm-start configuration (A5):
+
+\begin{enumerate}
+    \item \emph{(For A5 only)} Train the histopathology LoRA on 3{,}000 H\&E patches (1{,}000 PanNuke + 1{,}500 TCGA-BRCA + 500 MITOS from all 11 training pairs) against the frozen SD~1.5 base at rank 32, batch size 1, 3{,}000 steps. This adapter learns H\&E texture and tissue colour priors but performs no directional scanner mapping.
+    \item Freeze the histopathology LoRA. For ablations A0--A4 this step is skipped and the raw SD~1.5 base is used.
+    \item Train the colour LoRA on MITOS A03/H03 paired patches against the frozen base, optionally with the frozen histopathology LoRA already loaded for A5.
+    \item Freeze the colour LoRA. The base plus any frozen histopathology and colour adapters is now treated as the fixed stain-normalisation configuration.
+    \item Attach the pre-trained ControlNet branch; ControlNet weights are loaded as-is from public SD~1.5 Canny checkpoints \citep{zhang2023controlnet} and are not retrained during the planned LoRA training stages.
+    \item Attach the pretrained SD~1.5 LCM-LoRA adapter after the colour LoRA and optional histopathology LoRA have been frozen. The LCM-LoRA is not trained in this project; its compatibility with the trained stain-normalisation adapters is evaluated empirically by comparing 4-step LCM outputs against a 50-step DDIM reference using the same frozen colour-LoRA configuration.
+\end{enumerate}
+
+This sequential protocol ensures that only the histopathology and colour LoRAs are trained in this project. The pretrained LCM-LoRA is treated as an acceleration module whose effect is measured, not as a component retrained during the project timeline.
+
+\subsection{Data Exposure Boundary}
+
+The project does not claim that the frozen SD~1.5 base is histopathology-naive; it may have encountered medical imagery during LAION-scale pretraining. The relevant leakage boundary is therefore between the trained adapters and the held-out evaluation data. The colour LoRA uses only the $\leq$ 50 A03/H03 coordinate-corresponding crop pairs for directional scanner mapping. In the A5 condition, the histopathology warm-start LoRA may also include these same A03/H03 training crops as part of its broader unpaired H\&E prior-training pool, because it does not learn the paired A$\rightarrow$H mapping; the colour LoRA still performs the scanner-specific nudge from the same $\leq$ 50 paired examples. The five held-out MITOS test pairs (A06, A08, A09, A13, A16), CAMELYON17, and Lizard DigestPath/GlaS remain completely unseen during all training stages. PanNuke appears only in A5 warm-start training and is excluded from geometry verification.
+
+
+\subsection{LoRA: Data-Efficient Domain Mapping}
+
+Low-Rank Adaptation updates only the trainable matrices $B$ and $A$ in Equation~\ref{eq:lora}; the base weights $W_0$ remain frozen. This produces small scanner-specific adapters suitable for deployment without distributing full foundation-model checkpoints. Two colour LoRAs are trained on MITOS-ATYPIA-14: A$\rightarrow$H maps Aperio colour to Hamamatsu, and H$\rightarrow$A supports cycle consistency. The working rank hypothesis is that $r\in\{4,8\}$ should be sufficient in theory because scanner normalisation is expected to be a low-complexity colour shift rather than acquisition of new biological semantics. This is not assumed as fact: rank is treated as an experimental variable, and failure at low rank would be reported as evidence that the scanner mapping requires greater adapter capacity.
+
+\subsubsection{Histopathology Warm-Start LoRA (Ablation A5)}
+\label{sec:hist_lora}
+
+A5 tests whether a lightweight histopathology-domain prior improves over the vanilla SD~1.5 base. The warm-start LoRA is trained at rank 32 for 3{,}000 steps on exactly 3{,}000 H\&E patches: 1{,}000 PanNuke patches for tissue diversity, 1{,}500 TCGA-BRCA patches from 15 training slides, and 500 MITOS $\times$20 crops from the 11 training pairs. These MITOS warm-start crops may include the $\leq$ 50 A03/H03 colour-LoRA training crops, since the A5 adapter learns an unpaired H\&E prior rather than the directional scanner mapping. It is frozen before colour-LoRA training begins. The primary comparison is A5 against A4: a positive result quantifies the value of a combined tissue-and-target-domain prior; a negative result supports the claim that ControlNet plus the colour LoRA is sufficient.
+
+\paragraph{Data-leakage boundary.} The A5 MITOS crop pool may include the same A03/H03 crops used for colour-LoRA training, because A5 learns an unpaired histopathology prior rather than the directional scanner mapping. The five held-out MITOS test pairs remain completely excluded from every trained component. The 1{,}500 TCGA-BRCA A5 patches are disjoint from the 10-slide held-out LAB reference split. PanNuke appears in A5 training and is therefore excluded from geometry verification.
+
+\subsection{ControlNet: Geometry Conditioning and Structural Safety}
+
+ControlNet \citep{zhang2023controlnet} clones the encoder and middle blocks of the frozen U-Net into a trainable auxiliary branch. A structural conditioning map is injected at every denoising step through zero-initialised 1$\times$1 convolutions. At training onset, these zero weights ensure the network behaves identically to the frozen base; structural conditioning is learned incrementally without destabilising existing priors. The intended practical effect is to constrain nuclear boundaries, cell positions, and mitotic figures during colour transformation. This is not treated as a formal guarantee: structural preservation is tested directly through the Lizard/HoVer-Net Relative Dice protocol.
+
+HoVer-Net is a nuclear instance-segmentation model for H\&E histology images that separates touching nuclei by predicting horizontal and vertical distance maps, producing nuclear instance boundaries that can be compared against human-validated masks \citep{graham2019hovernet}. Two conditioning signals are used in sequence:
+
+\begin{itemize}
+    \item \textbf{Prototype signal}: Canny edge maps extracted from source patches. This is a lightweight CPU-only proxy used to verify that edge-style conditioning can capture visible nuclear boundaries in MITOS-ATYPIA-14 $\times$20 frames. A preliminary HoVer-Net + Canny ControlNet signal test is shown in \Cref{fig:canny1}; a smoke-test dry run of SD~1.5 conditioned on this signal at 0.35 denoising strength and 10 inference steps (with no colour LoRA or LCM-LoRA active) is shown in \Cref{fig:smoke_test}, confirming that the ControlNet conditioning pathway is operational and that structural edges survive the denoising pass at low step counts before the full ablation campaign begins.
+    \item \textbf{Final structural signal}: HoVer-Net-derived nuclear boundary maps. These provide biologically meaningful outlines that trace predicted nuclei rather than stain gradients, tissue folds, or background texture.
+\end{itemize}
+
+HoVer-Net instance predictions are converted into black-background, white-outline nuclear boundary maps before being supplied to the Canny-compatible ControlNet. The final structural pathway therefore uses biologically meaningful HoVer-Net-derived outlines, not raw Canny edges over stain gradients or tissue folds.
+
+
+\subsection{LCM Acceleration: Clinical Throughput}
+
+LCM-LoRA targets inference reduction from 50+ steps to a 4-step deployment path without updating the frozen base model. Because a WSI contains thousands of patches, step count must translate into measured per-patch latency on the target hardware. Compatibility is treated empirically: 4-step LCM outputs are compared with a 50-step DDIM baseline on held-out MITOS patches using SSIM, PSNR, and artefact inspection. The 50-step DDIM sampler is used as the quality reference because it represents the slower, higher-fidelity diffusion pathway using the same trained colour-LoRA configuration. The comparison therefore isolates the effect of LCM acceleration rather than changes in the stain adapter or base model. If quality drops below the accepted threshold (e.g. SSIM $<$ 0.85 or visible banding/checkerboarding), the pre-committed fallback is a 20-step DDIM sampler, which still preserves the rest of the pipeline and remains faster than the 50-step baseline.
+
+\subsection{Pipeline Overview}
+
+The full normalisation pipeline for a single patch is as follows (\Cref{fig:pipeline}):
+
+\begin{enumerate}
+    \item Extract a Canny edge map (prototype signal) or HoVer-Net nuclear boundary map (final structural signal) from the source patch.
+    \item Encode the source patch into latent space via the frozen VAE encoder.
+    \item Add noise to the latent according to the denoising strength selected during the RQ3 sweep.
+    \item Run few-step LCM denoising with the stain LoRA and pretrained LCM-LoRA active, conditioned at every step by the ControlNet structural map.
+    \item Decode the denoised latent back to pixel space via the frozen VAE decoder.
+\end{enumerate}
+
+Denoising strength is treated as an experimental variable rather than a fixed prior assumption. Low values may preserve structure but fail to shift colour sufficiently; high values may improve colour transfer while increasing structural drift. The safe operating window is therefore identified empirically during the LCM quality and denoising-strength sweep.
+
+
+\subsection{Phase 3: Architecture Transfer to SDXL}
+\label{sec:phase3_sdxl}
+
+Phase~1 establishes the full A0--A5 ablation ladder on SD~1.5 and Phase~2 evaluates those configurations. Phase~3 then transfers only the best-performing Phase~1 configuration to Stable Diffusion XL (SDXL) \citep{podell2023sdxl}. \Cref{fig:phase3_sdxl} illustrates the SDXL transfer pathway and the points at which it diverges from the SD~1.5 pipeline. SDXL is selected not as a claim that it is the final ``modern'' architecture, but because it is the most suitable compatibility-preserving portability check: it keeps the same broad Stable Diffusion UNet family while offering a larger base model and stronger image prior than SD~1.5.
+
+The key reason for using SDXL is tool-chain continuity. LoRA training is mature on SDXL through the same diffusers training ecosystem used in Phase~1; SDXL ControlNet checkpoints support Canny and related structural-conditioning inputs; and the \texttt{latent-consistency/lcm-lora-sdxl} adapter provides an SDXL-compatible LCM-LoRA pathway for 2--8 step inference \citep{luo2023lcmlora}. This allows the project to test whether the best SD~1.5 component combination remains viable on a larger compatible backbone without changing the underlying LoRA + ControlNet + LCM-LoRA mechanism.
+
+The SDXL experiment deliberately does not repeat the full ablation ladder. Running A0--A5 again on SDXL would multiply compute cost without adding proportional scientific value, because Phase~1 already isolates the contribution of each component. Instead, the best-performing SD~1.5 configuration is transferred and compared against its SD~1.5 counterpart using the same colour, structure, and speed metrics. If unexpected SDXL behaviour appears, only targeted follow-up checks are run.
+
+Existing SDXL LoRA reports suggest that small-image-set LoRA training is feasible on a single modern GPU, but the project does not rely on these estimates as a guarantee \citep{salad2024sdxl}. SDXL transfer is therefore treated as compute-contingent: if training time or memory requirements are excessive, Phase~3 is descoped to a smaller rank, fewer evaluation slides, or a partial transfer, while the SD~1.5 A0--A5 results remain the core contribution.
+
+\subsubsection{Warm-Start Variant on SDXL (Contingent)}
+\label{sec:sdxl_a5}
+
+The A5 histopathology warm-start variant is transferred to SDXL only if it first shows measurable benefit on SD~1.5. If A5 improves Wasserstein distance, structural metrics, or robustness beyond A4 by more than the inter-run noise floor, an SDXL-equivalent histopathology LoRA is trained and tested. If A5 does not improve on A4, the SDXL transfer uses the vanilla SDXL base only, and the negative A5 result is reported as evidence that ControlNet plus the colour LoRA is sufficient without a domain warm-start.
+
+\subsubsection{Auxiliary SD~3.5 Feasibility Probe}
+\label{sec:sd35_probe}
+
+SD~3.5 is included only as an auxiliary feasibility probe. Unlike SD~1.5 and SDXL, SD~3.5 uses an MMDiT-family architecture, and its few-step variant uses adversarial diffusion distillation rather than LCM-LoRA. It is therefore not a direct implementation of the proposed pipeline, is not part of A0--A5, and is not used to answer the main LCM-LoRA research question. Its role is to test whether the colour-mapping and structural-conditioning ideas remain plausible on a newer architecture.
+
+The probe is restricted to four measurements: LoRA training time and peak VRAM; whether an A$\rightarrow$H LoRA trained on the same $\leq$ 50 A03/H03 crop pairs reduces LAB Wasserstein distance on 10--20 held-out MITOS patches; whether SD~3.5 Canny ControlNet can use HoVer-Net-derived nuclear boundary maps without obvious structural drift; and whether SD~3.5 Turbo provides a useful modern few-step reference, explicitly not treated as an LCM-LoRA equivalent. It is attempted first on \texttt{bigbatch} RTX3090 24GB nodes; \texttt{biggpu} is used only for mature debugged code. If memory, queue time, or runtime is prohibitive, infeasibility is reported as a compute-bound limitation and does not affect the main SD~1.5/SDXL deliverables.
+
+% ------------------------------------------------------------------
+% Section under Methodology: Datasets
+% ------------------------------------------------------------------
+\section{Datasets}
+\label{sec:datasets}
+
+\subsection{MITOS-ATYPIA-14: Training and Clinical Evaluation}
+
+MITOS-ATYPIA-14 is the ICPR 2014 Challenge dataset from Pitié-Salpêtrière Hospital, Paris \citep{roux2014mitos}. The same physical tissue block was scanned on both Aperio ScanScope XT (warm pink profile) and Hamamatsu NanoZoomer 2.0-HT (deep purple/blue profile). Any measured difference between corresponding patches is attributable to scanner-induced colour variation rather than biological variation. The dataset is publicly available, requires no registration or ethics approval, and has been fully downloaded and verified.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{MITOS-ATYPIA-14 training slide pairs and project roles}
+\label{tab:mitos_roles}
+\begin{tabularx}{\textwidth}{L{0.22\textwidth}L{0.27\textwidth}Y}
+\toprule
+\textbf{Aperio} & \textbf{Hamamatsu} & \textbf{Role} \\
+\midrule
+A03 & H03 & Colour LoRA training ($\leq$ 50 paired crops); also in A5 hist LoRA pool \\
+A04, A05, A07, A10, A11, A12, A14, A15, A17, A18 & H04, H05, H07, H10, H11, H12, H14, H15, H17, H18 & A5 hist LoRA pool only \\
+\midrule
+A06, A08, A09, A13, A16 & H06, H08, H09, H13, H16 & \textbf{Held-out test --- never used for training} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsubsection{Train/Evaluation Split}
+
+The colour LoRA adapters are trained on $\leq$ 50 coordinate-corresponding $\times$20 crop pairs extracted from A03/H03 only, within the $\leq$50-pair few-shot cap. For the A5 ablation condition, the histopathology warm-start LoRA additionally uses 500 randomly sampled $\times$20 crops from all 11 training pairs (22 slide files), excluding the 5 held-out test pairs but allowed to include the A03/H03 colour-LoRA training crops as part of the unpaired prior-training pool. Generalisation is evaluated on the five held-out test pairs without any retraining:
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{MITOS-ATYPIA-14 training and evaluation protocol}
+\label{tab:split}
+\begin{tabularx}{\textwidth}{L{0.30\textwidth}L{0.37\textwidth}Y}
+\toprule
+\textbf{Role} & \textbf{Slide Pairs} & \textbf{Data Used} \\
+\midrule
+Colour LoRA training (A2--A4) & A03/H03 (one pair) & $\leq$ 50 coordinate-corresponding $\times$20 crop pairs \\
+A5 hist LoRA pool & All 11 training pairs (22 files) & 500 randomly sampled $\times$20 crops \\
+\midrule
+Generalisation test & A06/H06, A08/H08, A09/H09, A13/H13, A16/H16 & All $\times$20 frames + annotations \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+For each test slide pair, the ground-truth Hamamatsu scan is available, enabling direct comparison between normalised output and physical ground truth. This protocol tests few-shot generalisation: the colour LoRA is trained on $\leq$ 50 examples from one slide pair and applied to five different slide pairs without retraining.
+
+\subsection{CAMELYON17: Multi-Centre Generalisation Benchmark}
+
+CAMELYON17 \citep{bandi2018camelyon17} contains breast cancer lymph node whole-slide images from five distinct medical centres in the Netherlands, each with different tissue preparation, fixation, and staining protocols. The dataset is released under a CC0 licence with no access restrictions. Patch extraction uses tiatoolbox \citep{tialab2022tiatoolbox} via its built-in WSI reading interface.
+
+CAMELYON17 is never used for training. Its sole purpose is to test whether the LoRA adapter trained on MITOS-ATYPIA-14 generalises to unseen institutional colour profiles.
+
+\subsubsection{Centre Selection}
+
+\textbf{Three patients per centre} are selected via \texttt{stage\_labels.csv} groupby, giving 15 patient files total ($\sim$45--75\,GB). Three patients per centre strengthens the generalisation claim over a single- or two-patient design --- it provides stronger evidence that the result is not a per-patient fluke while keeping the download and processing footprint manageable. 100 random 512$\times$512 tissue patches are extracted per patient file; patches from all three files within a centre are pooled into one per-centre sample before computing inter-centre distances, preserving the 5-centre, 10-pairwise-distance structure. See \Cref{tab:camelyon} for the full centre-to-patient mapping.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{CAMELYON17 centre-to-patient mapping (3 patients per centre, 15 files total)}
+\label{tab:camelyon}
+\begin{tabularx}{0.85\textwidth}{cY}
+\toprule
+\textbf{Centre} & \textbf{Patient Files} \\
+\midrule
+0 & patient\_000.zip, patient\_001.zip, patient\_002.zip \\
+1 & patient\_020.zip, patient\_021.zip, patient\_023.zip \\
+2 & patient\_040.zip, patient\_041.zip, patient\_043.zip \\
+3 & patient\_060.zip, patient\_061.zip, patient\_062.zip \\
+4 & patient\_080.zip, patient\_081.zip, patient\_082.zip \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{TCGA-BRCA: Target Colour Distribution Reference}
+
+TCGA-BRCA diagnostic slides provide a breast-specific reference rather than a colon-derived colour target. Twenty-five DX (FFPE diagnostic) slides are split strictly: 15 slides produce 1{,}500 patches for A5 warm-start LoRA training, and 10 disjoint slides produce 1{,}000 held-out patches for LAB-reference construction. LAB histograms are computed directly from raw pixels, not via Macenko deconvolution, to keep the metric neutral across competing methods.
+
+\subsection{PanNuke and Lizard}
+
+PanNuke \citep{gamper2019pannuke} is used only in A5 warm-start training: 1{,}000 stratified patches across 19 tissue types. PanNuke images are provided at 256$\times$256 resolution; for compatibility with the 512$\times$512 diffusion training pipeline, selected patches are upscaled to 512$\times$512 using Lanczos-4 interpolation. This is deterministic resizing rather than learned super-resolution, and the resizing procedure is validated against the original images using image-similarity checks before training. A prior resize audit obtained SSIM $\approx 0.99954$ and PSNR $\approx 56.28$ dB, supporting its use for warm-start texture exposure rather than geometry evaluation. Because PanNuke appears in training, it is excluded from geometry verification. Geometry verification uses Lizard \citep{graham2021lizard} DigestPath/GlaS regions only, extracting native 512$\times$512 crops with human-validated nuclear masks. Lizard is never used for training.
+
+% ------------------------------------------------------------------
+% Section under Methodology: Experimental Protocol and Evaluation
+% ------------------------------------------------------------------
+\section{Phase 2: Experimental Protocol and Evaluation}
+\label{sec:experiments}
+
+\Cref{tab:eval} summarises the evaluation design. Metrics are reported separately for A0--A5. The SD~3.5 probe is reported separately as architecture-feasibility evidence and is not counted as a core evaluation. \Cref{fig:phase2_evaluation} illustrates the evaluation flow across colour, structural, and clinical utility axes.
+
+\begin{table}[ht]
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\renewcommand{\arraystretch}{1.12}
+\caption{Evaluation framework summary}
+\label{tab:eval}
+\begin{tabularx}{\textwidth}{L{0.17\textwidth}L{0.20\textwidth}L{0.17\textwidth}L{0.25\textwidth}Y}
+\toprule
+\textbf{Evaluation} & \textbf{Test} & \textbf{Dataset} & \textbf{Metric} & \textbf{Threshold} \\
+\midrule
+Colour accuracy (MITOS) & Output vs real Hamamatsu GT & MITOS test pairs & LAB Wasserstein dist. & Lower than baselines \\
+\midrule
+Colour accuracy (CAMELYON17) & Inter-centre variance reduction & CAMELYON17 $\times$5 centres & Pairwise LAB Wasserstein & $D_{\text{post}} < D_{\text{pre}}$ \\
+\midrule
+Structural safety & HoVer-Net vs Lizard ground truth & Lizard DigestPath/GlaS & Relative Dice = Dice(B,G)/Dice(A,G) & $\geq 0.95$ \\
+\midrule
+Clinical utility & Downstream classifier delta & MITOS-ATYPIA-14 & Atypia score accuracy; mitosis F-measure & Positive delta \\
+\midrule
+Cycle consistency & GT direct + round trip & MITOS-ATYPIA-14 & Grayscale SSIM, PSNR, MAE & vs baselines \\
+\midrule
+Auxiliary SD~3.5 probe & Architecture-feasibility check & 10--20 held-out MITOS patches; optional Lizard subset & Training time, peak VRAM, LAB Wasserstein, SSIM, nuclear-count consistency & Feasible / limitation reported \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Colour Accuracy}
+
+\textbf{For MITOS held-out test pairs (A06--A16):} the real paired Hamamatsu scan is available. Colour accuracy is measured as LAB-histogram Wasserstein distance between the normalised Aperio output and the \textbf{real Hamamatsu ground-truth scan} of the same tissue, post-registration. This is the strongest colour accuracy test because a physical scanner ground truth exists.
+
+\textbf{For CAMELYON17 (5 centres):} no paired Hamamatsu scan exists. The test is \textbf{inter-centre pairwise variance reduction}: pairwise LAB-histogram Wasserstein distances between all five centres are computed before normalisation ($D_{\text{pre}}$, 10 distances) and after ($D_{\text{post}}$, 10 distances). Success is $D_{\text{post}} < D_{\text{pre}}$, reported with effect sizes and bootstrap confidence intervals. Patches from the three patient files per centre are pooled into one per-centre sample before computing distances, preserving the 5-centre structure. The 10 pairwise distances are not independent (each centre appears in multiple pairs); significance testing is treated as supportive rather than as hospital-level inference.
+
+The TCGA-BRCA held-out reference (10 slides, LAB histograms from raw pixels) serves as a method-neutral secondary reference for comparing baseline methods on the MITOS colour fidelity test.
+
+\subsection{Structural Safety}
+
+HoVer-Net \citep{graham2019hovernet} is run on both the original and normalised versions of \textbf{Lizard DigestPath/GlaS} patches only (PanNuke is excluded because it appears in the A5 hist LoRA training). The evaluation uses the following triangle:
+
+\begin{itemize}
+    \item \textbf{G}: Lizard human-validated ground-truth nuclear mask.
+    \item \textbf{A}: HoVer-Net prediction on the \emph{original} patch.
+    \item \textbf{B}: HoVer-Net prediction on the \emph{normalised} patch.
+\end{itemize}
+
+HoVer-Net reliability is validated on held-out Lizard crops (Dice(A,G)) before it is used as a measurement instrument. The primary metric is:
+
+\begin{equation}
+\text{Relative Dice} = \frac{\mathrm{Dice}(B, G)}{\mathrm{Dice}(A, G)} \geq 0.95
+\end{equation}
+
+This asks whether normalisation reduces HoVer-Net's accuracy relative to human ground truth --- not merely whether the two HoVer-Net outputs self-consistently agree. Secondary metrics: IoU, object-level F1-score, nuclear count consistency. A null result (no statistically significant degradation) is the success condition.
+
+\subsection{Clinical Utility}
+
+A standard diagnostic classifier is trained on raw Aperio ($\times$20) patches and evaluated on raw Hamamatsu, Macenko, Reinhard, Histogram Matching, StainNet, reproducible pretrained StainGAN if available, and the proposed A0--A5 outputs. The primary contribution metric is recovery delta = performance(Proposed) $-$ performance(Raw Hamamatsu). The primary MITOS-ATYPIA-14 metric is atypia score accuracy at $\times$20; macro-AUC/F1 are secondary. Mitosis detection at $\times$40 is reported with the official F-measure and treated as cross-magnification generalisation.
+
+\subsection{Cycle Consistency}
+
+Two complementary tests are run on the five official MITOS held-out test slide pairs (A06, A08, A09, A13, A16).
+
+\subsubsection{Ground Truth Direct Comparison}
+
+\begin{equation}
+\text{A06\_00A} \xrightarrow{\text{LoRA A}\rightarrow\text{H}} \hat{H}\text{06\_00A} \longleftrightarrow \text{Real H06\_00A}
+\end{equation}
+
+The normalised Aperio output from a held-out test slide is compared directly to the registered physical Hamamatsu scan of the same tissue. Affine registration is applied before computing pixel-level metrics to correct for scanner-induced spatial offsets; without registration, MAE and PSNR measure misalignment error rather than colour error. Metrics (post-registration): grayscale SSIM (structural), PSNR, MAE.
+
+\subsubsection{Round Trip Reconstruction}
+
+\begin{equation}
+\text{A06} \xrightarrow{\text{LoRA A}\rightarrow\text{H}} \hat{H}\text{06} \xrightarrow{\text{LoRA H}\rightarrow\text{A}} \hat{A}\text{06} \longleftrightarrow \text{Original A06}
+\end{equation}
+
+The reconstructed Aperio patch is compared to the original input. Any deviation indicates that the pipeline altered something beyond colour during the round trip. \textbf{This test uses a deterministic 50-step DDIM sampler} with the same trained LoRA weights --- not LCM. LCM is an approximation solver and its stochastic drift on the return pass would contaminate the structural deviation measurement. LCM is reserved strictly for the unidirectional deployment pipeline. Metrics: grayscale SSIM, PSNR, MAE.
+\newpage
+\subsection{Baselines}
+
+All proposed pipeline configurations are compared against the baselines in \Cref{tab:baselines}.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Baseline methods and their failure modes across the three clinical requirements}
+\label{tab:baselines}
+\begin{tabularx}{\textwidth}{Yccc}
+\toprule
+\textbf{Method} & \textbf{Few-Shot} & \textbf{Fast} & \textbf{Structure-Safe} \\
+\midrule
+Raw / do-nothing & \checkmark & \checkmark & N/A \\
+Macenko \citep{macenko2009normalisation} & \checkmark & \checkmark & $\sim$ \\
+Reinhard \citep{reinhard2001colortransfer} & \checkmark & \checkmark & $\sim$ \\
+Histogram Matching & \checkmark & \checkmark & $\sim$ \\
+StainNet \citep{kang2021stainnet} & $\times$ & \checkmark & $\sim$ \\
+Pretrained StainGAN \citep{shaban2019staingan} & $\times$ & $\times$ & $\times$ \\
+ParamNet \citep{kang2024paramnet} & $\times$ & \checkmark & $\sim$ \\
+\textbf{Proposed (LCM-LoRA-ControlNet)} & \checkmark & \checkmark & empirically tested \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% ==================================================================
+% CHAPTER 4: RESEARCH PLAN
+% ==================================================================
+\chapter{Research Plan}
+
+
+\section{Time Plan}
+
+\Cref{fig:gantt} summarises the planned work in two-week blocks, following the requested biweekly planning structure.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/gantt_chart-1.pdf}
+    \caption{Biweekly Gantt chart for the proposed research plan. Core SD~1.5 ablations are completed first, followed by evaluation, SDXL portability testing, optional SD~3.5 feasibility probing, and dissertation write-up.}
+    \label{fig:gantt}
+\end{figure}
+
+\noindent\textbf{Architecture decision gate.} At the end of Phase~1 the project formally reviews the SD~1.5 ablation results (A0--A5) and the SDXL compute-contingency evidence. Three outcomes are possible. (i)~If SDXL training is expected to be feasible and Phase~1 results are clean, Phase~3 executes as planned; if A5 demonstrated measurable contribution from histopathology priors on SD~1.5, the warm-start variant is also reproduced on SDXL (Section~\ref{sec:sdxl_a5}). (ii)~If SDXL training is expected to be slow, Phase~3 is descoped to a partial transfer (smaller LoRA rank or fewer evaluation slides) while the SD~1.5 ablation results form the core contribution. (iii)~If Phase~1 reveals a fundamental issue with the architecture on histopathology, deeper diagnostic ablations on SD~1.5 are run instead of the SDXL transfer; the project remains complete and defensible because the SD~1.5 ablation ladder is itself the primary experimental contribution. The SD~3.5 probe is evaluated separately from the SDXL decision. A successful probe is reported as auxiliary evidence that the colour-mapping and structural-conditioning ideas may extend to newer MMDiT-family models; an unsuccessful probe is reported as a compute or compatibility limitation and does not affect the success criteria of the main project.
+
+
+\section{Risks and Mitigations}
+\label{sec:risks}
+
+\Cref{tab:risks} summarises the main project risks and mitigations.
+
+\begin{table}[H]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.12}
+\caption{Project risks and mitigation strategies.}
+\label{tab:risks}
+\begin{tabularx}{\textwidth}{L{0.36\textwidth}Y}
+\toprule
+\textbf{Risk} & \textbf{Mitigation} \\
+\midrule
+$\leq$ 50 coordinate-corresponding pairs are insufficient for colour LoRA training. & Treat as H1. Increase rank from 4 to 8 and, if needed, expand overlapping crops from the same A03/H03 pair while reporting the minimum viable pair count. \\
+\midrule
+Quality or structural degradation under LCM/ControlNet settings. & Run denoising-strength and LoRA-weight sweeps before the main campaign; fall back to 20-step DDIM if 4-step LCM degrades SSIM or introduces artefacts. \\
+\midrule
+LoRA-stacking interference between histopathology, colour, and LCM adapters. & Use the sequential freezing protocol in Section~\ref{sec:training_order}; quantify the effect through A5 vs A4 rather than assuming warm-start benefit. \\
+\midrule
+SDXL or SD~3.5 exceeds available compute or schedule. & Use early compute-contingency checks. SDXL can be descoped to smaller rank/fewer slides; SD~3.5 is auxiliary only and infeasibility is reported as a limitation, not project failure. \\
+\midrule
+CAMELYON17 full download is too large. & Use the planned selective subset: three patient files per centre, fifteen files total, preserving five-centre pairwise variance testing. \\
+\midrule
+HoVer-Net errors affect geometry verification. & Validate HoVer-Net against Lizard human masks first and use Relative Dice, $\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$, to measure degradation relative to ground truth. \\
+\midrule
+Contemporary work supersedes a dataset-specific claim. & Position the contribution, to the best of our knowledge, as the first LCM~+~LoRA~+~ControlNet few-shot H\&E scanner-normalisation pipeline, and compare directly against current MITOS baselines where available. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+\newpage
+\section{Ethics}
+\label{sec:ethics}
+
+This project uses only publicly released datasets: MITOS-ATYPIA-14 \citep{roux2014mitos}, CAMELYON17 \citep{bandi2018camelyon17}, TCGA-BRCA via the GDC Data Portal, PanNuke \citep{gamper2019pannuke}, and Lizard \citep{graham2021lizard}. No patient-identifiable information is accessed, no local clinical data is requested or used, and the project is limited to computational analysis of open research datasets.
+
+Future extension of this pipeline to NHLS or other local clinical data would require formal ethics review and is acknowledged as out of scope for the present proposal.
+
+\clearpage
+% ==================================================================
+% CHAPTER 5: CONCLUSION
+% ==================================================================
+\chapter{Conclusion}
+
+This proposal has identified an under-explored position in the histopathology stain-normalisation literature: to the best of our knowledge, no existing method simultaneously satisfies the three clinical requirements of fast inference, structural safety, and few-shot data efficiency. The proposed pipeline --- composing LCM-LoRA, scanner-domain LoRA, and ControlNet over a frozen Stable Diffusion 1.5 base --- is designed to address all three.
+
+Four hypotheses define concrete pass/fail thresholds: $\leq$ 50 coordinate-corresponding pairs as the training budget (H1), colour fidelity improvement over baselines on both MITOS paired ground truth and CAMELYON17 cross-centre variance (H2), Relative Dice $\geq 0.95$ under the Lizard/HoVer-Net structural-safety protocol (H3), and four-step LCM inference matching 50-step DDIM quality (H4). Each is testable on publicly available data within the project timeline.
+
+The principal risks --- LCM quality degradation, SDXL compute cost, and the auxiliary SD~3.5 probe --- each have pre-committed fallback conditions that preserve the core SD~1.5 ablation contribution regardless of outcome. If the hypotheses hold, the result is a stain-normalisation pipeline that explicitly combines few-shot LoRA scanner adaptation, ControlNet-based structural conditioning, and LCM-style few-step inference --- an intersection of requirements that, to our knowledge, has not been jointly addressed in prior work.
+
+% ==================================================================
+% REFERENCES
+% ==================================================================
+\phantomsection
+\addcontentsline{toc}{chapter}{References}
+\bibliography{references}
+
+% ==================================================================
+% APPENDIX
+% ==================================================================
+\appendix
+\chapter{Supplementary Figures}
+\label{chap:appendix}
+
+This appendix collects the pipeline architecture diagrams, phase-level workflow diagrams, and preliminary experimental results referenced throughout the proposal.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{images/overview_all_phases}
+    \caption{Overview of all three experimental phases.}
+    \label{fig:overview_all_phases}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/phase1_ablation}
+    \caption{Phase~1 ablation ladder (A0--A5) on SD~1.5.}
+    \label{fig:phase1_ablation}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/phase2_evaluation}
+    \caption{Phase~2 evaluation framework.}
+    \label{fig:phase2_evaluation}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.32\textheight,keepaspectratio]{images/phase3_sdxl}
+    \caption{Phase~3 SDXL portability transfer.}
+    \label{fig:phase3_sdxl}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.78\textheight,keepaspectratio]{images/pipeline}
+    \caption{End-to-end single-patch normalisation pipeline.}
+    \label{fig:pipeline}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{images/canny2.png}
+    \caption{HoVer-Net + Canny ControlNet signal test.}
+    \label{fig:canny1}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth,height=0.42\textheight,keepaspectratio]{images/smoke_test_results2}
+    \caption{Smoke-test dry run: SD~1.5 with HoVer-Net-derived Canny ControlNet only, 0.35 denoise, 10 steps.}
+    \label{fig:smoke_test}
+\end{figure}
+
+\end{document}
