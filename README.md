@@ -1,7 +1,20 @@
-# Histopathology Stain Normalisation
+# Few-Shot Scanner Stain Normalisation
 
-Diffusion-based stain normalisation for histopathology, evaluated across scanners
-and centres.
+Diffusion-based, few-shot H&E **stain normalisation across scanners** (Aperio ↔
+Hamamatsu) — a frozen Stable Diffusion 1.5 base adapted with a colour LoRA,
+ControlNet, and LCM-LoRA, evaluated for colour fidelity, structural safety, and
+clinical utility across multiple public histopathology datasets.
+
+BSc Honours research project, University of the Witwatersrand. Supervisor: Richard
+Klein.
+
+## Status
+
+See [`tickets/`](tickets/) for the live task board — one file per phase, each ticket
+citing the proposal section it comes from and its current status with evidence
+(Slurm job IDs, output files). `tickets/README.md` explains the ticket ID scheme and
+status legend. This is the authoritative source for "what's actually done" — treat
+anything below as the stable method description, not a progress report.
 
 ## Phase model
 
@@ -11,6 +24,22 @@ and centres.
 | **Phase 2** | Evaluation | Colour, structural, clinical, cycle-consistency, and multi-centre generalisation. |
 | **Phase 3** | SDXL portability | Transfers the best Phase-1 configuration to SDXL. |
 | **Probe** | SD3.5 feasibility | Auxiliary feasibility check. **Not a phase** — kept separate and out of the main results. |
+
+## Method summary
+
+A frozen SD1.5 base is adapted with a **colour LoRA** trained on ≤50
+coordinate-corresponding crop pairs from a single Aperio/Hamamatsu slide pair
+(few-shot), then evaluated for generalisation on five entirely held-out slide pairs
+never seen during training. ControlNet (Canny) and an LCM-LoRA are added in later
+ablation rungs for structural conditioning and few-step inference. Direction is
+explicit: `A2H` (Aperio→Hamamatsu) and `H2A` (Hamamatsu→Aperio, for cycle-consistency
+checks) are trained as separate adapters, each at rank 4 and rank 8.
+
+Evaluation is multi-axis: LAB-histogram Wasserstein distance against real paired
+ground truth (the strongest test available, since MITOS-ATYPIA-14 provides physical
+scans of the same tissue on both scanners), inter-centre variance reduction on
+CAMELYON17, HoVer-Net structural-safety checks against Lizard, and downstream
+classifier deltas for clinical utility.
 
 ## Why data is stored by dataset, not by phase
 
@@ -43,17 +72,23 @@ So `data/` answers *"where does this dataset live?"* and `phase*/INPUTS.md` answ
 The TCGA-BRCA Phase-1 and Phase-2 slide sets are **disjoint** — no slide used for
 warm-start appears in the LAB colour reference.
 
+All datasets are public research releases (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA via
+GDC, PanNuke, Lizard) — no patient-identifiable information is used. Raw data itself
+is not committed to this repo (see `.gitignore`); it lives locally and on the compute
+cluster's `/datasets` storage.
+
 ## Code layout
 
-**See CLAUDE.md's "Layout" section — it is the canonical reference for where code
-lives** (`src/data/`, `src/train/`, `src/eval/`, `slurm/`). This README does not
-restate it, to avoid the two docs drifting out of sync again.
+**See [`CLAUDE.md`](CLAUDE.md)'s "Layout" section — it is the canonical reference for
+where code lives** (`src/data/`, `src/train/`, `src/eval/`, `slurm/`). This README
+does not restate it, to avoid the two docs drifting out of sync.
 
 `phase1_ablation/`, `phase2_evaluation/`, `phase3_sdxl/`, and `probe_sd35/` are
 **documentation-only** — each is just an `INPUTS.md` giving the phase-centric view
 described above (which datasets/paths that phase reads and writes). They hold no
 code, configs, checkpoints, or results; real artifacts live under `src/`, `slurm/`,
-and the cluster `/datasets/mhoosen/stain-norm/` paths referenced from each `INPUTS.md`.
+and the compute cluster's `/datasets/.../stain-norm/` paths referenced from each
+`INPUTS.md`.
 
 ### Notes on specific data paths
 
@@ -67,3 +102,18 @@ and the cluster `/datasets/mhoosen/stain-norm/` paths referenced from each `INPU
 - **`src/eval/progress.py`** is a utility and would fit `src/utils/`, but `metrics.py`,
   `registration.py`, `infer_colour_lora.py`, and `score_outputs.py` import it as a flat
   sibling. It stays in `src/eval/` until those imports are refactored.
+
+## Running this
+
+All training and inference runs on a Slurm HPC cluster, never locally — see
+`CLAUDE.md` for the full cluster workflow (partitions, environment activation, known
+gotchas). In brief:
+
+```
+rsync -av ./src ./slurm <cluster>:<remote-code-root>/
+ssh <cluster> 'sbatch slurm/train_colour_lora.slurm A2H 8'
+ssh <cluster> 'sbatch slurm/infer_colour_lora.slurm a2h_r8 "0.3 0.4 0.5" 0'
+ssh <cluster> 'sbatch slurm/score_outputs.slurm a2h_r8'
+```
+
+Each `.slurm` script's header comment documents its exact argument usage.
