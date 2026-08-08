@@ -51,8 +51,19 @@ but is empty.
   (under `pairs/`, not `eval/`). Fails gracefully (scores without recovery delta) rather
   than crashing, but would silently violate this ticket's acceptance criteria if not
   fixed before the next run.
-**Next step:** fix both `.slurm` bugs (missing cv2 in the dependency check;
-wrong baseline path), then re-submit both jobs.
+**Fixes applied (2026-08-08, not yet re-run):**
+- `infer_colour_lora.slurm`: dependency check now includes `cv2`; `HELDOUT` corrected
+  to `pairs/heldout_frames.csv` (was pointing at a nonexistent `scanner_lora_pairs/`).
+- `score_outputs.slurm`: `BASELINE` corrected to `pairs/baseline_metrics/...`.
+- **Third blocker found while fixing:** `MITOS_ROOT` pointed at `data/mitos`, which
+  never existed on the cluster — the raw held-out MITOS testing frames were never
+  uploaded (only derived crops in `pairs/`). Per `tab:split` in the proposal, the
+  generalisation test needs "All ×20 frames" for A06/A08/A09/A13/A16, not just crops.
+  Resolved: added canonical `mitos_heldout/` folder (see CLAUDE.md's cluster data
+  layout section) and uploaded `mitos_atypia_2014_testing_{aperio,hamamatsu}/`
+  (~10.4GB) there; `MITOS_ROOT` now points at it.
+**Next step:** confirm the upload finished cleanly, then re-submit
+`infer_colour_lora.slurm a2h_r8` → `score_outputs.slurm a2h_r8`.
 
 ## P2-05 — Evaluation run: A2H rank 4
 **Status:** TODO — depends on P1-03b (done) + P2-03 (done); just needs submitting

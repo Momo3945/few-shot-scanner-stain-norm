@@ -23,7 +23,7 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-MITOS_ROOT=/datasets/mhoosen/stain-norm/data/mitos     # NOTE: raw held-out testing frames not yet uploaded here -- see CLAUDE.md
+MITOS_ROOT=/datasets/mhoosen/stain-norm/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
 LORA_ROOT=${DATA_ROOT}/lora
 export HF_HOME=/datasets/mhoosen/hf_cache

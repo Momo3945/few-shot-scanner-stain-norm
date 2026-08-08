@@ -81,6 +81,23 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 
+## Cluster data layout — `/datasets/mhoosen/stain-norm/` (CANONICAL, resolved 2026-08-08)
+Flat, sibling-folder convention — no `data/` wrapper. Each folder is a distinct role;
+do not create new top-level folders without updating this list.
+- `pairs/` — derived MITOS training crops + baseline metrics + registered heldout audit
+  overlays + `heldout_frames.csv`/`train_manifest.csv`. NOT raw.
+- `hist_lora_pool/` — derived A5 warm-start patches (mitos/pannuke/tcga) + manifests.
+- `mitos_heldout/` — **raw** held-out MITOS-ATYPIA testing frames (`mitos_atypia_2014_
+  testing_aperio/`, `..._testing_hamamatsu/`), full ×20 tiles for A06/A08/A09/A13/A16.
+  This is the only raw-data folder here — everything else is derived. Needed as
+  `infer_colour_lora.slurm`'s `MITOS_ROOT` (its paths join directly with
+  `heldout_frames.csv`'s relative `aperio_path`/`hamamatsu_path` columns).
+- `lora/` — trained colour-LoRA checkpoints, one dir per `<direction>_r<rank>` run.
+- `eval/` — inference + scoring outputs per run (`eval_manifest.csv`, `eval_per_crop.csv`,
+  `eval_summary.csv`).
+- No stray `.zip` archives here — if a folder was extracted from one, the zip is deleted
+  once the extraction is verified (source zips still exist locally if needed again).
+
 ## Layout (CANONICAL — this section is authoritative; README.md defers to this)
 - `src/data/`  extract_pairs.py, inspect_mitos.py, sample_hist_mitos.py
 - `src/train/` train_colour_lora.py
