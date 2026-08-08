@@ -27,12 +27,15 @@ reference per proposal), `src/eval/score_outputs.py` (LAB/SSIM/PSNR/MAE + recove
 delta vs P2-01 baseline, robust per-slide outlier flagging).
 
 ## P2-04 — First evaluation run: A2H rank 8
-**Status:** 🔄 IN PROGRESS — BLOCKED. Both jobs FAILED, not completed (verified against
-`.err` logs, not assumed from submission — see CLAUDE.md rule).
+**Status:** 🔄 IN PROGRESS — pipeline validated end-to-end (job 36735 + 36768,
+both COMPLETED, verified against logs and actual output files), but only covers
+1 of 5 held-out slides (A06, via default `LIMIT=8`). Not DONE until the full
+124-frame, 5-slide run lands.
 **Source:** `tab:eval` (Colour accuracy — MITOS row); H2/RQ4 in `tab:hyp_rq`
 **Acceptance criteria:** `eval/a2h_r8/eval_summary.csv` with per-strength, per-slide
-LAB Wasserstein + recovery delta vs raw baseline. **Not met** — `eval/a2h_r8/` exists
-but is empty.
+LAB Wasserstein + recovery delta vs raw baseline, across all 5 held-out slides.
+**Partially met** — `eval_summary.csv` now exists with real numbers, but only for
+A06 (see below); A08/A09/A13/A16 still missing.
 **Evidence of failure:**
 - `sbatch slurm/infer_colour_lora.slurm a2h_r8` → job 36462, FAILED, 2:22 elapsed.
   `ModuleNotFoundError: No module named 'cv2'` — `infer_colour_lora.py` imports
@@ -76,8 +79,27 @@ but is empty.
   script). **Fifth blocker, fixed:** pass `weight_name="pytorch_lora_weights.safetensors"`
   explicitly — confirmed this is the actual filename diffusers saved for all 3
   existing runs (a2h_r8, a2h_r4, h2a_r8).
-**Next step:** re-submit `infer_colour_lora.slurm a2h_r8` with all 5 fixes now in
-place; verify against `.out`/`.err` before assuming success.
+**First successful end-to-end run (2026-08-08): job 36735 (infer) COMPLETED 9:09,
+job 36768 (score) COMPLETED 2:15.** Pipeline validated — all 5 fixes held. But this
+is a partial result, not yet the ticket's acceptance criteria:
+- Default `LIMIT=8` pulled only the *first* 8 rows of `heldout_frames.csv`, which are
+  all **A06** — the confirmed colour-gap outlier slide (baseline LAB≈95 vs ≈25–27 for
+  the other four). The other 4 held-out slides (108 of 124 total frames) were not run.
+- **Real A06-scoped result:** baseline LAB 94.84 → LoRA output 92.41/91.89/90.63 at
+  strength 0.30/0.40/0.50 → recovery Δlab **+2.42/+2.94/+4.21** (modest, real, grows
+  with strength; SSIM falls 0.193→0.153→0.126 over the same range — the expected
+  colour/structure tradeoff).
+- **`eval_summary.csv`'s `scope=ALL` row is misleading, not a real regression:** it
+  shows recovery_delta_lab ≈ −58, because this run's data (A06 only) gets compared
+  against `baseline_summary.csv`'s true 5-slide pooled `ALL` (33.83) under the same
+  `ALL` label — an apples-to-oranges scope mismatch, not the LoRA making things worse.
+  `score_outputs.py` should ideally only emit an `ALL` row when the run's slide
+  coverage actually matches the baseline's, or label it more precisely (e.g.
+  `ALL_present_slides`) — not fixed yet, just flagged.
+**Next step:** re-submit with `LIMIT=0` (all 124 frames, all 5 slides) to get the
+actual proposal-compliant result — `tab:split` requires "All ×20 frames" for
+A06/A08/A09/A13/A16. At ~9min/8 frames the full run is ~2–2.5h, still under the
+`.slurm` file's 3h time limit, but worth confirming before submitting a run that long.
 
 ## P2-05 — Evaluation run: A2H rank 4
 **Status:** TODO — depends on P1-03b (done) + P2-03 (done); just needs submitting
