@@ -61,7 +61,10 @@ only its compatibility with the trained adapters is evaluated (4-step LCM vs 50-
 DDIM on held-out MITOS; SSIM/PSNR + artefact inspection per `sec:experiments`).
 
 ## P1-06 — A5 histopathology warm-start LoRA training
-**Status:** TODO — code + data both ready, not yet run.
+**Status:** ✅ DONE (2026-08-08) — job 37114 COMPLETED, 3000/3000 steps, 521.7s.
+`lora/hist_r32/final/pytorch_lora_weights.safetensors` (25,548,064 bytes) verified
+present on the cluster. Frozen per sec:training_order -- do not retrain jointly
+with the A5 colour LoRA. Smoke test (job 37109) also verified beforehand.
 **Source:** `sec:hist_lora`; rank 32, batch 1, 3,000 steps, 3,000 patches
 (1,000 PanNuke + 1,500 TCGA-BRCA + 500 MITOS)
 **Evidence pool ready:** `/datasets/mhoosen/stain-norm/hist_lora_pool/` (3,000 files,
@@ -80,8 +83,8 @@ spot-checked files exist) and against a synthetic injected leak (correctly
 aborts).
 **Constraint (sec:training_order):** must be trained and FROZEN before colour-LoRA
 training begins for this leg — do not train jointly.
-**Next step:** `sbatch slurm/train_hist_lora.slurm` (smoke test first:
-`SMOKE=1 sbatch --time=00:15:00 -J hist_smoke slurm/train_hist_lora.slurm`).
+**Next step:** none for this ticket. P1-07 (A5 full ablation) can proceed once P1-04
+(ControlNet + colour LoRA, blocked on P1-02) is also done.
 
 ## P1-07 — A5 full ablation: hist LoRA + colour LoRA + ControlNet + LCM
 **Status:** TODO — blocked on P1-06 and P1-04
