@@ -31,11 +31,23 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 
 ## Layout
+This is the **canonical** code layout — the only one with real, working files. Do not
+follow README.md's older phase-based structure for code placement; see "Layout
+convention" below.
 - `src/data/`  extract_pairs.py, sample_hist_mitos.py, inspect_mitos.py
 - `src/train/` train_colour_lora.py
 - `src/eval/`  registration.py, metrics.py, progress.py, infer_colour_lora.py, score_outputs.py
               (these import each other as siblings — keep co-located)
 - `slurm/`     *.slurm launchers          `logs/` job logs
+
+### Layout convention (resolved 2026-08-08)
+`phase1_ablation/`, `phase2_evaluation/`, `phase3_sdxl/`, `probe_sd35/` are
+**documentation-only** — each contains a single `INPUTS.md` describing what that phase
+consumes/produces and pointing at the real paths above (and under
+`/datasets/mhoosen/stain-norm/` on the cluster). They do NOT hold code, configs,
+checkpoints, or results — those formerly-empty subdirectories were removed. Never
+recreate `checkpoints/`/`configs/`/`outputs/`/`results/` subfolders under a phase
+folder; real artifacts live under `src/`, `slurm/`, and the cluster `/datasets` paths.
 
 ## Methodology guardrails (protect experiment validity — treat as invariants)
 - Training pairs are **coordinate-corresponding, NOT pixel-exact**. Affine registration is for

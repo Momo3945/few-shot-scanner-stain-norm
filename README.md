@@ -43,44 +43,27 @@ So `data/` answers *"where does this dataset live?"* and `phase*/INPUTS.md` answ
 The TCGA-BRCA Phase-1 and Phase-2 slide sets are **disjoint** — no slide used for
 warm-start appears in the LAB colour reference.
 
-## Layout
+## Code layout
 
-```
-data/                      canonical raw data, by dataset (shared across phases)
-  mitos/                     4 extracted MITOS sets (train/test x aperio/hamamatsu)
-  camelyon17/
-    raw/                       15 patient_*.zip archives — KEPT ZIPPED, extraction is a cluster job
-    patient_0*/                5 already-extracted patients
-    phase2_patches/            derived Phase-2 patches
-  tcga_brca/                 phase0/ + phase0_patches/ (P1), phase2/ + phase2_patches/ (P2)
-  pannuke/                   train/, validate/
-  lizard/                    lizard_images1/2, lizard_labels, overlay
-raw_archives/              source archives for MITOS (4 zips + A03/H03 tarballs)
-src/                       shared code, by function
-  data/                      extract_pairs.py, inspect_mitos.py
-  eval/                      registration.py, metrics.py, progress.py
-  models/                    pipeline / conditioning (later)
-  utils/                     seeding, io (later)
-derived/                   generated intermediates
-pairs/                     MITOS paired training crops + baseline metrics (pre-existing; see below)
-phase1_ablation/           configs/ checkpoints/ outputs/ results/
-phase2_evaluation/         configs/ outputs/ results/
-phase3_sdxl/               configs/ checkpoints/ outputs/ results/
-probe_sd35/                configs/ outputs/ results/
-slurm/                     cluster job scripts
-archive/                   stray and one-off scripts, superseded extractions, docs, slides
-```
+**See CLAUDE.md's "Layout" section — it is the canonical reference for where code
+lives** (`src/data/`, `src/train/`, `src/eval/`, `slurm/`). This README does not
+restate it, to avoid the two docs drifting out of sync again.
 
-### Notes on specific paths
+`phase1_ablation/`, `phase2_evaluation/`, `phase3_sdxl/`, and `probe_sd35/` are
+**documentation-only** — each is just an `INPUTS.md` giving the phase-centric view
+described above (which datasets/paths that phase reads and writes). They hold no
+code, configs, checkpoints, or results; real artifacts live under `src/`, `slurm/`,
+and the cluster `/datasets/mhoosen/stain-norm/` paths referenced from each `INPUTS.md`.
+
+### Notes on specific data paths
 
 - **`pairs/`** is a derived artifact and conceptually belongs under `derived/`, but it
   is left at the root because existing manifests and scripts reference it by that path.
   Treat it as `derived/pairs/`.
-- **`pairs/baseline_metrics/`** holds the pre-normalisation baseline. It belongs
-  conceptually to `phase2_evaluation/results/` and should be referenced from there
-  rather than recomputed.
+- **`pairs/baseline_metrics/`** holds the pre-normalisation baseline — the reference
+  point Phase 2 scores every rung against (see `phase2_evaluation/INPUTS.md`).
 - **`data/camelyon17/raw/*.zip` stay compressed.** Extracting all 15 patients is
   ~100 GB of WSI and is a cluster job, not a local step.
-- **`src/eval/progress.py`** is a utility and would fit `src/utils/`, but `metrics.py`
-  and `registration.py` import it as a flat sibling (`from progress import progress`).
-  It stays in `src/eval/` until those imports are refactored.
+- **`src/eval/progress.py`** is a utility and would fit `src/utils/`, but `metrics.py`,
+  `registration.py`, `infer_colour_lora.py`, and `score_outputs.py` import it as a flat
+  sibling. It stays in `src/eval/` until those imports are refactored.

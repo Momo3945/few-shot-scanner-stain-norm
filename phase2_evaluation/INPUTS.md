@@ -1,7 +1,18 @@
 # Phase 2 — Evaluation
 
+**Documentation only.** This folder holds no code, configs, or results — see
+CLAUDE.md's "Layout" section for the canonical code location and the cluster
+`/datasets/mhoosen/stain-norm/` paths for real artifacts.
+
 Colour fidelity, structural preservation, clinical utility, cycle consistency, and
 multi-centre generalisation.
+
+## Status (2026-08-08)
+
+Not started. Inference/scoring code (`infer_colour_lora.py`, `score_outputs.py`) now
+exists locally as of this reconciliation but has not yet been synced to the cluster or
+run against the 3 completed Phase-1 LoRA runs. No `eval/` directory exists yet under
+`/datasets/mhoosen/stain-norm/`.
 
 ## Consumes
 
@@ -48,12 +59,16 @@ geometry evaluation.
 
 - `src/eval/registration.py` — affine ECC registration of Hamamatsu into the Aperio grid
 - `src/eval/metrics.py` — ΔE / colour fidelity, SSIM, PSNR, MAE
-- `src/eval/progress.py` — shared progress bar (imported flat by the two above)
+- `src/eval/progress.py` — shared progress bar (imported flat by the others)
+- `src/eval/infer_colour_lora.py` + `slurm/infer_colour_lora.slurm` — runs a trained
+  LoRA over the held-out set
+- `src/eval/score_outputs.py` + `slurm/score_outputs.slurm` — scores inference output
+  against baseline (imports `metrics.py` as a flat sibling)
 
 ## Produces
 
 | Path | Contents |
 |---|---|
-| `phase2_evaluation/configs/` | Evaluation protocol configs per axis |
-| `phase2_evaluation/outputs/` | Normalised images and registration artifacts under evaluation |
-| `phase2_evaluation/results/` | Metric tables per axis: colour, structural, clinical, cycle, multi-centre |
+| `/datasets/mhoosen/stain-norm/eval/<run>/eval_manifest.csv` | Inference run manifest |
+| `/datasets/mhoosen/stain-norm/eval/<run>/eval_per_crop.csv` | Per-crop metrics |
+| `/datasets/mhoosen/stain-norm/eval/<run>/eval_summary.csv` | Aggregate scores (per-slide + outlier-excluded, per CLAUDE.md guardrails) |

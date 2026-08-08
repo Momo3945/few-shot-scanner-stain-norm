@@ -92,3 +92,4 @@ python src/train/train_colour_lora.py \
 
 echo "------------------------------------------------------------------"
 echo "Job $SLURM_JOB_ID finished. LoRA in ${OUT_DIR}/final"
+
