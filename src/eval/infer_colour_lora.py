@@ -83,7 +83,9 @@ def main():
     pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
         args.model, torch_dtype=torch.float16, safety_checker=None, requires_safety_checker=False)
     pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-    pipe.load_lora_weights(args.lora)
+    # weight_name must be explicit: diffusers normally auto-detects it via a Hub
+    # API call, which is unavailable under HF_HUB_OFFLINE=1 (set above deliberately).
+    pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
     pipe.to(device)
     pipe.set_progress_bar_config(disable=True)
 
