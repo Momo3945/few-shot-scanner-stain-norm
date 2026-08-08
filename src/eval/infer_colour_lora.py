@@ -104,6 +104,11 @@ def main():
         rows = list(csv.DictReader(fh))
     if args.limit:
         rows = rows[: args.limit]
+    # heldout_frames.csv was generated on Windows and stores backslash-separated
+    # relative paths; normalise to forward slashes so Path() joins correctly on Linux.
+    for r in rows:
+        r["aperio_path"] = r["aperio_path"].replace("\\", "/")
+        r["hamamatsu_path"] = r["hamamatsu_path"].replace("\\", "/")
 
     # For A2H we normalise Aperio inputs toward Hamamatsu (reference = registered H).
     # For H2A we would swap roles; kept explicit for clarity.
