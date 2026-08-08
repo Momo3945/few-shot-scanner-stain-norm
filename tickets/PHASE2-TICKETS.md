@@ -121,10 +121,29 @@ A06/A08/A09/A13/A16. At ~9min/8 frames the full run is ~2–2.5h, still under th
 `.slurm` file's 3h time limit, but worth confirming before submitting a run that long.
 
 ## P2-05 — Evaluation run: A2H rank 4
-**Status:** TODO — depends on P1-03b (done) + P2-03 (done); just needs submitting
+**Status:** ✅ DONE (2026-08-08) — full 5-slide run. Inference job 37071 COMPLETED
+1:28:58, rescored by job 37218 COMPLETED 24:23.
 **Source:** rank experiment, H1/RQ1 in `tab:hyp_rq`
 **Purpose:** decide the winning rank empirically (held-out recovery delta), not from
 training loss — see CLAUDE.md methodology guardrails.
+**Result — rank 4 vs rank 8, recovery Δlab (rank 4 / rank 8):**
+| Slide | @0.30 | @0.40 | @0.50 |
+|---|---|---|---|
+| A06 *(outlier)* | +1.16 / +0.92 | +1.92 / +1.52 | +3.12 / +2.65 |
+| A08 | +2.18 / +2.49 | +1.85 / +2.10 | +1.64 / +1.62 |
+| A09 | +1.75 / +1.90 | +1.64 / +1.76 | +1.37 / +1.42 |
+| A13 | +5.08 / +5.27 | +4.67 / +4.98 | +4.06 / +4.37 |
+| A16 | +1.47 / +1.62 | +1.40 / +1.47 | +1.33 / +1.31 |
+| **ALL** | +1.58 / +1.72 | +1.50 / +1.60 | +1.46 / +1.44 |
+
+**Rank barely matters** — the two ranks track each other within ~0.1–0.3 LAB units
+on every slide at every strength, well inside likely noise. Rank 8 edges out rank 4
+on 3 of 5 slides at strength 0.30 (A08, A13, A16) but the margin is small. No strong
+empirical case for rank 8 over rank 4, or vice versa — supports the proposal's H1
+rank hypothesis (`r∈{4,8}` should be "sufficient in theory because scanner
+normalisation is expected to be a low-complexity colour shift"). **Recommendation
+for P1-04:** rank 8 as the marginal edge-case winner, but this is a weak signal, not
+a strong one — worth noting in the writeup rather than treating as decisive.
 
 ## P2-06 — Cycle consistency: ground-truth direct comparison
 **Status:** TODO — depends on P2-04
