@@ -20,18 +20,23 @@ evidence. Three possible outcomes per the proposal:
        primary contribution regardless.
 
 ## P3-02 — Fix SDXL model weight download
-**Status:** TODO — BLOCKING; known bug
+**Status:** ✅ ROOT CAUSE FOUND, FIX APPLIED (2026-08-08) — re-download not yet run.
 **Source:** infrastructure prerequisite for all of Phase 3
-**Description:** `hf_cache` currently holds only config/tokenizer files for
-`stabilityai/stable-diffusion-xl-base-1.0` (~1.6 MB) — no `.safetensors` weights,
-despite `fetch_models.slurm` logging "✓ Downloaded" and exiting 0. The `--include`
-filter pattern used in that job does not match SDXL's actual sharded filenames.
-**Fix:** re-run `hf download stabilityai/stable-diffusion-xl-base-1.0` WITHOUT the
-`--include` filter (disk is not a constraint — 181 TB+ free on `/datasets`). Verify
-with `hf cache scan` or explicit file-size check, not just job exit code, before
-trusting it.
+**Root cause (confirmed via `--dry-run`, not guessed):** `hf download`'s `--include`
+is a single-value option (Click-based CLI: `hf download [OPTIONS] REPO_ID
+[FILENAMES]...`). The old `--include "*.safetensors" "*.json" "*.txt" "*.model"`
+bound only `*.safetensors` to `--include`; the other three patterns became
+positional `FILENAMES`, which switches `hf download` to a code path that ignores
+`--include` entirely. Reproduced the exact broken result via dry-run: 17
+config/tokenizer files, 3.2M, zero `.safetensors` — matches the actual cache exactly.
+**Fix applied:** `slurm/fetch_models.slurm` now uses repeated `--include` flags (the
+CLI's own documented syntax), verified via dry-run to actually select the
+`.safetensors` files this time.
+**Next step:** run `sbatch slurm/fetch_models.slurm` (stampede, CPU-only) and verify
+with real file-size checks after, not job exit code.
 **Also needed:** `latent-consistency/lcm-lora-sdxl` and an SDXL Canny ControlNet
-(e.g. `diffusers/controlnet-canny-sdxl-1.0`) — not yet downloaded at all.
+(e.g. `diffusers/controlnet-canny-sdxl-1.0`) — not yet downloaded at all, not yet
+added to `fetch_models.slurm`.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
 **Status:** TODO — blocked on P3-01, P3-02
