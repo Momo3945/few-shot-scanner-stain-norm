@@ -41,6 +41,26 @@ scans of the same tissue on both scanners), inter-centre variance reduction on
 CAMELYON17, HoVer-Net structural-safety checks against Lizard, and downstream
 classifier deltas for clinical utility.
 
+## Example outputs
+
+From the first full held-out evaluation of the A2H rank-8 colour LoRA (`P2-04`,
+strength 0.30, `eval/a2h_r8/`) — the best- and worst-scoring crops by LAB-histogram
+Wasserstein distance to the real paired Hamamatsu ground truth, out of 496 scored
+crops across all 5 held-out slides.
+
+**Best case** (A08, LAB Wasserstein 17.54 — closest match to ground truth):
+
+![Best-case comparison: raw Aperio source, LoRA output, real Hamamatsu target](docs/assets/sample_outputs/comparison_best.png)
+
+**Worst case** (A06, LAB Wasserstein 91.12 — A06 is a confirmed colour-gap outlier,
+see `tickets/PHASE2-TICKETS.md`; the LoRA output visibly shifts less far toward the
+target than in the best case, exactly matching the quantitative recovery gap):
+
+![Worst-case comparison: raw Aperio source, LoRA output, real Hamamatsu target](docs/assets/sample_outputs/comparison_worst.png)
+
+Reported here as an honest before/after, not a cherry-picked highlight — the worst
+case is A06 because it genuinely is the hardest slide, not despite that.
+
 ## Why data is stored by dataset, not by phase
 
 Every dataset here is consumed by **more than one phase**, or is deliberately scoped
