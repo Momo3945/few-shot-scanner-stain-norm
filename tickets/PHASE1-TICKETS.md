@@ -49,13 +49,36 @@ materially better recovery deltas, which is the point of the ablation.
 **Acceptance criteria:** ✅ `eval/a0/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-02 — A1: Base + ControlNet
-**Status:** TODO — code smoke-tested successfully, full held-out run not yet run.
-Job 37371 (infer, COMPLETED 7:22, 1 frame/4 crops/3 strengths, 12 outputs) + job
-37398 (score, COMPLETED 31s) both verified. Visual check: structure (nuclei,
-glandular architecture, folds) closely preserved between reference and A1 output,
-colour correctly NOT shifted toward the Hamamatsu target (no colour LoRA active in
-A1) -- confirms ControlNet conditioning is genuinely constraining generation, not
+**Status:** ✅ DONE (2026-08-09) — full held-out run + scoring complete.
+Job 37371 (infer smoke test, COMPLETED 7:22, 12 outputs) + job 37398 (score,
+COMPLETED 31s) verified first. Visual check: structure (nuclei, glandular
+architecture, folds) closely preserved between reference and A1 output, colour
+correctly NOT shifted toward the Hamamatsu target (no colour LoRA active in A1)
+-- confirms ControlNet conditioning is genuinely constraining generation, not
 being silently ignored.
+**Full run:** first attempt (job 39064) landed on a broken GPU node
+(mscluster65, "Unable to determine the device handle for GPU0: Unknown Error")
+-- fail-fast guard correctly aborted in 3:04 instead of crawling. Resubmit
+(job 39085) COMPLETED 1:35:10, 1488-row manifest, all 5 slides confirmed.
+Score job 39272 COMPLETED 10:10.
+**Results (2026-08-09), `eval/a1/eval_summary.csv` (strength 0.30 shown):**
+
+| scope | n_crops | LAB total | SSIM | recovery_delta_lab |
+|---|---|---|---|---|
+| ALL | 496 | 33.10 | 0.389 | +0.73 |
+| ALL_excl_outliers | 432 | 23.88 | 0.408 | — |
+| A06 (outlier) | 64 | 95.35 | 0.260 | -0.52 |
+| A08 | 112 | 23.67 | 0.411 | +1.60 |
+| A09 | 96 | 26.40 | 0.376 | +1.09 |
+| A13 | 64 | 22.12 | 0.367 | +4.51 |
+| A16 | 160 | 23.22 | 0.441 | +0.55 |
+
+SSIM jumps substantially over A0 at every strength (0.30: 0.285→0.389, 0.40:
+0.227→0.351, 0.50: 0.181→0.312) -- ControlNet's Canny conditioning is
+genuinely preserving structure, not being ignored. LAB/colour numbers track
+close to A0 (as expected -- A1 has no colour LoRA, so colour correction isn't
+ControlNet's job). A06 still negative recovery delta at every strength, same
+as A0, for the same reason: no colour-adaptation mechanism present yet.
 **Source:** `tab:ablation_ladder` (row A1); `sec:hist_lora` subsection on conditioning signals
 **Description:** SD1.5 + ControlNet-Canny (pretrained, `lllyasviel/sd-controlnet-canny`,
 already cached), no colour LoRA. Isolates the structural-conditioning contribution alone.
