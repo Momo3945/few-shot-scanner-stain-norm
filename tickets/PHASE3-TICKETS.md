@@ -3,13 +3,14 @@
 Source of truth: `docs/proposal.tex`, §"Phase 3: Architecture Transfer to SDXL"
 (`sec:phase3_sdxl`, `sec:sdxl_a5`).
 
-**Blocked overall** on the Phase 1 decision gate — do not start these until Phase 1's
-A0–A5 results are in and reviewed (see PHASE1-TICKETS.md footer).
+**Unblocked (2026-08-10)** — Phase 1 (A0–A5) is complete and the decision gate
+(P3-01) has been reviewed. Outcome (i): proceed as planned.
 
 ---
 
 ## P3-01 — Architecture decision gate review
-**Status:** TODO — blocked on Phase 1 completion
+**Status:** ✅ DONE (2026-08-10) — outcome (i): results are clean, SDXL is
+feasible (compute confirmed, see P3-02). Phase 3 proceeds as planned.
 **Source:** proposal §"Time Plan", "Architecture decision gate" paragraph
 **Description:** Formally review SD1.5 A0–A5 results plus SDXL compute-contingency
 evidence. Three possible outcomes per the proposal:
@@ -18,6 +19,32 @@ evidence. Three possible outcomes per the proposal:
   (iii) Phase 1 reveals a fundamental architecture issue → run deeper SD1.5
        diagnostics instead of transferring; SD1.5 ablation ladder remains the
        primary contribution regardless.
+**Review (2026-08-10):**
+- **A0–A5 results are clean** — every rung produced valid, verified, non-crashing
+  full held-out results (`docs/results/RESULTS_SUMMARY.md`); no fundamental
+  architecture issue found, so outcome (iii) does not apply.
+- **SDXL compute is confirmed feasible** — SDXL base and SD3.5-large weights are
+  both fully cached and verified with real byte sizes (SDXL base 6.94GB,
+  SD3.5-large 16.46GB; see CLAUDE.md, corrected from a stale "KNOWN BROKEN" note).
+  No compute blocker found, so outcome (ii)'s descope path is not currently needed
+  (revisit if actual SDXL training on `bigbatch` turns out slow in practice).
+- **Base config recommendation for P3-03: A4** (ControlNet + colour LoRA + LCM-LoRA),
+  not A3. The proposal's own abstract frames the contribution as a unified pipeline
+  combining all three components with fast inference as a co-equal requirement
+  (not optional acceleration on top of a "real" A3 result) — A4 meets the proposal's
+  own bar for a clean result (SSIM flat-to-better than the 50-step DDIM reference at
+  every scope; the pre-committed 20-step-DDIM fallback exists for structural/artefact
+  failure, which did not occur).
+- **P3-05 (A5 warm-start transfer) is triggered, not just contingent-possible** —
+  `sec:sdxl_a5`'s literal test is measurable A5 vs A4 improvement "beyond the
+  inter-run noise floor." P2-05 established that floor at ~0.1–0.3 LAB units
+  (rank-change noise). A5 beats A4 on A06 by +2.6 / +5.8 / +8.7 LAB units across
+  strengths 0.30/0.40/0.50 — one to two orders of magnitude past the floor. See
+  P3-05 below, now unblocked.
+- **New Phase 3 blocker, not previously on this list:** `latent-consistency/
+  lcm-lora-sdxl` and an SDXL Canny ControlNet checkpoint are not in the cache at
+  all (confirmed via cluster search, zero matches) — already flagged under P3-02
+  below but restated here since it directly blocks P3-03's LCM/ControlNet legs.
 
 ## P3-02 — Fix SDXL model weight download
 **Status:** ✅ DONE (2026-08-08) — job 37073 COMPLETED 16:49; verified with real file
@@ -41,7 +68,9 @@ with real file-size checks after, not job exit code.
 added to `fetch_models.slurm`.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
-**Status:** TODO — blocked on P3-01, P3-02
+**Status:** TODO — unblocked (P3-01 done). Still needs `lcm-lora-sdxl` + SDXL
+Canny ControlNet fetched (see P3-02's "Also needed" note) before it can run.
+Recommended base config: **A4** (ControlNet + colour LoRA + LCM-LoRA), per P3-01.
 **Source:** `sec:phase3_sdxl`
 **Description:** Transfer ONLY the best-performing SD1.5 configuration (from A0–A5).
 The proposal is explicit: **do not** repeat the full ablation ladder on SDXL — that
@@ -57,13 +86,20 @@ counterpart using the same colour, structure, and speed metrics from Phase 2's
 harness (reuse `score_outputs.py`).
 
 ## P3-05 — A5 warm-start variant on SDXL (contingent)
-**Status:** TODO — CONTINGENT, do not start until P1-07 (A5 vs A4 on SD1.5) resolves
+**Status:** TODO — UNBLOCKED (2026-08-10). P1-07 resolved: A5 shows measurable
+benefit over A4 on SD1.5, well beyond the inter-run noise floor (see P3-01's
+review). Still blocked on the same SDXL model-weight prerequisites as P3-03.
 **Source:** `sec:sdxl_a5`
 **Description:** Only transfer the histopathology warm-start variant to SDXL if A5
 first shows measurable benefit over A4 on SD1.5 (beyond the inter-run noise floor).
-If A5 does NOT improve on A4, SDXL transfer uses the vanilla SDXL base only, and the
-negative A5 result is reported as evidence that ControlNet + colour LoRA is sufficient
-without a domain warm-start — this is a valid, reportable outcome either way.
+**Trigger condition MET (2026-08-10):** A5 beats A4 on A06 recovery delta by
++2.6/+5.8/+8.7 LAB units at strengths 0.30/0.40/0.50 (`docs/results/RESULTS_SUMMARY.md`,
+`tickets/PHASE1-TICKETS.md` P1-07) — the established noise floor for adapter-level
+changes is ~0.1–0.3 LAB units (P2-05, rank 4 vs 8), so this is 10-30x past it, not a
+borderline call. Note A5's benefit is slide-dependent (worse than A4 on typical
+slides A08/A16 at low strength, though that gap narrows or flips positive at higher
+strength per the Phase 1 follow-up experiments) — this nuance should carry over into
+how the SDXL transfer is scoped and reported, not just "A5 wins."
 
 ---
 
