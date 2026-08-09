@@ -62,13 +62,19 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Conda env `stainnorm` (Python 3.10, torch 2.5.1+cu121). In jobs, activate with:
   `source ~/miniconda3/etc/profile.d/conda.sh && conda activate stainnorm`
 - Model cache: `export HF_HOME=/datasets/mhoosen/hf_cache`.
-  SD1.5 + LCM-LoRA + ControlNet-Canny: full weights, healthy.
-  **SDXL base and SD3.5-large: KNOWN BROKEN — only config/tokenizer files cached
-  (~1–5 MB), no .safetensors.** A prior `fetch_models.slurm` run logged "✓ Downloaded"
-  and exited 0 despite this — job success/log message is NOT proof weights are complete.
-  Must re-run `hf download` for these two WITHOUT the `--include` filter before Phase 3
-  or the SD3.5 probe can start. Always verify with `hf cache scan` or checked file sizes,
-  never trust an exit code alone for model downloads.
+  SD1.5 + LCM-LoRA (SD1.5) + ControlNet-Canny (SD1.5): full weights, healthy.
+  **SDXL base and SD3.5-large: FIXED as of 2026-08-08 — re-verified 2026-08-10
+  with real byte sizes, not exit codes: `sd_xl_base_1.0.safetensors` = 6.94 GB,
+  `sd3.5_large.safetensors` = 16.46 GB, both real files not symlink stubs.** (The
+  "KNOWN BROKEN" state this note used to describe — only ~1–5 MB config/tokenizer
+  files cached, a prior job logging "✓ Downloaded"/exit 0 despite empty weights —
+  no longer applies; kept the history here as a reminder to always verify with
+  `hf cache scan` or checked file sizes, never trust an exit code alone.)
+  **Still missing for Phase 3 (found 2026-08-10, not yet fetched):
+  `latent-consistency/lcm-lora-sdxl` and an SDXL Canny ControlNet checkpoint
+  (e.g. `diffusers/controlnet-canny-sdxl-1.0`) — neither is in the cache at all.**
+  Needed before P3-03/P3-04 (SDXL base transfer) can run; add to
+  `fetch_models.slurm`.
 - **GPUs are selected by PARTITION ONLY. `#SBATCH --gres=gpu:1` is REJECTED** ("Invalid gres").
   Partitions confirmed via `sinfo`: `stampede` (CPU/weak GPU), `bigbatch` (RTX 3090 24GB —
   default for GPU work), `biggpu` (mature jobs only), plus a default `batch*` and a
