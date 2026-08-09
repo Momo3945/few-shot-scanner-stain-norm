@@ -75,6 +75,9 @@ echo "HF_HOME=$HF_HOME"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
 python -c "import torch; print('torch', torch.__version__, '| cuda available:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only')"
+# fail fast on a GPU-less node instead of crawling on CPU
+python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" \
+    || { echo 'ABORT: no GPU on this node -- resubmit.'; exit 1; }
 echo "------------------------------------------------------------------"
 
 # ---------------------------------------------------------------------
