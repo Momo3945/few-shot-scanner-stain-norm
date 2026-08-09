@@ -346,11 +346,17 @@ alongside the existing `--lora a2h_r8/final` + `--controlnet` + `--lcm`. Output
 to `eval/a5/`. Verified: `py_compile` clean; `--help` shows both new flags with
 no regression; synced to cluster, byte-identical (259-line script, 89-line
 launcher).
-**Next step:** smoke test (`sbatch --exclude=mscluster65,mscluster75
-slurm/infer_a5_full.slurm`), verify manifest + all four adapters confirmed
-active in the log ("LoRA + ControlNet(...) + Hist-LoRA + LCM-LoRA"), then full
-run (`sbatch --exclude=mscluster65,mscluster75 slurm/infer_a5_full.slurm
-"0.3 0.4 0.5" 0`) → score → compare against A4 per the primary comparison above.
+**Smoke test (2026-08-09):** job 39870 (infer, COMPLETED 11:11, all four adapters
+confirmed active: "LoRA + ControlNet(...) + Hist-LoRA + LCM-LoRA") + job 39894
+(score, COMPLETED 56s). `eval/a5/eval_summary.csv` valid -- on this A06-only
+default-limit sample, recovery delta is dramatically higher than A4's
+equivalent A06 numbers at every strength (A5 +3.95/+9.05/+18.02 vs A4's
+-0.22/+1.55/+7.31 @0.30/0.40/0.50) -- early signal the histopathology
+warm-start prior is doing real work on the hardest slide, worth confirming on
+the full held-out set.
+**Next step:** full run (`sbatch --exclude=mscluster65,mscluster75
+slurm/infer_a5_full.slurm "0.3 0.4 0.5" 0`) → score → compare against A4 per
+the primary comparison above.
 **Acceptance criteria:** `eval/a5/eval_summary.csv` exists; A5 vs A4 comparison
 documented (per-slide, both `ALL` and `ALL_excl_outliers`, per CLAUDE.md).
 
