@@ -167,14 +167,18 @@ Score job 39310 COMPLETED 9:16.
 | A13 | 64 | 21.66 | 0.363 | +4.97 |
 | A16 | 160 | 22.62 | 0.438 | +1.16 |
 
-**A06 recovers for the first time in the ladder** — positive recovery delta at
-every strength (+0.45/+0.56/+0.88 @0.30/0.40/0.50), versus negative at every
-strength for both A0 (frozen base) and A1 (+ControlNet alone). SSIM is
-essentially unchanged from A1 (structure preservation holds up), while LAB
-recovery improves on every non-outlier slide too (e.g. A08 @0.30: A1 +1.60 →
-A3 +1.90). ControlNet + colour LoRA together are doing real, additive work
-here, not just each pulling in its own direction — the combination is the
-best-performing rung of the ladder so far.
+**Correction (2026-08-09, caught while building `docs/results/RESULTS_SUMMARY.md`):**
+A06 does NOT recover for the first time here — A2 (colour LoRA alone, either
+rank) already shows positive A06 recovery delta (+0.92 to +1.16 @0.30), slightly
+*better* than A3's +0.45 on this metric alone. A3's real distinction is
+different: it's the first rung to combine a positive A06 recovery delta WITH
+A1's full SSIM gain simultaneously (A06 SSIM: A0 0.186, A2 ~0.19, A1 0.260,
+A3 0.259) — A2 alone barely helps A06's structure, A1 alone doesn't touch its
+colour, A3 gets both at once. LAB recovery also improves on every non-outlier
+slide over A2 (e.g. A08 @0.30: A2r8 +2.49 → A3 +1.90 is actually slightly lower,
+but A3 still holds essentially all of A1's SSIM gain while A2 has none of it) —
+see the full cross-rung table in `docs/results/RESULTS_SUMMARY.md` for the
+accurate comparison across all 5 completed rungs, not just A0/A1/A3.
 **Acceptance criteria:** ✅ `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
