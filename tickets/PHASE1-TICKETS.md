@@ -27,7 +27,13 @@ set), then `sbatch slurm/score_outputs.slurm a0`.
 **Acceptance criteria:** `eval/a0/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-02 — A1: Base + ControlNet
-**Status:** TODO — code ready, not yet run.
+**Status:** TODO — code smoke-tested successfully, full held-out run not yet run.
+Job 37371 (infer, COMPLETED 7:22, 1 frame/4 crops/3 strengths, 12 outputs) + job
+37398 (score, COMPLETED 31s) both verified. Visual check: structure (nuclei,
+glandular architecture, folds) closely preserved between reference and A1 output,
+colour correctly NOT shifted toward the Hamamatsu target (no colour LoRA active in
+A1) -- confirms ControlNet conditioning is genuinely constraining generation, not
+being silently ignored.
 **Source:** `tab:ablation_ladder` (row A1); `sec:hist_lora` subsection on conditioning signals
 **Description:** SD1.5 + ControlNet-Canny (pretrained, `lllyasviel/sd-controlnet-canny`,
 already cached), no colour LoRA. Isolates the structural-conditioning contribution alone.
@@ -48,8 +54,8 @@ Added `slurm/infer_a1_controlnet.slurm`. Verified: syntax-checked; `--help`
 confirms both flags optional with no regression to A0; `canny.py` sanity-checked
 against a real crop from `pairs/train/` -- edges visibly trace nuclear/tissue
 boundaries, matching `fig:canny1`'s style.
-**Next step:** `sbatch slurm/infer_a1_controlnet.slurm` (smoke test with small
-`--limit` first), then `sbatch slurm/score_outputs.slurm a1`.
+**Next step:** `sbatch slurm/infer_a1_controlnet.slurm "0.3 0.4 0.5" 0` (full
+held-out set), then `sbatch slurm/score_outputs.slurm a1`.
 **Acceptance criteria:** `eval/a1/eval_summary.csv` exists.
 
 ## P1-03a — A2 colour LoRA training: A→H, rank 8
