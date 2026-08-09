@@ -131,7 +131,7 @@ completed cleanly in 4:25 on a working node.
 **Evidence:** `lora/h2a_r4/final/pytorch_lora_weights.safetensors`
 
 ## P1-04 — A3: Base + ControlNet + colour LoRA
-**Status:** TODO — code ready, not yet run. Rank decided, launcher written.
+**Status:** ✅ DONE (2026-08-09) — full held-out run + scoring complete (see below).
 **Source:** `tab:ablation_ladder` (row A3)
 **Description:** Combine structural conditioning with colour adaptation, no LCM yet.
 Tests the combination before acceleration is introduced.
@@ -153,12 +153,32 @@ Synced to cluster, verified byte-identical (78 lines).
 `eval/a3/eval_summary.csv` valid -- positive recovery delta (+1.96/+2.01/+2.32 at
 0.30/0.40/0.50) on the default-limit A06-only sample, schema compatible end-to-end
 with no changes to `score_outputs.py`.
-**Next step:** full run (`sbatch slurm/infer_a3_combined.slurm "0.3 0.4 0.5" 0`) →
-`sbatch slurm/score_outputs.slurm a3`.
-**Acceptance criteria:** `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
+**Full run (2026-08-09):** infer job 39125 COMPLETED 1:38:58 (1488-row manifest, all 5 slides confirmed).
+Score job 39310 COMPLETED 9:16.
+**Results (2026-08-09), `eval/a3/eval_summary.csv` (strength 0.30 shown):**
+
+| scope | n_crops | LAB total | SSIM | recovery_delta_lab |
+|---|---|---|---|---|
+| ALL | 496 | 32.52 | 0.386 | +1.32 |
+| ALL_excl_outliers | 432 | 23.35 | 0.404 | — |
+| A06 (outlier) | 64 | 94.39 | 0.259 | **+0.45** |
+| A08 | 112 | 23.37 | 0.408 | +1.90 |
+| A09 | 96 | 25.67 | 0.372 | +1.81 |
+| A13 | 64 | 21.66 | 0.363 | +4.97 |
+| A16 | 160 | 22.62 | 0.438 | +1.16 |
+
+**A06 recovers for the first time in the ladder** — positive recovery delta at
+every strength (+0.45/+0.56/+0.88 @0.30/0.40/0.50), versus negative at every
+strength for both A0 (frozen base) and A1 (+ControlNet alone). SSIM is
+essentially unchanged from A1 (structure preservation holds up), while LAB
+recovery improves on every non-outlier slide too (e.g. A08 @0.30: A1 +1.60 →
+A3 +1.90). ControlNet + colour LoRA together are doing real, additive work
+here, not just each pulling in its own direction — the combination is the
+best-performing rung of the ladder so far.
+**Acceptance criteria:** ✅ `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
-**Status:** TODO — blocked on P1-04
+**Status:** TODO — unblocked (P1-04 done); not yet started
 **Source:** `tab:ablation_ladder` (row A4); `sec:training_order` step on LCM-LoRA attachment
 **Description:** Attach the pretrained `latent-consistency/lcm-lora-sdv1-5` (already
 cached) AFTER colour LoRA and ControlNet are frozen. LCM-LoRA itself is never trained —
