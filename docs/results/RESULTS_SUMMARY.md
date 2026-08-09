@@ -127,9 +127,14 @@ of this table, not fully visible at 0.30 alone).
   improves *with* higher strength while A08/A09/A13/A16 all recover *less* at
   higher strength. E.g. A3: A06 Δlab +0.45→+0.56→+0.88 (0.30→0.40→0.50) while
   A08 Δlab +1.90→+1.22→+0.64 over the same range. SSIM falls monotonically with
-  strength at every rung (structure/colour tradeoff, as expected). No single
-  strength is optimal for every slide — 0.30 is the best compromise for 4/5
-  slides throughout.
+  strength at every rung (structure/colour tradeoff, as expected).
+  **Correction (2026-08-10, superseded by the P1-09 follow-up below): 0.30 is
+  NOT the best strength** — this was only true within the originally-tested
+  0.30-0.50 range. A dedicated follow-up (`tickets/PHASE1-TICKETS.md` P1-09)
+  found strength 0.20 dominates 0.30 on nearly every axis for A3, and that A4/A5
+  (LCM) behave completely differently — see the dedicated section below, "Post-gate
+  follow-up." Don't cite "0.30 is optimal" in the write-up; the real picture is
+  more interesting and is documented properly further down.
 
 - **A06 must always be reported separately, never folded into a pooled `ALL`
   number** — its robust z-score sits at 23–39 across every run (threshold is
@@ -229,6 +234,71 @@ colour-LoRA + ControlNet + LCM config, only the histopathology LoRA added).
 Full details, evidence, and the qualitative caveat about the strength-0.50
 image not looking as dramatic as the numbers: `tickets/PHASE1-TICKETS.md` P1-07.
 
+## Post-gate follow-up: extended strength sweep (A3/A4/A5) — supplementary
+
+Run after the Phase 1 decision gate closed (doesn't reopen it), motivated by
+two patterns spotted while mining the completed CSVs: A06's recovery-vs-strength
+curve looked like it was still accelerating at 0.50, and A5's typical-slide
+deficit vs A4 looked like it might be shrinking with strength. Both needed real
+data beyond the original 0.30-0.50 range to confirm or refute — extrapolating
+a 3-point trend isn't safe on its own. Full methodology, safety fix (output-dir
+collision risk), and job list: `tickets/PHASE1-TICKETS.md` P1-09.
+
+**Finding 1 — LCM step-count quantisation recurs at the 0.5/0.6 boundary.**
+Confirmed byte-identical per-crop output between strength 0.50 and 0.60 on A5
+(`int(8*0.50)=int(8*0.60)=4` real steps) — the same mechanism as the earlier
+0.30/0.40 collision (P1-05). At 8-step LCM, only ~5-6 strength values map to
+genuinely distinct step counts; "strength" is a coarse step-count proxy for
+A4/A5, not the smooth continuous dial it is for A3's 50-step DDIM.
+
+**Finding 2 — A3: strength 0.20 dominates 0.30, not a wash.**
+
+| A3 | ALL Δlab | ALL SSIM | A06 Δlab | A08 Δlab | A09 Δlab | A13 Δlab | A16 Δlab |
+|---|---|---|---|---|---|---|---|
+| 0.20 | **+1.59** | **0.425** | +0.41 | **+2.45** | **+1.88** | **+5.29** | **+1.46** |
+| 0.30 | +1.32 | 0.386 | **+0.45** | +1.90 | +1.81 | +4.97 | +1.16 |
+
+0.20 wins on every metric except A06 (negligible -0.04 gap). The "0.30 is
+optimal" claim earlier in this document was never tested against anything
+lower — 0.20 is just the new best point found, and the true floor is still open.
+
+**Finding 3 — A4/A5: behaviour vs strength is non-monotonic, and A4/A5 diverge
+sharply from each other at the extremes.**
+
+| Real LCM steps | strength | A4 ALL Δlab | A4 SSIM | A5 ALL Δlab | A5 SSIM | A06 Δlab (A4 / A5) |
+|---|---|---|---|---|---|---|
+| 1 | 0.20 | **+1.53** | **0.459** | **+1.93** | **0.454** | +0.42 / +1.19 |
+| 2 | 0.30 | −0.13 | 0.389 | −0.12 | — | −0.22 / +2.38 |
+| 3 | 0.40 | −1.65 | — | −0.94 | — | +1.55 / +7.35 |
+| 4 | 0.50 | −1.21 | 0.312 | +0.42 | 0.299 | +7.31 / +16.02 |
+| 5 | 0.70 | **+2.25** | 0.271 | −3.08 | 0.268 | **+19.83** / **+24.43** |
+
+At 1 step: a broad, uniform win — every slide improves, SSIM is the highest
+anywhere in the ladder. At 2-4 steps: a worse valley on typical slides even as
+A06 climbs steadily. At 5 steps: extreme divergence — **A06 hits its best
+recovery anywhere in the entire project (A5: +24.43, closing over a quarter of
+its raw 94.84 LAB gap)**, but every typical slide craters (A5 @0.70: A08 −6.97,
+A09 −3.37, A13 −7.58, A16 −7.72 — much worse than A4's equivalent losses at the
+same step count).
+
+**This refutes the pre-experiment hypothesis** that A5's typical-slide deficit
+vs A4 would keep shrinking or flip permanently positive at higher strength — it
+does narrow/flip between strength 0.30 and 0.50, but reverses hard and gets
+much worse than A4 by 5 steps (0.70). A good illustration of why the
+confirmatory full run mattered rather than trusting a 3-point extrapolation.
+
+**Practical takeaway — no single best strength, it depends on the goal:**
+- **General-purpose robustness across all slides**: 1-step LCM (strength
+  ≈0.20-0.25) is the best operating point found anywhere in this project for
+  both A4 and A5 — beats every strength in the original official ladder.
+- **Maximum single-slide (hardest-case) recovery**: 5-step A5 (strength 0.70)
+  is dramatically the strongest single result in the whole project, at severe
+  cost everywhere else. Frame this as a "rescue mode" option for the hardest
+  cases, not a general default.
+
+Raw data: `docs/results/{a3_ext_s02,a4_ext_s02,a5_ext_s02,a4_ext_s07,a5_ext_s07,a4_ext_s67,a5_ext_s67}/`.
+Reproducible analysis script: `docs/results/analyze.py`.
+
 ## Local file index
 
 ```
@@ -241,6 +311,14 @@ docs/results/
 ├── a3/                  A3: ControlNet + colour LoRA (rank 8)
 ├── a4/                  A4: + LCM-LoRA (8-step)
 ├── a5/                  A5: + histopathology warm-start LoRA (stacked at inference)
+├── a3_ext_s02/           P1-09 follow-up: A3 at strength 0.20 (full 5-slide)
+├── a4_ext_s02/           P1-09 follow-up: A4 at strength 0.20 = 1 real LCM step (full)
+├── a5_ext_s02/           P1-09 follow-up: A5 at strength 0.20 = 1 real LCM step (full)
+├── a4_ext_s07/           P1-09 follow-up: A4 at strength 0.70 = 5 real LCM steps (full)
+├── a5_ext_s07/           P1-09 follow-up: A5 at strength 0.70 = 5 real LCM steps (full)
+├── a4_ext_s67/           P1-09 follow-up: A4 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
+├── a5_ext_s67/           P1-09 follow-up: A5 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
+├── analyze.py             reproducible per-crop trend analysis behind the P1-09 experiment picks
 └── qualitative/          side-by-side A0-A5 comparison composites (3 example crops)
 ```
 

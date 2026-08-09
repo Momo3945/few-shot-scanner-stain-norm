@@ -407,6 +407,92 @@ documented (per-slide, both `ALL` and `ALL_excl_outliers`, per CLAUDE.md).
 `score_outputs.py` reports recovery delta per strength
 **Source:** H4/RQ3, `tab:hyp_rq`; LCM quality window per `sec:experiments`
 
+## P1-09 — Post-gate follow-up: extended strength sweep (A3/A4/A5)
+**Status:** ✅ DONE (2026-08-10) — supplementary to the closed Phase 1 gate, not
+reopening it; informs Phase 3's actual deployment-strength choice.
+**Source:** data-driven, motivated by two findings from mining the completed
+A0-A5 per-crop CSVs (`docs/results/analyze.py`): (1) A06's recovery-vs-strength
+curve looked convex/accelerating, not plateauing, within the tested 0.30-0.50
+range; (2) A5's typical-slide deficit vs A4 appeared to shrink as strength rose.
+Both needed testing beyond 0.50 (and, for completeness, below 0.30) to know if
+they held up or were noise/extrapolation artefacts.
+**Safety fix first:** `infer_a3_combined.slurm`/`infer_a4_lcm.slurm`/
+`infer_a5_full.slurm` all hardcoded their output dir to `eval/a{3,4,5}` — a
+follow-up run would have silently overwritten the already-scored, committed
+results (`score_outputs.py` regenerates `eval_manifest.csv` from scratch each
+run, doesn't append). Added an `OUT_TAG` optional trailing arg (default =
+existing tag, zero change to prior invocations) so exploratory runs land in a
+separate `eval/<tag>/` dir. Committed before any exploratory job was submitted.
+**Jobs run:** two A06-only smoke tests at strengths 0.6/0.7 (A4, A5) to check
+for safety before committing to full runs; five full 5-slide runs — A3/A4/A5 at
+strength 0.20, and A4/A5 at strength 0.70 (0.60 was tested in the smoke stage
+and found to be a wasted duplicate, see below, so skipped for the full run).
+One transient GPU-node failure (`mscluster44`, "Unable to determine the device
+handle for GPU0", same class of fault as `mscluster65`/`mscluster75`) — caught
+correctly by the fail-fast guard in 2:48, resubmitted with `mscluster44` added
+to the exclusion list.
+
+**Critical finding #1 — LCM step-count quantisation recurs, now at the 0.5/0.6
+boundary:** at 8-step LCM, `int(8*0.50)=int(8*0.60)=4` real denoising steps —
+confirmed byte-identical per-crop output between the two strengths (same
+mechanism as the earlier 0.30/0.40 collision at 4 steps, documented under
+P1-05). Only strengths that cross an integer boundary of `floor(8*strength)`
+are genuinely distinct for A4/A5. **This means "strength" is not a smooth
+dial for the LCM rungs the way it is for A3's 50-step DDIM (`floor(50*s)`,
+effectively continuous) — it's a coarse proxy for step count with only 5-6
+genuinely distinct settings across [0,1].** Any future strength sweep on A4/A5
+should be planned around integer step-count boundaries, not arbitrary decimals.
+
+**Critical finding #2 — A3 (DDIM): strength 0.20 dominates the previously
+"best" 0.30 on almost every axis, not just a wash:**
+
+| A3 | ALL Δlab | ALL SSIM | A06 Δlab | A08 Δlab | A09 Δlab | A13 Δlab | A16 Δlab |
+|---|---|---|---|---|---|---|---|
+| 0.20 | **+1.59** | **0.425** | +0.41 | **+2.45** | **+1.88** | **+5.29** | **+1.46** |
+| 0.30 | +1.32 | 0.386 | **+0.45** | +1.90 | +1.81 | +4.97 | +1.16 |
+
+0.20 beats 0.30 on every metric except A06 (negligible −0.04 difference). This
+revises the earlier "0.30 is the best compromise for 4/5 slides" claim in
+`docs/results/RESULTS_SUMMARY.md` — the true optimum for A3 was never found;
+0.20 is just the new best *tested* point, and the floor below 0.20 remains open.
+
+**Critical finding #3 — A4/A5 (LCM): behaviour vs strength is non-monotonic,
+not a simple "lower/higher is better" story, and diverges sharply from A3:**
+
+| Real steps (8-step LCM) | strength | A4 ALL Δlab | A4 SSIM | A5 ALL Δlab | A5 SSIM | A06 Δlab (A4 / A5) |
+|---|---|---|---|---|---|---|
+| 1 | 0.20 | **+1.53** | **0.459** | **+1.93** | **0.454** | +0.42 / +1.19 |
+| 2 | 0.30 | −0.13 | 0.389 | −0.12 | — | −0.22 / +2.38 |
+| 3 | 0.40 | −1.65 | — | −0.94 | — | +1.55 / +7.35 |
+| 4 | 0.50 | −1.21 | 0.312 | +0.42 | 0.299 | +7.31 / +16.02 |
+| 5 | 0.70 | **+2.25** | 0.271 | −3.08 | 0.268 | **+19.83** / **+24.43** |
+
+1 step is a broad, uniform win (every slide improves, high SSIM) — a "gentle
+nudge" regime. 2-4 steps is a worse valley on typical slides even as A06's
+recovery climbs steadily. 5 steps is an extreme divergence: A06 hits the best
+recovery anywhere in the entire project (A5: +24.43, more than 25% of its raw
+94.84 LAB gap closed) but every typical slide craters (A5 @0.70: A08 −6.97,
+A09 −3.37, A13 −7.58, A16 −7.72 — far worse than A4's equivalent losses at the
+same step count). **This refutes the earlier speculative hypothesis (from the
+pre-experiment data-mining pass) that A5's typical-slide deficit vs A4 would
+keep shrinking or flip permanently positive at higher strength** — it does
+narrow/flip between 0.30 and 0.50, but reverses hard and gets much worse than
+A4 by 5 steps. Good example of why the confirmatory full run mattered rather
+than trusting the 3-point extrapolation.
+**Practical implication for Phase 3 / deployment:** there is no single best
+strength — it depends on the goal. For general-purpose robustness across all
+slides, 1-step LCM (strength ≈0.20-0.25) is the best operating point found for
+both A4 and A5, beating every previously-tested strength in the official
+ladder. For maximum single-slide (hardest-case) recovery specifically, 5-step
+A5 (strength 0.70) is dramatically the strongest result in the whole project,
+at severe cost everywhere else — a genuine trade-off, not a free lunch, and
+should be framed as a "rescue mode" option rather than a general default.
+**Evidence:** `docs/results/{a3_ext_s02,a4_ext_s02,a5_ext_s02,a4_ext_s07,a5_ext_s07,a4_ext_s67,a5_ext_s67}/`
+(manifests, per-crop, summary CSVs); analysis reproducible via
+`docs/results/analyze.py`.
+**Next step:** none required for Phase 1. Worth citing when choosing the
+deployment strength for P3-03/P3-04's SDXL transfer and comparison.
+
 ---
 
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review
