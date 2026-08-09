@@ -27,11 +27,29 @@ set), then `sbatch slurm/score_outputs.slurm a0`.
 **Acceptance criteria:** `eval/a0/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-02 — A1: Base + ControlNet
-**Status:** TODO — blocked on Canny edge extraction from source patches (not yet built)
+**Status:** TODO — code ready, not yet run.
 **Source:** `tab:ablation_ladder` (row A1); `sec:hist_lora` subsection on conditioning signals
 **Description:** SD1.5 + ControlNet-Canny (pretrained, `lllyasviel/sd-controlnet-canny`,
 already cached), no colour LoRA. Isolates the structural-conditioning contribution alone.
-**Depends on:** a Canny edge-map extraction step for source patches.
+**Code (2026-08-08):** `src/eval/canny.py` (new) -- Canny edge extraction, params
+(`GaussianBlur(3,3)` + Otsu-adaptive thresholds) match
+`archive/empty_stubs/canny_script.py`, the actual script that produced the
+proposal's `fig:canny1` figure, reused rather than picking new thresholds.
+`infer_colour_lora.py` extended (not duplicated) with optional `--controlnet`/
+`--controlnet-scale` -- one script now composes {LoRA, ControlNet} independently,
+covering A0 (neither), A1 (ControlNet only), A2 (LoRA only, unchanged default),
+and setting up A3 (both) for free. `ControlNetModel`/
+`StableDiffusionControlNetImg2ImgPipeline` API (`control_image=`,
+`controlnet_conditioning_scale=`) verified against the actual current diffusers
+source, not guessed -- an initial web search surfaced a legacy *community*
+pipeline using a different parameter name (`controlnet_conditioning_image`),
+caught before writing any code by checking the real core pipeline source.
+Added `slurm/infer_a1_controlnet.slurm`. Verified: syntax-checked; `--help`
+confirms both flags optional with no regression to A0; `canny.py` sanity-checked
+against a real crop from `pairs/train/` -- edges visibly trace nuclear/tissue
+boundaries, matching `fig:canny1`'s style.
+**Next step:** `sbatch slurm/infer_a1_controlnet.slurm` (smoke test with small
+`--limit` first), then `sbatch slurm/score_outputs.slurm a1`.
 **Acceptance criteria:** `eval/a1/eval_summary.csv` exists.
 
 ## P1-03a — A2 colour LoRA training: A→H, rank 8
@@ -49,10 +67,17 @@ already cached), no colour LoRA. Isolates the structural-conditioning contributi
 **Evidence:** `/datasets/mhoosen/stain-norm/lora/h2a_r8/final/pytorch_lora_weights.safetensors`
 
 ## P1-03d — A2 colour LoRA training: H→A, rank 4
-**Status:** TODO — the one gap in the rank-4/rank-8 × A2H/H2A matrix
+**Status:** ✅ DONE (2026-08-08) — completes the rank×direction matrix.
+`lora/h2a_r4/final/pytorch_lora_weights.safetensors` (3,226,184 bytes) verified,
+1000/1000 steps, final loss ~0.20.
 **Source:** same as P1-03a–c
-**Command:** `sbatch slurm/train_colour_lora.slurm H2A 4` (ask before submitting)
-**Acceptance criteria:** `final/pytorch_lora_weights.safetensors` under `lora/h2a_r4/`
+**Note:** first submission (job 37255) landed on a GPU-less node and silently
+CPU-crawled for 24+ min before being cancelled -- `train_colour_lora.slurm` was
+missing the fail-fast CUDA guard `infer_colour_lora.slurm` already had (same
+failure mode as job 3809, previously documented). Fixed: added the guard, second
+submission (37345) correctly aborted in 52s on another bad node, third (37349)
+completed cleanly in 4:25 on a working node.
+**Evidence:** `lora/h2a_r4/final/pytorch_lora_weights.safetensors`
 
 ## P1-04 — A3: Base + ControlNet + colour LoRA
 **Status:** TODO — blocked on P1-02, and on P1-03a/b (pick winning rank first)
