@@ -10,15 +10,27 @@
 # The LCM-LoRA is NOT trained -- only its compatibility with the already-frozen
 # stain-normalisation adapters is evaluated (sec:training_order, H4/RQ3).
 #
-# H4/RQ3: 4-step LCM here vs the 50-step DDIM reference already produced by A3
+# H4/RQ3: few-step LCM here vs the 50-step DDIM reference already produced by A3
 # (eval/a3/, same colour-LoRA + ControlNet config) -- compare SSIM/PSNR/artefacts.
 # Pre-committed fallback if quality drops (SSIM < 0.85 or visible artefacts):
 # 20-step DDIM, i.e. rerun infer_a3_combined.slurm at --steps 20 (no code change).
 #
+# Default STEPS=8, not the literal "4-step" from the proposal text: at
+# num_inference_steps=4, img2img's get_timesteps() (init_timestep =
+# int(num_inference_steps * strength)) collapses strengths 0.30 and 0.40 to the
+# SAME single real denoising step (confirmed empirically -- identical output on
+# every crop, see PHASE1-TICKETS.md P1-05). 8 steps is still within diffusers'
+# documented LCM range (4-8) and still far faster than 50-step DDIM, but gives
+# 2/3/4 real steps for strengths 0.30/0.40/0.50 -- properly differentiated.
+#
+# Two GPU nodes (mscluster65, mscluster75) are currently broken ("Unable to
+# determine the device handle for GPU0") but show as idle in sinfo -- exclude
+# them explicitly until confirmed fixed.
+#
 # Submit with:  [STRENGTHS] [LIMIT] [STEPS]
-#   sbatch infer_a4_lcm.slurm                             # default strengths, 8 frames, 4 steps
-#   sbatch infer_a4_lcm.slurm "0.3 0.4 0.5" 0              # 0 = ALL held-out frames
-#   sbatch infer_a4_lcm.slurm "0.3 0.4 0.5" 0 8             # 8-step LCM instead of 4
+#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm                  # default strengths, 8 frames, 8 steps
+#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm "0.3 0.4 0.5" 0   # 0 = ALL held-out frames
+#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm "0.3 0.4 0.5" 0 4 # literal 4-step (coarser)
 # =====================================================================
 
 #SBATCH --job-name=infer_a4
@@ -43,7 +55,7 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 
 STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
-STEPS=${3:-4}
+STEPS=${3:-8}
 
 OUT_DIR=${DATA_ROOT}/eval/a4
 

@@ -212,10 +212,39 @@ change to A0-A3 when `--lcm` is omitted. Added `slurm/infer_a4_lcm.slurm` — mi
 8) and `--guidance 1.5` (within the recommended LCM range). Verified: `py_compile`
 clean; `--help` shows both new flags with no regression; synced to cluster, byte-
 identical (238-line script, 89-line launcher).
-**Next step:** smoke test (`sbatch slurm/infer_a4_lcm.slurm`), verify manifest +
-visual check for artefacts, then full run
-(`sbatch slurm/infer_a4_lcm.slurm "0.3 0.4 0.5" 0`) → score, then compare against
-P1-04/A3's 50-step DDIM SSIM/PSNR per H4/RQ3.
+**Smoke test #1 (2026-08-09), steps=4:** job 39457 (infer, COMPLETED 11:03, all 3
+adapters confirmed active: "LoRA + ControlNet(...) + LCM-LoRA") + job 39490 (score,
+COMPLETED 57s). **Finding:** strengths 0.30 and 0.40 produced byte-identical output
+on every single crop (`eval_per_crop.csv` rows exactly equal). Root cause confirmed
+against real diffusers source (`pipeline_controlnet_img2img.py`'s `get_timesteps`,
+not guessed):
+```python
+init_timestep = min(int(num_inference_steps * strength), num_inference_steps)
+t_start = max(num_inference_steps - init_timestep, 0)
+```
+At `num_inference_steps=4`: strength 0.30 -> `int(4*0.30)=1` real step; 0.40 ->
+`int(4*0.40)=1` real step (same!); 0.50 -> `int(4*0.50)=2` steps. Not a code bug —
+an inherent quantisation interaction between img2img's `strength`-based partial
+denoising and a very low total step count, which also explains the weak LAB
+recovery vs A3's 50-step reference (too few real steps to do meaningful work).
+**Fix:** `--steps` bumped 4 -> 8 (still within diffusers' documented LCM range of
+4-8, still far faster than 50-step DDIM). At 8 steps: 0.30/0.40/0.50 ->
+`int(8*x)` = 2/3/4 real steps -- properly differentiated.
+**Smoke test #2 (2026-08-09), steps=8:** job 39507 (infer, COMPLETED 8:00) + job
+39534 (score, COMPLETED 2:01). Confirmed every strength now produces distinct
+per-crop output. `slurm/infer_a4_lcm.slurm`'s default `STEPS` updated 4 -> 8.
+**Cluster note:** two consecutive smoke-test attempts (jobs 39427, 39433, 39450)
+failed on broken GPU nodes -- `mscluster65` and `mscluster75` both report
+"Unable to determine the device handle for GPU0: Unknown Error" and show as
+`idle` in `sinfo` (Slurm has no GPU health awareness under partition-only
+scheduling, so it keeps re-offering them). Fail-fast guard caught all three
+correctly (<4min each, no CPU-crawl). Worked around with
+`sbatch --exclude=mscluster65,mscluster75 slurm/infer_a4_lcm.slurm ...` --
+worth using this exclusion for future GPU submissions until those nodes are
+confirmed fixed or reported to cluster admin.
+**Next step:** full run
+(`sbatch --exclude=mscluster65,mscluster75 slurm/infer_a4_lcm.slurm "0.3 0.4 0.5" 0 8`)
+→ score, then compare against P1-04/A3's 50-step DDIM SSIM/PSNR per H4/RQ3.
 **Acceptance criteria:** `eval/a4/eval_summary.csv` exists; SSIM/PSNR comparison
 against A3's 50-step DDIM reference documented (pass/fail against SSIM ≥ 0.85 or
 qualitative fallback trigger).
