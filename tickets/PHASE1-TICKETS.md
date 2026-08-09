@@ -313,12 +313,46 @@ training begins for this leg — do not train jointly.
 **Next step:** none for this ticket. P1-07 (A5 full ablation) is now unblocked.
 
 ## P1-07 — A5 full ablation: hist LoRA + colour LoRA + ControlNet + LCM
-**Status:** TODO — unblocked (P1-04, P1-05, P1-06 all done); not yet started
+**Status:** TODO — code ready, not yet run.
 **Source:** `tab:ablation_ladder` (row A5)
 **Description:** Primary comparison is A5 vs A4 (`sec:hist_lora`) — a positive result
 quantifies the value of a combined tissue-and-target-domain prior; a negative result
 supports that ControlNet + colour LoRA alone is sufficient. This decides whether
 P3-05 (A5-on-SDXL) is attempted.
+**Scope decision (2026-08-09):** `sec:training_order` step 3 reads "Train the
+colour LoRA on MITOS A03/H03 paired patches against the frozen base, optionally
+with the frozen histopathology LoRA already loaded for A5" — ambiguous between
+(a) training a NEW colour LoRA with the hist LoRA loaded+frozen underneath it,
+or (b) stacking the existing `a2h_r8` colour LoRA and `hist_r32` at inference
+only, no new training. Discussed with the user: going with (b) — no new training
+job. This also matches `train_hist_lora.py`'s own docstring from the earlier
+session ("loading it alongside a colour LoRA at inference ... is a separate
+step (P1-07), not done here"), so it's consistent with what was already on
+record, not a new precedent. A merge-based training approach for (a) was
+researched and verified against real diffusers/peft source (`unet.
+load_lora_adapter(..., prefix="unet")` + `unet.fuse_lora()` + `unet.
+unload_lora()` + fresh `unet.add_adapter(...)`, confirmed sound) in case this
+decision is revisited later, but is not implemented.
+**Code (2026-08-09):** `infer_colour_lora.py` extended again (not duplicated)
+with `--hist-lora`/`--hist-scale`. Generalises the existing 2-adapter
+(`colour`+`lcm`) `set_adapters` logic from A4 to support up to 3 simultaneous
+named adapters (`colour`, `hist`, `lcm`) — any combination triggers the
+multi-adapter path; a lone `--lora` with neither `--hist-lora` nor `--lcm`
+keeps the original single-adapter code path unchanged (zero regression to
+A2/A3). Added `slurm/infer_a5_full.slurm` — mirrors `infer_a4_lcm.slurm`
+(bigbatch, fail-fast CUDA guard, `mscluster65`/`mscluster75` excluded, 8-step
+LCM default per P1-05's finding) but adds `--hist-lora lora/hist_r32/final`
+alongside the existing `--lora a2h_r8/final` + `--controlnet` + `--lcm`. Output
+to `eval/a5/`. Verified: `py_compile` clean; `--help` shows both new flags with
+no regression; synced to cluster, byte-identical (259-line script, 89-line
+launcher).
+**Next step:** smoke test (`sbatch --exclude=mscluster65,mscluster75
+slurm/infer_a5_full.slurm`), verify manifest + all four adapters confirmed
+active in the log ("LoRA + ControlNet(...) + Hist-LoRA + LCM-LoRA"), then full
+run (`sbatch --exclude=mscluster65,mscluster75 slurm/infer_a5_full.slurm
+"0.3 0.4 0.5" 0`) → score → compare against A4 per the primary comparison above.
+**Acceptance criteria:** `eval/a5/eval_summary.csv` exists; A5 vs A4 comparison
+documented (per-slide, both `ALL` and `ALL_excl_outliers`, per CLAUDE.md).
 
 ## P1-08 — Denoising-strength / LCM quality sweep infrastructure
 **Status:** ✅ DONE — `infer_colour_lora.py` supports `--strengths` sweep;
