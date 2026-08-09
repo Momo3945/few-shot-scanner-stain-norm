@@ -9,7 +9,13 @@ trusting; a job leaving the queue is not proof of success.
 ---
 
 ## P1-01 — A0 baseline: frozen SD1.5 img2img, no adapters
-**Status:** TODO — code ready, not yet run.
+**Status:** ✅ DONE (2026-08-09) — full held-out run + scoring complete.
+Infer job 38544 (COMPLETED 1:24:36, resubmit after first attempt 37406 was
+cancelled by user's own account at 45:59 -- confirmed via `sacct -j 37406
+--format=State%30 -X -n` showing "CANCELLED by 328600015", matching mhoosen's
+own uid). 1488-row `eval/a0/eval_manifest.csv`, all 5 held-out slides present.
+Score job 39010 (COMPLETED 24:30, exit 0). `eval/a0/eval_summary.csv` verified:
+496 crops/strength (matches manifest).
 **Source:** `tab:ablation_ladder` (row A0)
 **Description:** Run the frozen SD1.5 base through img2img on the held-out set with
 no colour LoRA, no ControlNet, no LCM. This is the zero-baseline ablation condition —
@@ -20,11 +26,27 @@ at all). A0 runs the *untrained diffusion pipeline* through the normalisation pr
 (unconditionally called `load_lora_weights`), which made A0 impossible to run. Now
 optional -- skips LoRA loading when absent. Added `slurm/infer_a0_baseline.slurm` as
 a dedicated launcher (no `LORA_TAG` concept applies here, so it doesn't reuse
-`infer_colour_lora.slurm`'s tag-parsing). Verified: `--help` confirms `--lora` now
-shows as optional; syntax-checked; synced to cluster.
-**Next step:** `sbatch slurm/infer_a0_baseline.slurm "0.3 0.4 0.5" 0` (full held-out
-set), then `sbatch slurm/score_outputs.slurm a0`.
-**Acceptance criteria:** `eval/a0/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
+`infer_colour_lora.slurm`'s tag-parsing).
+**Results (2026-08-09), `eval/a0/eval_summary.csv`, LAB-Wasserstein / SSIM (strength 0.30 shown, all 3 strengths scored):**
+
+| scope | n_crops | LAB total | SSIM | recovery_delta_lab |
+|---|---|---|---|---|
+| ALL | 496 | 32.89 | 0.285 | +0.95 |
+| ALL_excl_outliers | 432 | 23.65 | 0.299 | — |
+| A06 (outlier) | 64 | 95.22 | 0.186 | -0.39 |
+| A08 | 112 | 23.42 | 0.298 | +1.85 |
+| A09 | 96 | 26.24 | 0.269 | +1.24 |
+| A13 | 64 | 21.69 | 0.283 | +4.94 |
+| A16 | 160 | 23.05 | 0.325 | +0.73 |
+
+Recovery delta degrades as strength increases (0.30 → 0.50: ALL delta +0.95 → -1.00) —
+higher denoising strength pushes the untrained base further from the target without
+any colour signal to guide it. A06 recovery delta is negative at every strength,
+consistent with its confirmed colour-gap-outlier status (`robust_z` 26-31, well past
+the outlier threshold) — the frozen base cannot close that gap on its own. This is
+the expected zero-baseline signature: A2/A3/A5 (colour LoRA present) should show
+materially better recovery deltas, which is the point of the ablation.
+**Acceptance criteria:** ✅ `eval/a0/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-02 — A1: Base + ControlNet
 **Status:** TODO — code smoke-tested successfully, full held-out run not yet run.
