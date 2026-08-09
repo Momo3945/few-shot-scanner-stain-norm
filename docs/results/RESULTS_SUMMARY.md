@@ -18,6 +18,32 @@ real target-scanner ground truth), SSIM (higher = more structure preserved),
 `recovery_delta_lab` = baseline LAB − model LAB (positive = the model moved the
 output closer to the real Hamamatsu ground truth than doing nothing at all).
 
+## Qualitative comparison — same crop, all four rungs side by side
+
+Same coordinates run through every completed rung (A0/A1/A2/A3, strength 0.30),
+plus the raw Aperio input and the real registered Hamamatsu ground truth, so the
+CSV numbers above can be checked against what the outputs actually look like.
+Full-resolution source images: `docs/results/qualitative/<tag>/`.
+
+**A08 (typical slide, LAB baseline 25.27):**
+![A08 ablation comparison](qualitative/comparison_a08_typical.png)
+
+Colour shift toward the Hamamatsu reference's darker, more saturated purple
+nuclei is visible from A2 onward (colour LoRA active); A0/A1 stay close to the
+paler Aperio input. Tissue structure (nuclear boundaries, stromal fibres) holds
+up across all four — consistent with ControlNet's SSIM numbers above.
+
+**A06 (confirmed colour-gap outlier, LAB baseline 94.84):**
+![A06 ablation comparison](qualitative/comparison_a06_outlier.png)
+
+This is the visual explanation for why A06's recovery deltas are small in
+absolute terms even where positive: the real Hamamatsu reference is
+*dramatically* more saturated than the Aperio source (a gap roughly 4× the
+typical slide), and none of A0–A3 come close to closing it — the colour shift
+each rung achieves is real (matches the sign of the recovery deltas above) but
+tiny relative to the size of the gap. Useful as a visual caveat alongside the
+"A06 recovers" numbers so they aren't read as A06 being solved.
+
 ## Raw baseline (no model at all — do-nothing comparison)
 
 `docs/results/baseline/baseline_summary.csv` — this is the reference point every
