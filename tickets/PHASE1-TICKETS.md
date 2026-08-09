@@ -178,12 +178,47 @@ best-performing rung of the ladder so far.
 **Acceptance criteria:** ✅ `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
-**Status:** TODO — unblocked (P1-04 done); not yet started
-**Source:** `tab:ablation_ladder` (row A4); `sec:training_order` step on LCM-LoRA attachment
+**Status:** TODO — code ready, not yet run.
+**Source:** `tab:ablation_ladder` (row A4); `sec:training_order` step on LCM-LoRA attachment;
+H4/RQ3 in `tab:hyp_rq`; `sec:experiments` "LCM Acceleration: Clinical Throughput"
 **Description:** Attach the pretrained `latent-consistency/lcm-lora-sdv1-5` (already
-cached) AFTER colour LoRA and ControlNet are frozen. LCM-LoRA itself is never trained —
-only its compatibility with the trained adapters is evaluated (4-step LCM vs 50-step
-DDIM on held-out MITOS; SSIM/PSNR + artefact inspection per `sec:experiments`).
+cached, verified real 134.6MB `.safetensors` blob not a stub) AFTER colour LoRA and
+ControlNet are frozen. LCM-LoRA itself is never trained — only its compatibility with
+the trained adapters is evaluated: 4-step LCM vs the 50-step DDIM reference already
+produced by P1-04/A3 (same `a2h_r8` colour LoRA + ControlNet-Canny config) — SSIM/PSNR
++ artefact inspection. Pre-committed fallback if quality drops (SSIM < 0.85 or visible
+banding/checkerboarding): 20-step DDIM, i.e. rerun `infer_a3_combined.slurm` at
+`--steps 20` — no code change needed, already supported.
+**API verified (2026-08-09), not guessed** — fetched real diffusers source
+(`pipeline_controlnet_img2img.py`, `loaders/lora_pipeline.py`, `loaders/lora_base.py`,
+`schedulers/scheduling_lcm.py`) plus the HF LCM-LoRA docs page, confirming:
+`StableDiffusionControlNetImg2ImgPipeline` inherits the real
+`StableDiffusionLoraLoaderMixin` (not a community pipeline); `load_lora_weights(...,
+adapter_name=...)` + `set_adapters([...], adapter_weights=[...])` is the documented
+pattern for two simultaneously-active LoRAs; `LCMScheduler.from_config(...)` mirrors
+the existing `DDIMScheduler` pattern already in use; recommended range is
+`num_inference_steps` 4-8, `guidance_scale` 1.0-2.0; `weight_name` must be explicit
+for `latent-consistency/lcm-lora-sdv1-5` too under `HF_HUB_OFFLINE=1` (same gotcha
+hit earlier for the local trained LoRA) — its repo has exactly one file,
+`pytorch_lora_weights.safetensors`; LoRA adapters only ever patch UNet/text-encoder,
+never `ControlNetModel`, so ControlNet + two active LoRAs + `LCMScheduler` has no
+known architectural incompatibility.
+**Code (2026-08-09):** `infer_colour_lora.py` extended again (not duplicated) with
+`--lcm` (attaches LCM-LoRA via `adapter_name="lcm"` + `set_adapters` alongside the
+colour LoRA's `adapter_name="colour"` when both are set, swaps scheduler to
+`LCMScheduler`) and `--lcm-scale` (adapter weight, default 1.0). Zero behaviour
+change to A0-A3 when `--lcm` is omitted. Added `slurm/infer_a4_lcm.slurm` — mirrors
+`infer_a3_combined.slurm` but adds `--lcm`, defaults `--steps 4` (overridable, e.g.
+8) and `--guidance 1.5` (within the recommended LCM range). Verified: `py_compile`
+clean; `--help` shows both new flags with no regression; synced to cluster, byte-
+identical (238-line script, 89-line launcher).
+**Next step:** smoke test (`sbatch slurm/infer_a4_lcm.slurm`), verify manifest +
+visual check for artefacts, then full run
+(`sbatch slurm/infer_a4_lcm.slurm "0.3 0.4 0.5" 0`) → score, then compare against
+P1-04/A3's 50-step DDIM SSIM/PSNR per H4/RQ3.
+**Acceptance criteria:** `eval/a4/eval_summary.csv` exists; SSIM/PSNR comparison
+against A3's 50-step DDIM reference documented (pass/fail against SSIM ≥ 0.85 or
+qualitative fallback trigger).
 
 ## P1-06 — A5 histopathology warm-start LoRA training
 **Status:** ✅ DONE (2026-08-08) — job 37114 COMPLETED, 3000/3000 steps, 521.7s.

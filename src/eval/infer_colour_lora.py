@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
 """
 infer_colour_lora.py -- SD1.5 img2img inference + denoising-strength sweep, composing
-the colour LoRA and ControlNet independently so this one script covers A0 (neither),
-A1 (ControlNet only), and A2 (LoRA only, the default) -- A3 (both) needs no new code.
+the colour LoRA, ControlNet, and LCM-LoRA independently so this one script covers
+A0 (none), A1 (ControlNet only), A2 (LoRA only, the original default), A3 (LoRA +
+ControlNet), and A4 (+ LCM-LoRA, multi-adapter alongside the colour LoRA) -- no new
+inference code needed per rung.
 
 For each held-out MITOS frame pair it: registers the Hamamatsu frame into the Aperio
 grid (real ground truth), tiles tissue crops, and for each crop runs SD 1.5 img2img
-(optionally + trained colour LoRA, optionally + ControlNet-Canny conditioning) at
-each requested denoising strength. It saves the normalised output crop, the
-registered-Hamamatsu reference crop (once per location), and an eval_manifest.csv
-pairing them -- which score_outputs.py then scores.
+(optionally + trained colour LoRA, optionally + ControlNet-Canny conditioning,
+optionally + LCM-LoRA/LCMScheduler for few-step inference) at each requested
+denoising strength. It saves the normalised output crop, the registered-Hamamatsu
+reference crop (once per location), and an eval_manifest.csv pairing them -- which
+score_outputs.py then scores.
 
 --lora omitted + --controlnet omitted -> A0 (frozen base only).
 --controlnet set, --lora omitted       -> A1 (+ ControlNet-Canny).
 --lora set, --controlnet omitted       -> A2 (+ colour LoRA), the original default.
 --lora set + --controlnet set          -> A3 (both).
-(No LCM here -- that is A4.)
+--lcm set (usually with --lora + --controlnet, low --steps) -> A4 (+ LCM-LoRA).
+(No histopathology warm-start LoRA here -- that is A5, a separate training run.)
 
 Strength is the RQ3 variable: low preserves structure but shifts colour weakly;
 high shifts colour but risks structural drift. The sweep finds the safe window.
@@ -53,6 +57,15 @@ def parse_args():
     ap.add_argument("--controlnet-scale", type=float, default=1.0,
                     help="controlnet_conditioning_scale -- how strongly the Canny map influences "
                          "generation. Only used when --controlnet is set.")
+    ap.add_argument("--lcm", action="store_true",
+                    help="Attach the pretrained LCM-LoRA (latent-consistency/lcm-lora-sdv1-5) "
+                         "alongside --lora (if set) via diffusers' multi-adapter set_adapters, and "
+                         "switch to LCMScheduler for few-step inference (A4). Omit for A0-A3 (DDIM "
+                         "only). H4/RQ3: compare a low --steps (4-8) run here against the --steps 50 "
+                         "DDIM reference already produced without --lcm, same --lora/--controlnet.")
+    ap.add_argument("--lcm-scale", type=float, default=1.0,
+                    help="Adapter weight for the LCM-LoRA when --lcm is set (via set_adapters). Only "
+                         "meaningful alongside --lora, where both adapters are active together.")
     ap.add_argument("--model", default="stable-diffusion-v1-5/stable-diffusion-v1-5")
     ap.add_argument("--root", required=True, help="Dataset root (heldout paths are relative to this).")
     ap.add_argument("--heldout", required=True, help="heldout_frames.csv.")
@@ -83,6 +96,8 @@ def main():
     import torch
     from PIL import Image
     from diffusers import DDIMScheduler
+    if args.lcm:
+        from diffusers import LCMScheduler
     if args.controlnet:
         from diffusers import ControlNetModel, StableDiffusionControlNetImg2ImgPipeline
     else:
@@ -100,9 +115,11 @@ def main():
     (out_dir / "outputs").mkdir(parents=True, exist_ok=True)
     (out_dir / "reference").mkdir(parents=True, exist_ok=True)
 
-    # ---- pipeline: SD 1.5 img2img, optionally + trained colour LoRA, optionally + ControlNet, DDIM ----
+    # ---- pipeline: SD 1.5 img2img, optionally + trained colour LoRA, optionally + ControlNet,
+    # optionally + LCM-LoRA (DDIM otherwise) ----
     label = " + ".join(filter(None, [
         "LoRA" if args.lora else None, f"ControlNet({args.controlnet})" if args.controlnet else None,
+        "LCM-LoRA" if args.lcm else None,
     ])) or "no adapters (A0 baseline)"
     print(f"Loading SD 1.5 img2img pipeline: {label} ...")
     if args.controlnet:
@@ -113,11 +130,20 @@ def main():
     else:
         pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
             args.model, torch_dtype=torch.float16, safety_checker=None, requires_safety_checker=False)
-    pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+    pipe.scheduler = (LCMScheduler if args.lcm else DDIMScheduler).from_config(pipe.scheduler.config)
     if args.lora:
         # weight_name must be explicit: diffusers normally auto-detects it via a Hub
         # API call, which is unavailable under HF_HUB_OFFLINE=1 (set above deliberately).
-        pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
+        lora_kwargs = {"weight_name": "pytorch_lora_weights.safetensors"}
+        if args.lcm:
+            lora_kwargs["adapter_name"] = "colour"  # named so it can stay active alongside "lcm"
+        pipe.load_lora_weights(args.lora, **lora_kwargs)
+    if args.lcm:
+        pipe.load_lora_weights("latent-consistency/lcm-lora-sdv1-5",
+                                weight_name="pytorch_lora_weights.safetensors", adapter_name="lcm")
+        active = (["colour"] if args.lora else []) + ["lcm"]
+        weights = ([1.0] if args.lora else []) + [args.lcm_scale]
+        pipe.set_adapters(active, adapter_weights=weights)
     pipe.to(device)
     pipe.set_progress_bar_config(disable=True)
 
