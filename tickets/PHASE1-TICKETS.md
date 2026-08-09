@@ -125,9 +125,13 @@ this was the point of extending it in place for P1-02). Output to `eval/a3/`.
 `score_outputs.slurm` is generic over the eval-dir tag, so `sbatch
 slurm/score_outputs.slurm a3` works unchanged once inference completes.
 Synced to cluster, verified byte-identical (78 lines).
-**Next step:** smoke test (`sbatch slurm/infer_a3_combined.slurm` with default
-small limit), verify manifest + visual check, then full run
-(`sbatch slurm/infer_a3_combined.slurm "0.3 0.4 0.5" 0`) → score.
+**Smoke test (2026-08-09):** job 39084 (infer, COMPLETED 10:03, 96 output crops,
+"LoRA + ControlNet(...)" confirmed in log) + job 39105 (score, COMPLETED 1:54).
+`eval/a3/eval_summary.csv` valid -- positive recovery delta (+1.96/+2.01/+2.32 at
+0.30/0.40/0.50) on the default-limit A06-only sample, schema compatible end-to-end
+with no changes to `score_outputs.py`.
+**Next step:** full run (`sbatch slurm/infer_a3_combined.slurm "0.3 0.4 0.5" 0`) →
+`sbatch slurm/score_outputs.slurm a3`.
 **Acceptance criteria:** `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
