@@ -14,9 +14,10 @@
 # A negative result supports that ControlNet + colour LoRA is sufficient without
 # the warm-start; this decides whether P3-05 (A5-on-SDXL) is attempted.
 #
-# Submit with:  [STRENGTHS] [LIMIT] [STEPS]
-#   sbatch --exclude=mscluster65,mscluster75 infer_a5_full.slurm                  # default strengths, 8 frames, 8 steps
+# Submit with:  [STRENGTHS] [LIMIT] [STEPS] [OUT_TAG]
+#   sbatch --exclude=mscluster65,mscluster75 infer_a5_full.slurm                  # default strengths, 8 frames, 8 steps, eval/a5
 #   sbatch --exclude=mscluster65,mscluster75 infer_a5_full.slurm "0.3 0.4 0.5" 0   # 0 = ALL held-out frames
+#   sbatch --exclude=mscluster65,mscluster75 infer_a5_full.slurm "0.6 0.7" 8 8 a5_ext_s67   # exploratory strengths -> eval/a5_ext_s67 (doesn't clobber eval/a5)
 # =====================================================================
 
 #SBATCH --job-name=infer_a5
@@ -43,8 +44,9 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
 STEPS=${3:-8}
+OUT_TAG=${4:-a5}
 
-OUT_DIR=${DATA_ROOT}/eval/a5
+OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -86,4 +88,4 @@ python src/eval/infer_colour_lora.py \
 
 echo "------------------------------------------------------------------"
 echo "Inference done. Outputs + eval_manifest.csv in ${OUT_DIR}"
-echo "Next: sbatch slurm/score_outputs.slurm a5"
+echo "Next: sbatch slurm/score_outputs.slurm ${OUT_TAG}"

@@ -27,10 +27,11 @@
 # determine the device handle for GPU0") but show as idle in sinfo -- exclude
 # them explicitly until confirmed fixed.
 #
-# Submit with:  [STRENGTHS] [LIMIT] [STEPS]
-#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm                  # default strengths, 8 frames, 8 steps
+# Submit with:  [STRENGTHS] [LIMIT] [STEPS] [OUT_TAG]
+#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm                  # default strengths, 8 frames, 8 steps, eval/a4
 #   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm "0.3 0.4 0.5" 0   # 0 = ALL held-out frames
 #   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm "0.3 0.4 0.5" 0 4 # literal 4-step (coarser)
+#   sbatch --exclude=mscluster65,mscluster75 infer_a4_lcm.slurm "0.6 0.7" 8 8 a4_ext_s67  # exploratory -> eval/a4_ext_s67
 # =====================================================================
 
 #SBATCH --job-name=infer_a4
@@ -56,8 +57,9 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
 STEPS=${3:-8}
+OUT_TAG=${4:-a4}
 
-OUT_DIR=${DATA_ROOT}/eval/a4
+OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -98,4 +100,4 @@ python src/eval/infer_colour_lora.py \
 
 echo "------------------------------------------------------------------"
 echo "Inference done. Outputs + eval_manifest.csv in ${OUT_DIR}"
-echo "Next: sbatch slurm/score_outputs.slurm a4"
+echo "Next: sbatch slurm/score_outputs.slurm ${OUT_TAG}"

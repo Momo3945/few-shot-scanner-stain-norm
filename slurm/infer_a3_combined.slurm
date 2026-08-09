@@ -8,9 +8,10 @@
 # (~0.1-0.3 LAB units apart everywhere) but rank 8 had the marginal edge on the
 # pooled ALL recovery delta at strengths 0.30/0.40.
 #
-# Submit with:  [STRENGTHS] [LIMIT]
-#   sbatch infer_a3_combined.slurm                        # default strengths, 8 frames
+# Submit with:  [STRENGTHS] [LIMIT] [OUT_TAG]
+#   sbatch infer_a3_combined.slurm                        # default strengths, 8 frames, eval/a3
 #   sbatch infer_a3_combined.slurm "0.3 0.4 0.5" 0         # 0 = ALL held-out frames
+#   sbatch infer_a3_combined.slurm "0.2" 0 a3_ext_s02      # exploratory -> eval/a3_ext_s02
 # =====================================================================
 
 #SBATCH --job-name=infer_a3
@@ -35,8 +36,9 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 
 STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
+OUT_TAG=${3:-a3}
 
-OUT_DIR=${DATA_ROOT}/eval/a3
+OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -75,4 +77,4 @@ python src/eval/infer_colour_lora.py \
 
 echo "------------------------------------------------------------------"
 echo "Inference done. Outputs + eval_manifest.csv in ${OUT_DIR}"
-echo "Next: sbatch slurm/score_outputs.slurm a3"
+echo "Next: sbatch slurm/score_outputs.slurm ${OUT_TAG}"
