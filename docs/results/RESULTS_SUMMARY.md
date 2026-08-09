@@ -1,24 +1,23 @@
-# Results digest — Phase 1 ablation ladder (A0–A4)
+# Results digest — Phase 1 ablation ladder (A0–A5, complete)
 
-Pulled from the cluster on 2026-08-09. Raw CSVs for each run live alongside this
+Pulled from the cluster on 2026-08-09/10. Raw CSVs for each run live alongside this
 file in `docs/results/<tag>/` (`eval_manifest.csv`, `eval_per_crop.csv`,
 `eval_summary.csv` — the last is the one summarised below). This file exists so
 the final report has a stable, local, non-cluster-dependent source for numbers
 and interesting findings — regenerate it by re-pulling from
 `/datasets/mhoosen/stain-norm/eval/<tag>/` if a run is repeated.
 
-**Status:** A0, A1, A2 (rank 4 + rank 8), A3, A4 are all complete and final —
-the full Phase 1 ablation ladder (minus A5, which needs the separately-trained
-histopathology warm-start LoRA) is done.
+**Status:** A0 through A5 are all complete and final — the entire Phase 1
+ablation ladder is done, ready for the Phase 1 decision gate.
 
 All metrics: LAB-histogram Wasserstein distance (`lab_total`, lower = closer to
 real target-scanner ground truth), SSIM (higher = more structure preserved),
 `recovery_delta_lab` = baseline LAB − model LAB (positive = the model moved the
 output closer to the real Hamamatsu ground truth than doing nothing at all).
 
-## Qualitative comparison — same crop, all five rungs side by side
+## Qualitative comparison — same crop, all six rungs side by side
 
-Same coordinates run through every completed rung (A0/A1/A2/A3/A4, strength
+Same coordinates run through every completed rung (A0/A1/A2/A3/A4/A5, strength
 0.30), plus the raw Aperio input and the real registered Hamamatsu ground
 truth, so the CSV numbers above can be checked against what the outputs
 actually look like. Full-resolution source images: `docs/results/qualitative/<tag>/`.
@@ -28,23 +27,34 @@ actually look like. Full-resolution source images: `docs/results/qualitative/<ta
 
 Colour shift toward the Hamamatsu reference's darker, more saturated purple
 nuclei is visible from A2 onward (colour LoRA active); A0/A1 stay close to the
-paler Aperio input. A4 (8-step LCM) looks visually close to A3, consistent
-with its slightly negative recovery delta on this slide (-0.04, essentially a
-wash). Tissue structure (nuclear boundaries, stromal fibres) holds up across
-all five — consistent with SSIM staying flat-to-improving through A4.
+paler Aperio input. A4 and A5 look visually close to A3 on this slide,
+consistent with both scoring slightly negative recovery delta here (A4 -0.04,
+A5 -1.27 @0.30) — A5's histopathology prior doesn't help (and slightly hurts)
+on typical slides. Tissue structure (nuclear boundaries, stromal fibres) holds
+up across all six.
 
-**A06 (confirmed colour-gap outlier, LAB baseline 94.84):**
+**A06 (confirmed colour-gap outlier, LAB baseline 94.84), strength 0.30:**
 ![A06 ablation comparison](qualitative/comparison_a06_outlier.png)
 
 This is the visual explanation for why A06's recovery deltas are small in
 absolute terms even where positive: the real Hamamatsu reference is
 *dramatically* more saturated than the Aperio source (a gap roughly 4× the
-typical slide), and none of A0–A4 come close to closing it at strength 0.30 —
+typical slide), and none of A0–A5 come close to closing it at strength 0.30 —
 the colour shift each rung achieves is real (matches the sign of the recovery
-deltas above) but tiny relative to the size of the gap. (A06's best actual
-recovery happens at strength 0.50 under A4, +7.31 — not shown in this 0.30
-comparison; see the A4 section below.) Useful as a visual caveat alongside the
-"A06 recovers" numbers so they aren't read as A06 being solved.
+deltas above) but tiny relative to the size of the gap.
+
+**A06 at strength 0.50 — the headline result:**
+![A06 strength 0.50 comparison](qualitative/comparison_a06_strength050.png)
+
+A5's recovery delta here is **+16.02** — the best result anywhere in the
+entire ablation ladder, more than double A4's +7.31 at the same strength (see
+the A5 section below for the full comparison). Worth being honest about the
+visual: the *quantitative* gain is real and verified in `eval_per_crop.csv`,
+but the difference between A4 and A5 is fairly subtle to the eye in this
+particular crop — LAB Wasserstein is a holistic per-crop histogram statistic,
+and this tile is dominated by pale background/stroma rather than densely
+stained nuclei, so a real measured shift doesn't always look dramatic in a
+single image. Don't oversell the picture; trust the numbers.
 
 ## Raw baseline (no model at all — do-nothing comparison)
 
@@ -78,6 +88,11 @@ run's `eval_summary.csv`.
 | A2 (rank 8) | + colour LoRA | +1.72 | 0.289 | +0.92 | 0.191 | +2.49 | +1.90 | +5.27 | +1.62 |
 | A3 | ControlNet + colour LoRA (r8) | **+1.32** | 0.386 | +0.45 | 0.259 | +1.90 | +1.81 | +4.97 | +1.16 |
 | A4 | + LCM-LoRA (8-step) | −0.13 | **0.398** | −0.22 | **0.272** | −0.04 | +0.76 | +3.24 | −0.39 |
+| A5 | + histopathology warm-start LoRA | −0.12 | 0.389 | **+2.38** | 0.265 | −1.27 | +2.38 | +3.26 | −1.51 |
+
+A5's A06 lead over A4 grows sharply with strength — see the dedicated A5
+section below for the full per-strength picture (it's the most important part
+of this table, not fully visible at 0.30 alone).
 
 ## Interesting details for the write-up
 
@@ -170,6 +185,50 @@ needs empirical verification rather than taking "N-step LCM" at face value, and
 as an example of a result that doesn't cleanly confirm the hypothesis — still a
 useful, reportable finding. Full details: `tickets/PHASE1-TICKETS.md` P1-05.
 
+### A5 / sec:hist_lora: histopathology warm-start — real, but slide-dependent
+
+**Scope note:** A5 stacks the already-trained, already-frozen `hist_r32` and
+`a2h_r8` checkpoints at inference (no new training job) — see
+`tickets/PHASE1-TICKETS.md` P1-07 for how the proposal's training-order wording
+was resolved. The primary comparison per the proposal is A5 vs A4 (same
+colour-LoRA + ControlNet + LCM config, only the histopathology LoRA added).
+
+**A5 vs A4, recovery Δlab, per strength:**
+
+| scope | A4 @0.30 | A5 @0.30 | A4 @0.40 | A5 @0.40 | A4 @0.50 | A5 @0.50 |
+|---|---|---|---|---|---|---|
+| ALL | −0.13 | −0.12 | −1.65 | −0.94 | −1.21 | **+0.42** |
+| **A06** | −0.22 | **+2.38** | +1.55 | **+7.35** | +7.31 | **+16.02** |
+| A08 | −0.04 | −1.27 | −2.84 | −3.40 | −3.52 | −2.43 |
+| A16 | −0.39 | −1.51 | −2.82 | −3.44 | −2.91 | −3.01 |
+
+- **On A06, the histopathology prior is dramatically effective** — the gap
+  over A4 *grows* with strength: +2.60 (@0.30) → +5.80 (@0.40) → **+8.71**
+  (@0.50). A5's A06 result at strength 0.50 (+16.02) is the single best result
+  anywhere in the entire A0–A5 ladder — more than double A4's already-best A06
+  score. In absolute terms, raw LAB Wasserstein for A06 drops from the 94.84
+  baseline to 78.82 — closing ~17% of the original colour gap, the largest
+  closure of any rung.
+- **SSIM is not the trade-off** — A5's A06 SSIM (0.199 @0.50) sits right next
+  to A4's (~0.20) — the histopathology prior isn't buying colour recovery at
+  the cost of structure.
+- **On typical slides (A08, A16), A5 is consistently worse than A4** — the
+  histopathology prior appears to pull colour in a direction that helps the
+  extreme outlier but mildly hurts already-well-behaved slides. Pooled `ALL`
+  is roughly a wash at 0.30 and modestly favours A5 at 0.40/0.50, once A06's
+  large gains are averaged in with the small typical-slide losses.
+- **Bottom line**: this is a genuine positive result for the specific research
+  question `sec:hist_lora` asks (does a histopathology-domain prior help
+  *generalisation to the hardest case*?), even though it is not a uniform
+  win in the pooled-average sense. Report both framings — collapsing to a
+  single "A5 beats A4" or "A5 doesn't help" verdict would misrepresent the
+  slide-dependent reality. This also directly informs P3-05 (whether A5 gets
+  transferred to SDXL): worth doing given how much it helps the hardest case,
+  even though it isn't a universal improvement.
+
+Full details, evidence, and the qualitative caveat about the strength-0.50
+image not looking as dramatic as the numbers: `tickets/PHASE1-TICKETS.md` P1-07.
+
 ## Local file index
 
 ```
@@ -181,7 +240,8 @@ docs/results/
 ├── a2h_r8/               A2: + colour LoRA, rank 8 (used in A3/A4)
 ├── a3/                  A3: ControlNet + colour LoRA (rank 8)
 ├── a4/                  A4: + LCM-LoRA (8-step)
-└── qualitative/          side-by-side A0-A4 comparison composites (2 example crops)
+├── a5/                  A5: + histopathology warm-start LoRA (stacked at inference)
+└── qualitative/          side-by-side A0-A5 comparison composites (3 example crops)
 ```
 
 Each folder: `eval_manifest.csv` (crop-level path bookkeeping), `eval_per_crop.csv`

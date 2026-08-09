@@ -313,7 +313,7 @@ training begins for this leg — do not train jointly.
 **Next step:** none for this ticket. P1-07 (A5 full ablation) is now unblocked.
 
 ## P1-07 — A5 full ablation: hist LoRA + colour LoRA + ControlNet + LCM
-**Status:** TODO — code ready, not yet run.
+**Status:** ✅ DONE (2026-08-10) — full held-out run + scoring complete (see results below).
 **Source:** `tab:ablation_ladder` (row A5)
 **Description:** Primary comparison is A5 vs A4 (`sec:hist_lora`) — a positive result
 quantifies the value of a combined tissue-and-target-domain prior; a negative result
@@ -354,10 +354,52 @@ equivalent A06 numbers at every strength (A5 +3.95/+9.05/+18.02 vs A4's
 -0.22/+1.55/+7.31 @0.30/0.40/0.50) -- early signal the histopathology
 warm-start prior is doing real work on the hardest slide, worth confirming on
 the full held-out set.
-**Next step:** full run (`sbatch --exclude=mscluster65,mscluster75
-slurm/infer_a5_full.slurm "0.3 0.4 0.5" 0`) → score → compare against A4 per
-the primary comparison above.
-**Acceptance criteria:** `eval/a5/eval_summary.csv` exists; A5 vs A4 comparison
+**Status:** ✅ DONE (2026-08-10) — full held-out run + scoring complete.
+Infer job 39924 COMPLETED 1:06:56 (1488-row manifest, all 5 slides confirmed).
+Score job 40106 COMPLETED 9:09.
+**Results (2026-08-10), `eval/a5/eval_summary.csv`, A5 vs A4 (both at strength
+0.30/0.40/0.50, same colour-LoRA/ControlNet/LCM config, only the hist LoRA added):**
+
+| scope | A4 Δlab | A5 Δlab | delta (A5−A4) |
+|---|---|---|---|
+| ALL @0.30 | −0.13 | −0.12 | ≈0 |
+| ALL @0.40 | −1.65 | −0.94 | +0.71 |
+| ALL @0.50 | −1.21 | **+0.42** | +1.63 |
+| **A06 @0.30** | −0.22 | **+2.38** | **+2.60** |
+| **A06 @0.40** | +1.55 | **+7.35** | **+5.80** |
+| **A06 @0.50** | +7.31 | **+16.02** | **+8.71** |
+| A08 @0.30 | −0.04 | −1.27 | −1.23 |
+| A08 @0.50 | −3.52 | −2.43 | +1.09 |
+| A16 @0.30 | −0.39 | −1.51 | −1.12 |
+| A16 @0.50 | −2.91 | −3.01 | −0.10 |
+
+**A5's contribution is real but slide-dependent, not a uniform win.** On A06
+(the confirmed colour-gap outlier) the histopathology warm-start prior
+dramatically improves colour recovery at every strength, more than doubling
+A4's already-best-in-ladder A06 result at 0.50 (+16.02 vs +7.31 — raw LAB
+Wasserstein for A5's A06 output drops from baseline 94.84 to 78.82, closing
+~17% of the original gap, the largest closure anywhere in the ladder). SSIM
+stays close to A4's (0.199 vs A4's ~0.20 @0.50 A06) -- not a structural
+trade-off. But on the typical slides (A08, A16), A5 is consistently *worse*
+than A4 (e.g. A08 @0.30: A4 −0.04 → A5 −1.27). Pooled `ALL` is roughly a wash
+at 0.30, favours A5 at 0.40/0.50 (A06's large gains outweigh the typical-slide
+losses once pooled). **Reads as a genuine positive result for the specific
+research question** (`sec:hist_lora`: does the histopathology prior help
+*generalisation to the hardest case*?) even though it is not a positive result
+in the pooled-average sense — worth reporting both framings, not collapsing to
+a single verdict.
+**Qualitative:** `docs/results/qualitative/comparison_a06_strength050.png`
+shows the strength-0.50 A06 crop across the full ladder. The quantitative gain
+is real (verified in `eval_per_crop.csv`, not just the aggregate) but the
+*visual* difference between A4 and A5 in this single crop is fairly subtle to
+the eye -- LAB Wasserstein is a holistic per-crop histogram statistic, and this
+particular tile is dominated by pale background/stroma rather than densely
+stained nuclei, so a real measured shift doesn't always look dramatic in one
+image. Worth stating this caveat plainly in the write-up rather than
+overselling the visual.
+**Next step:** none — Phase 1 ablation ladder (A0-A5) is complete. Ready for
+the Phase 1 decision gate (proposal §"Time Plan").
+**Acceptance criteria:** ✅ `eval/a5/eval_summary.csv` exists; A5 vs A4 comparison
 documented (per-slide, both `ALL` and `ALL_excl_outliers`, per CLAUDE.md).
 
 ## P1-08 — Denoising-strength / LCM quality sweep infrastructure
