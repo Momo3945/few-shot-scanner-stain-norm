@@ -108,10 +108,27 @@ completed cleanly in 4:25 on a working node.
 **Evidence:** `lora/h2a_r4/final/pytorch_lora_weights.safetensors`
 
 ## P1-04 — A3: Base + ControlNet + colour LoRA
-**Status:** TODO — blocked on P1-02, and on P1-03a/b (pick winning rank first)
+**Status:** TODO — code ready, not yet run. Rank decided, launcher written.
 **Source:** `tab:ablation_ladder` (row A3)
 **Description:** Combine structural conditioning with colour adaptation, no LCM yet.
 Tests the combination before acceleration is introduced.
+**Rank decision (2026-08-09):** per P2-05's rank 4 vs rank 8 comparison (see
+PHASE2-TICKETS.md), rank barely matters (~0.1-0.3 LAB units apart everywhere).
+Rank 8 has the marginal empirical edge (wins on pooled `ALL` recovery delta at
+strengths 0.30/0.40, and on 3/5 slides at 0.30) — picked `a2h_r8` for A3.
+**Code (2026-08-09):** `slurm/infer_a3_combined.slurm` (new) — mirrors
+`infer_a1_controlnet.slurm`'s structure (bigbatch, fail-fast CUDA guard) but
+passes both `--lora` (`lora/a2h_r8/final`) and `--controlnet`
+(`lllyasviel/sd-controlnet-canny`) to the same `infer_colour_lora.py`, which
+already supports composing both flags together (no new inference code needed —
+this was the point of extending it in place for P1-02). Output to `eval/a3/`.
+`score_outputs.slurm` is generic over the eval-dir tag, so `sbatch
+slurm/score_outputs.slurm a3` works unchanged once inference completes.
+Synced to cluster, verified byte-identical (78 lines).
+**Next step:** smoke test (`sbatch slurm/infer_a3_combined.slurm` with default
+small limit), verify manifest + visual check, then full run
+(`sbatch slurm/infer_a3_combined.slurm "0.3 0.4 0.5" 0`) → score.
+**Acceptance criteria:** `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
 **Status:** TODO — blocked on P1-04
