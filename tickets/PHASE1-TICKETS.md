@@ -182,7 +182,7 @@ accurate comparison across all 5 completed rungs, not just A0/A1/A3.
 **Acceptance criteria:** ✅ `eval/a3/eval_summary.csv` exists with per-slide LAB/SSIM/PSNR/MAE.
 
 ## P1-05 — A4: Full pipeline (+ LCM-LoRA)
-**Status:** TODO — code ready, not yet run.
+**Status:** ✅ DONE (2026-08-09) — full held-out run + scoring complete (see results below).
 **Source:** `tab:ablation_ladder` (row A4); `sec:training_order` step on LCM-LoRA attachment;
 H4/RQ3 in `tab:hyp_rq`; `sec:experiments` "LCM Acceleration: Clinical Throughput"
 **Description:** Attach the pretrained `latent-consistency/lcm-lora-sdv1-5` (already
@@ -246,12 +246,46 @@ correctly (<4min each, no CPU-crawl). Worked around with
 `sbatch --exclude=mscluster65,mscluster75 slurm/infer_a4_lcm.slurm ...` --
 worth using this exclusion for future GPU submissions until those nodes are
 confirmed fixed or reported to cluster admin.
-**Next step:** full run
-(`sbatch --exclude=mscluster65,mscluster75 slurm/infer_a4_lcm.slurm "0.3 0.4 0.5" 0 8`)
-→ score, then compare against P1-04/A3's 50-step DDIM SSIM/PSNR per H4/RQ3.
-**Acceptance criteria:** `eval/a4/eval_summary.csv` exists; SSIM/PSNR comparison
-against A3's 50-step DDIM reference documented (pass/fail against SSIM ≥ 0.85 or
-qualitative fallback trigger).
+**Status:** ✅ DONE (2026-08-09) — full held-out run + scoring complete.
+Infer job 39630 COMPLETED 1:06:24 (1488-row manifest, all 5 slides confirmed) —
+notably faster than every 50-step run despite the extra LCM-LoRA adapter, as
+expected for 8-step inference. Score job 39784 COMPLETED 9:26.
+**Results (2026-08-09), `eval/a4/eval_summary.csv` (strength 0.30 shown),
+vs A3's 50-step DDIM reference:**
+
+| scope | A3 (50-step DDIM) Δlab | A4 (8-step LCM) Δlab | A3 SSIM | A4 SSIM |
+|---|---|---|---|---|
+| ALL | +1.32 | **-0.13** | 0.386 | **0.398** |
+| A06 (outlier) | +0.45 | **-0.22** | 0.259 | 0.272 |
+| A08 | +1.90 | -0.04 | 0.408 | 0.421 |
+| A09 | +1.81 | +0.76 | 0.372 | 0.389 |
+| A13 | +4.97 | +3.24 | 0.363 | 0.370 |
+| A16 | +1.16 | -0.39 | 0.438 | 0.449 |
+
+**H4/RQ3 finding — nuanced, not a clean pass:** SSIM is essentially preserved
+or even marginally *higher* under 8-step LCM than 50-step DDIM at every scope
+(structural fidelity is not the casualty here) but colour recovery
+(`recovery_delta_lab`) degrades and goes **negative** for `ALL`/`A06`/`A08`/`A16`
+at strength 0.30 — LCM acceleration is trading away some of the colour LoRA's
+gain even though it isn't damaging structure. The picture is strength-dependent
+and not monotonic: at 0.50, A06 jumps to **+7.31** (best A06 result in the whole
+ladder) while A08/A13/A16 fall further behind (-3.52/-1.09/-2.91) — likely the
+same few-step quantisation sensitivity documented above (8 steps × strength
+0.50 = only 4 real denoising steps, more variance-prone than 50-step DDIM's much
+finer resolution). Full per-strength table in `eval/a4/eval_summary.csv`.
+**Proposal's SSIM ≥ 0.85 threshold does not apply as a literal pass/fail bar
+here** — no rung in the entire A0-A4 ladder ever exceeds ~0.45 SSIM under this
+project's actual metric computation (see `docs/results/RESULTS_SUMMARY.md`),
+so 0.85 is not a calibrated threshold for these numbers; the comparison that
+matters is A4 vs A3 (same colour-LoRA/ControlNet config, only the sampler
+changed), not A4 vs an absolute constant. On that relative basis: **structure
+compatible, colour recovery not clearly compatible at 8 steps/strength 0.30-0.40,
+but A06 (the hardest case) sees its best-ever recovery at strength 0.50.** Worth
+reporting as-is (genuine, useful negative-leaning result) rather than invoking
+the 20-step DDIM fallback, since the fallback is meant for structural/artefact
+failure, which did not occur.
+**Acceptance criteria:** ✅ `eval/a4/eval_summary.csv` exists; SSIM/PSNR comparison
+against A3's 50-step DDIM reference documented above.
 
 ## P1-06 — A5 histopathology warm-start LoRA training
 **Status:** ✅ DONE (2026-08-08) — job 37114 COMPLETED, 3000/3000 steps, 521.7s.
@@ -276,11 +310,10 @@ spot-checked files exist) and against a synthetic injected leak (correctly
 aborts).
 **Constraint (sec:training_order):** must be trained and FROZEN before colour-LoRA
 training begins for this leg — do not train jointly.
-**Next step:** none for this ticket. P1-07 (A5 full ablation) can proceed once P1-04
-(ControlNet + colour LoRA, blocked on P1-02) is also done.
+**Next step:** none for this ticket. P1-07 (A5 full ablation) is now unblocked.
 
 ## P1-07 — A5 full ablation: hist LoRA + colour LoRA + ControlNet + LCM
-**Status:** TODO — blocked on P1-06 and P1-04
+**Status:** TODO — unblocked (P1-04, P1-05, P1-06 all done); not yet started
 **Source:** `tab:ablation_ladder` (row A5)
 **Description:** Primary comparison is A5 vs A4 (`sec:hist_lora`) — a positive result
 quantifies the value of a combined tissue-and-target-domain prior; a negative result

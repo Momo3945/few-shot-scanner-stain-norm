@@ -7,31 +7,31 @@ the final report has a stable, local, non-cluster-dependent source for numbers
 and interesting findings — regenerate it by re-pulling from
 `/datasets/mhoosen/stain-norm/eval/<tag>/` if a run is repeated.
 
-**Status:** A0, A1, A2 (rank 4 + rank 8), A3 are complete and final. **A4 (+LCM)
-full held-out run is still in progress** (job 39630 as of writing) — this file
-will be updated once it lands. A4's smoke-test-only numbers are not included
-below because they used a since-fixed step count (see "A4 LCM step-quantisation
-finding" below) and aren't representative.
+**Status:** A0, A1, A2 (rank 4 + rank 8), A3, A4 are all complete and final —
+the full Phase 1 ablation ladder (minus A5, which needs the separately-trained
+histopathology warm-start LoRA) is done.
 
 All metrics: LAB-histogram Wasserstein distance (`lab_total`, lower = closer to
 real target-scanner ground truth), SSIM (higher = more structure preserved),
 `recovery_delta_lab` = baseline LAB − model LAB (positive = the model moved the
 output closer to the real Hamamatsu ground truth than doing nothing at all).
 
-## Qualitative comparison — same crop, all four rungs side by side
+## Qualitative comparison — same crop, all five rungs side by side
 
-Same coordinates run through every completed rung (A0/A1/A2/A3, strength 0.30),
-plus the raw Aperio input and the real registered Hamamatsu ground truth, so the
-CSV numbers above can be checked against what the outputs actually look like.
-Full-resolution source images: `docs/results/qualitative/<tag>/`.
+Same coordinates run through every completed rung (A0/A1/A2/A3/A4, strength
+0.30), plus the raw Aperio input and the real registered Hamamatsu ground
+truth, so the CSV numbers above can be checked against what the outputs
+actually look like. Full-resolution source images: `docs/results/qualitative/<tag>/`.
 
 **A08 (typical slide, LAB baseline 25.27):**
 ![A08 ablation comparison](qualitative/comparison_a08_typical.png)
 
 Colour shift toward the Hamamatsu reference's darker, more saturated purple
 nuclei is visible from A2 onward (colour LoRA active); A0/A1 stay close to the
-paler Aperio input. Tissue structure (nuclear boundaries, stromal fibres) holds
-up across all four — consistent with ControlNet's SSIM numbers above.
+paler Aperio input. A4 (8-step LCM) looks visually close to A3, consistent
+with its slightly negative recovery delta on this slide (-0.04, essentially a
+wash). Tissue structure (nuclear boundaries, stromal fibres) holds up across
+all five — consistent with SSIM staying flat-to-improving through A4.
 
 **A06 (confirmed colour-gap outlier, LAB baseline 94.84):**
 ![A06 ablation comparison](qualitative/comparison_a06_outlier.png)
@@ -39,9 +39,11 @@ up across all four — consistent with ControlNet's SSIM numbers above.
 This is the visual explanation for why A06's recovery deltas are small in
 absolute terms even where positive: the real Hamamatsu reference is
 *dramatically* more saturated than the Aperio source (a gap roughly 4× the
-typical slide), and none of A0–A3 come close to closing it — the colour shift
-each rung achieves is real (matches the sign of the recovery deltas above) but
-tiny relative to the size of the gap. Useful as a visual caveat alongside the
+typical slide), and none of A0–A4 come close to closing it at strength 0.30 —
+the colour shift each rung achieves is real (matches the sign of the recovery
+deltas above) but tiny relative to the size of the gap. (A06's best actual
+recovery happens at strength 0.50 under A4, +7.31 — not shown in this 0.30
+comparison; see the A4 section below.) Useful as a visual caveat alongside the
 "A06 recovers" numbers so they aren't read as A06 being solved.
 
 ## Raw baseline (no model at all — do-nothing comparison)
@@ -74,7 +76,8 @@ run's `eval_summary.csv`.
 | A1 | + ControlNet | +0.73 | **0.389** | −0.52 | 0.260 | +1.60 | +1.09 | +4.51 | +0.55 |
 | A2 (rank 4) | + colour LoRA | +1.58 | 0.289 | +1.16 | 0.192 | +2.18 | +1.75 | +5.08 | +1.47 |
 | A2 (rank 8) | + colour LoRA | +1.72 | 0.289 | +0.92 | 0.191 | +2.49 | +1.90 | +5.27 | +1.62 |
-| A3 | ControlNet + colour LoRA (r8) | **+1.32** | 0.386 | +0.45 | **0.259** | +1.90 | +1.81 | +4.97 | +1.16 |
+| A3 | ControlNet + colour LoRA (r8) | **+1.32** | 0.386 | +0.45 | 0.259 | +1.90 | +1.81 | +4.97 | +1.16 |
+| A4 | + LCM-LoRA (8-step) | −0.13 | **0.398** | −0.22 | **0.272** | −0.04 | +0.76 | +3.24 | −0.39 |
 
 ## Interesting details for the write-up
 
@@ -119,21 +122,53 @@ run's `eval_summary.csv`.
   This is why every table here (and every `eval_summary.csv`) carries
   `ALL_excl_outliers` alongside `ALL`.
 
-### A4 LCM step-quantisation finding (methodological, from smoke testing)
+### A4 / H4-RQ3: few-step LCM vs 50-step DDIM — a nuanced, not clean-pass, result
 
-At `num_inference_steps=4` (the literal "four-step LCM" wording in the
+**Step-quantisation finding (from smoke testing, fixed before the full run):**
+at `num_inference_steps=4` (the literal "four-step LCM" wording in the
 proposal), diffusers' img2img `get_timesteps()` computes
 `init_timestep = int(num_inference_steps * strength)`. For our usual strength
 sweep this collapses strengths 0.30 and 0.40 to the **same single real
 denoising step** (`int(4*0.30)=int(4*0.40)=1`) — confirmed empirically as
-byte-identical per-crop output on every single row of `eval_per_crop.csv`, not
-just similar. This is not a code bug; it's an inherent interaction between
-img2img's strength-based partial denoising and very low step counts. Fixed by
-running A4 at 8 steps instead (still within diffusers' documented LCM range of
-4–8, still far faster than 50-step DDIM) — properly differentiates
-0.30/0.40/0.50 into 2/3/4 real steps. Worth including in the write-up as a
-concrete illustration of why H4/RQ3 needs empirical verification rather than
-taking "N-step LCM" at face value. Full details: `tickets/PHASE1-TICKETS.md` P1-05.
+byte-identical per-crop output on every single row of the smoke test's
+`eval_per_crop.csv`, not just similar. Not a code bug — an inherent interaction
+between img2img's strength-based partial denoising and very low step counts.
+Fixed by running the full A4 evaluation at 8 steps instead (still within
+diffusers' documented LCM range of 4–8, still far faster than 50-step DDIM) —
+properly differentiates 0.30/0.40/0.50 into 2/3/4 real steps.
+
+**Full-run result (job 39630/39784, 8-step LCM vs A3's 50-step DDIM, same
+colour-LoRA + ControlNet config, only the sampler changed):**
+
+- **Structure (SSIM) is preserved, even marginally improved** — 0.386→0.398
+  (ALL), 0.259→0.272 (A06), higher on every scope at strength 0.30. LCM
+  acceleration is not damaging structural fidelity here.
+- **Colour recovery is not a clean pass** — `recovery_delta_lab` goes
+  *negative* at strength 0.30 for ALL (-0.13), A06 (-0.22), A08 (-0.04), and
+  A16 (-0.39); only A09 (+0.76) and A13 (+3.24) stay clearly positive. LCM
+  acceleration trades away some of the colour LoRA's gain even though
+  structure holds up.
+- **Strongly strength-dependent, non-monotonic**: at strength 0.50, A06 jumps
+  to **+7.31** — the best A06 recovery anywhere in the entire A0–A4 ladder —
+  while A08/A13/A16 fall further behind (-3.52/-1.09/-2.91) at the same
+  strength. Likely the same few-step quantisation sensitivity: 8 steps ×
+  strength 0.50 is still only 4 real denoising steps, more variance-prone than
+  50-step DDIM's much finer resolution.
+- **The proposal's SSIM ≥ 0.85 pass/fail threshold does not apply literally
+  here** — no rung in the entire A0–A4 ladder ever exceeds ~0.45 SSIM under
+  this project's actual metric computation, so 0.85 isn't a calibrated bar for
+  these numbers. The meaningful comparison is A4 vs A3 (relative, same
+  adapters, only the sampler changed), not A4 vs an absolute constant.
+- **Bottom line for H4/RQ3**: structurally compatible; colour recovery is
+  mixed/strength-dependent rather than a clean match at 8 steps. This reads as
+  a genuine, useful *negative-leaning* result rather than grounds to invoke the
+  pre-committed 20-step DDIM fallback (that fallback targets structural/artefact
+  failure, which did not occur — SSIM stayed flat-to-better throughout).
+
+Worth including in the write-up both as a concrete illustration of why H4/RQ3
+needs empirical verification rather than taking "N-step LCM" at face value, and
+as an example of a result that doesn't cleanly confirm the hypothesis — still a
+useful, reportable finding. Full details: `tickets/PHASE1-TICKETS.md` P1-05.
 
 ## Local file index
 
@@ -145,7 +180,8 @@ docs/results/
 ├── a2h_r4/               A2: + colour LoRA, rank 4
 ├── a2h_r8/               A2: + colour LoRA, rank 8 (used in A3/A4)
 ├── a3/                  A3: ControlNet + colour LoRA (rank 8)
-└── (a4/ to be added once the full held-out run — job 39630 — completes)
+├── a4/                  A4: + LCM-LoRA (8-step)
+└── qualitative/          side-by-side A0-A4 comparison composites (2 example crops)
 ```
 
 Each folder: `eval_manifest.csv` (crop-level path bookkeeping), `eval_per_crop.csv`
