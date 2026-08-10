@@ -189,13 +189,87 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** TODO — blocked: needs a HoVer-Net inference wrapper (not yet built) and
-Lizard data on the cluster (currently local-only, 1.8 GB)
+**Status:** TODO — scoped (2026-08-10, design-only, no code/jobs yet). Hard blocker:
+Lizard access requires registering through Warwick TIA's institutional sign-on
+(`warwick.ac.uk/fac/cross_fac/tia/data/lizard/`) — this is a manual step only I can
+do, with unknown approval lag, and is the critical path for everything else here.
+No HoVer-Net wrapper exists yet (not started); the earlier "1.8 GB local" note could
+not be verified — no Lizard data was found anywhere in this repo/machine, treat as
+needing a fresh download once access is granted.
 **Source:** `sec:experiments` "Structural Safety"; success threshold Relative Dice ≥ 0.95
 **Description:** Dice(B,G)/Dice(A,G) where G=Lizard ground truth, A=HoVer-Net on
 original patch, B=HoVer-Net on normalised patch. PanNuke excluded from this eval
 (it appears in A5 training). HoVer-Net must first be validated against Lizard human
 masks (Dice(A,G)) before being trusted as a measurement instrument.
+
+**Scoping research (2026-08-10, web-verified, sources in the research agent's report):**
+
+- **HoVer-Net integration — use `tiatoolbox==1.6.0`, not raw `vqdang/hover_net`.**
+  The official HoVer-Net repo hard-pins torch 1.6.0 + CUDA 10.2 — incompatible with
+  this project's working `stainnorm` env (torch 2.5.1+cu121) and would need a whole
+  separate, six-years-obsolete environment. `tiatoolbox` 1.6.0 specifically requires
+  `torch>=2.1.0,<=2.5.1` — the existing env sits exactly at that upper bound, so it
+  installs directly with no torch churn (verify with a dry-run/`--no-deps` check
+  before actually installing on the cluster; never let this silently touch the
+  pinned torch build per CLAUDE.md). Newer tiatoolbox (≥2.1.0) requires Python
+  ≥3.11, incompatible with this env's Python 3.10 — 1.6.0 is the version to pin, not
+  latest. Ships pretrained weights that auto-download by name; `NucleusInstanceSegmentor`
+  is the inference engine in this version (deprecated in favour of
+  `MultiTaskSegmentor` in newer releases, but 1.6.0's API is what we're pinning to).
+  License BSD-3 (toolkit) / CC BY-NC (weights) — fine for this non-commercial project.
+- **Checkpoint choice: `hovernet_fast-pannuke`.** "Fast" mode's 256×256-in/164×164-out
+  shape matches Lizard's native patch convention (see below) far better than
+  "original" mode's 270×270-in/80×80-out. Being trained on PanNuke does not conflict
+  with excluding PanNuke-*sourced Lizard patches* from the eval set — those are
+  separate concerns (this is a third-party off-the-shelf instrument being validated
+  via Dice(A,G), not a component under test for data leakage).
+- **Lizard packaging decision:** target the **CoNIC-repackaged 256×256 patch version**
+  of Lizard (4,981 patches) rather than the original release's 291 large
+  ~1016×917 regions — matches HoVer-Net's native input size, avoids extra
+  crop/tiling work. **Open item to verify on first data inspection** (could not be
+  confirmed from public sources): exactly how DigestPath/GlaS source-origin is
+  encoded per patch, since Lizard combines 6 source datasets (DigestPath, CRAG,
+  GlaS, PanNuke, CoNSeP, TCGA) and the proposal wants only the DigestPath/GlaS
+  subset. Don't hard-code an assumed filename/metadata convention — inspect the
+  actual downloaded files first.
+- **Ground-truth annotation format:** expected `.mat`/`.npy` per-image instance map +
+  class-ID map (HoVer-Net's standard training-data convention), but not independently
+  confirmed against the primary Lizard release — verify on download, don't design
+  ingestion code around an unconfirmed schema.
+- **Dice metric: binary, pixel-pooled foreground-vs-background Dice** (nucleus
+  pixels vs. not, instance identity collapsed) — this is HoVer-Net's own
+  `get_dice_1()`/"standard DICE", and also what the Lizard paper's own authors report
+  as their headline "Binary Dice" when validating segmentation quality. No
+  stain-normalisation paper was found running this exact before/after-normalisation
+  protocol — it's original to this proposal, not a reused published recipe. Secondary
+  metrics (IoU, object-level F1, nuclear count consistency) are all computable from
+  the same instance-map output tiatoolbox/hover_net already produce, at no extra
+  inference cost.
+- **Compute:** GPU on `bigbatch`; published HoVer-Net benchmarks (~5s/1000×1000 image)
+  suggest a few hundred 256×256 patches is a low-tens-of-minutes job, not a long run.
+
+**Planned pipeline (once Lizard access is granted):**
+1. (Manual, external) Register for Lizard access; download the CoNIC 256×256 packaging.
+2. Data-recon pass on the downloaded files: confirm source-origin encoding, filter to
+   DigestPath/GlaS only (excluding PanNuke/CoNSeP/CRAG/TCGA-sourced patches), confirm
+   ground-truth annotation schema.
+3. Upload the filtered patch set to the cluster (`/datasets/mhoosen/stain-norm/
+   lizard_heldout/`, following the existing raw-data folder convention used for
+   `mitos_heldout/`).
+4. `pip install tiatoolbox==1.6.0` into `stainnorm` (dry-run check first, per above).
+5. New `src/eval/hovernet_wrapper.py` — thin wrapper around
+   `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke")`, producing an
+   instance mask per patch.
+6. New `src/eval/lizard_dice.py` (or extend `metrics.py`) — binary Dice + the named
+   secondary metrics between a predicted mask and Lizard's ground-truth mask.
+7. Run the best Phase 1 config (per P3-01: A4, or the P1-09 strength-0.20 operating
+   point) as the "normalisation" step over the filtered Lizard patches to produce B.
+8. Compute Dice(A,G) first as the validation gate (proposal: HoVer-Net must be
+   trusted as an instrument before Relative Dice means anything) — only proceed to
+   Relative Dice = Dice(B,G)/Dice(A,G) once that gate is sane.
+
+**Next step:** start the Lizard registration (manual, external, unknown lag) — it's
+the critical path. Everything else above can be built in parallel while waiting.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
