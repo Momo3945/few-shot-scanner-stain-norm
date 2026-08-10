@@ -170,6 +170,14 @@ trades pixel-exact structural/luminance fidelity for improved colour-distributio
 matching, whereas raw/classical methods leave pixel structure untouched. See the
 results file for the full table and interpretation — this is a real limitation to
 flag in the write-up, not a scoring artefact.
+**Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added to `score_aligned_pair()`
+and tested as a candidate independent perceptual-colour check. It isn't one —
+computed pixel-wise on the same registered pair, it belongs to this same
+pixel-exact metric family and tracks SSIM rank-for-rank (every diffusion config
+scores worse than the raw baseline, same pattern as SSIM/PSNR/MAE above). The
+metric that did provide genuinely independent evidence was windowed
+LAB-Wasserstein, added under P2-11 — see that ticket and
+`docs/results/RESULTS_SUMMARY.md` for the full analysis.
 
 ## P2-07 — Cycle consistency: round-trip reconstruction
 **Status:** TODO — depends on both A2H and H2A LoRAs at the chosen rank (P1-03a/c done
@@ -234,6 +242,20 @@ Macenko/Reinhard fit summary statistics rather than the full histogram, so they
 carry a milder version of the same bias (smaller but still large A06 numbers).
 **Any write-up conclusion from this table must state the confound explicitly** —
 do not present "classical beats diffusion" as a clean finding on its own.
+**Follow-up (2026-08-10):** the spatial/local metric this caveat called for
+(windowed LAB-Wasserstein, 64×64 tiles) has been implemented, backfilled across
+all 18 configs via a full rescoring pass, and tested directly against the
+confound. Result: the confound is real (classical's global-vs-windowed gap is
+~1 LAB unit larger than the raw baseline's) but small — it does not overturn
+classical's advantage. Windowed recovery deltas: Macenko +8.09, Reinhard
++5.08, Histogram Matching +2.41, vs best diffusion config only +0.18 (several
+diffusion configs go *negative* under the windowed metric even though their
+global delta is positive). A second new metric, CIEDE2000, was also added but
+turned out to be redundant with SSIM/PSNR/MAE (P2-06) rather than an
+independent check — see `docs/results/RESULTS_SUMMARY.md`'s P2-11 follow-up
+section for both full tables. Net: across three independent metric families
+(global colour, windowed colour, pixel-exact structure), classical wins —
+report this as a genuine finding, not an artefact to explain away.
 
 ---
 

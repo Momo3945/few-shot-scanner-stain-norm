@@ -14,6 +14,12 @@ All metrics: LAB-histogram Wasserstein distance (`lab_total`, lower = closer to
 real target-scanner ground truth), SSIM (higher = more structure preserved),
 `recovery_delta_lab` = baseline LAB − model LAB (positive = the model moved the
 output closer to the real Hamamatsu ground truth than doing nothing at all).
+**Added 2026-08-10** (closing the metric gap flagged under P2-11, see that
+section below): `wlab_mean` (windowed/tile-wise LAB Wasserstein, 64×64 tiles —
+a local-distributional metric a global histogram remap can't trivially game)
+and `de2000_mean` (CIEDE2000 perceptual colour difference, computed pixel-wise
+on the registered pair — pixel-exact, same family as SSIM/PSNR/MAE, not an
+independent local-colour signal; see the P2-11 follow-up and P2-06 note below).
 
 ## Qualitative comparison — same crop, all six rungs side by side
 
@@ -375,16 +381,103 @@ smaller, though still large, A06 numbers vs. histogram_matching).
 **How this is being handled:** the numbers above are reported as-measured (not
 suppressed), but any write-up conclusion drawn from this table must state the
 confound explicitly — do not present "classical baselines outperform the
-diffusion pipeline" as a clean finding without this paragraph attached. A
-fairer follow-up would need a metric with a spatial/local term (e.g. windowed
-per-patch color-consistency) that a global histogram remap can't trivially
-game; not yet implemented.
+diffusion pipeline" as a clean finding without this paragraph attached. The
+follow-up metric this section called for (a spatial/local term a global
+histogram remap can't trivially game) has since been implemented and run —
+see "Follow-up: closing the metric gap" immediately below. **Short version:
+the confound is real but small, and does not overturn classical's advantage.**
 
 **Also note the trade-off pattern within the classical methods themselves:**
 histogram_matching has the largest A06 win but the worst pooled cost elsewhere
 (A16 −14.96, A09 −4.51); Macenko is the only one of the three to *lose* on A13
 across the board (−8.59); Reinhard is the most balanced (smallest average
 non-A06 damage) but has the weakest A06 recovery of the three.
+
+### Follow-up (2026-08-10): closing the metric gap — CIEDE2000 + windowed LAB-Wasserstein
+
+Two metrics added to `metrics.py`/`score_aligned_pair()` and backfilled across
+all 18 held-out configs (baseline, A0–A5, and all three classical methods) via
+a full rescoring pass, specifically to test the confound above rather than just
+assert it:
+
+- **`wlab_mean`** — LAB Wasserstein computed per 64×64 tile and averaged, not
+  pooled globally. This is the metric the caveat above called for: a global
+  histogram remap (histogram matching's actual mechanism) can force a matching
+  *marginal* distribution while still being locally wrong tile-by-tile, and
+  `wlab_mean` is built to catch exactly that.
+- **`de2000_mean`** — CIEDE2000 perceptual colour difference, computed
+  pixel-wise on the registered pair (same alignment SSIM/PSNR/MAE use). This
+  one turned out **not** to be the independent check it was meant to be — see
+  the result below.
+
+**Result 1 — the windowed metric confirms the confound is real, but small, and
+does not overturn classical's advantage.** The gap between global `lab_total`
+and windowed `wlab_mean` (bigger gap = more of the method's apparent win is
+"cheating" the global metric) is larger for classical than for the raw
+baseline, but still under ~1.2 LAB units:
+
+| Method | Global `lab_total` | Windowed `wlab_mean` | Gap (windowed − global) |
+|---|---|---|---|
+| Raw baseline | 33.84 | 34.05 | +0.21 |
+| Macenko | 24.80 | 25.96 | +1.16 |
+| Reinhard | 28.02 | 28.96 | +0.94 |
+| Histogram Matching | 30.61 | 31.64 | +1.03 |
+
+And recomputing recovery delta under the windowed metric (baseline windowed −
+method windowed) barely shrinks classical's lead over diffusion — it's still
+an order of magnitude apart:
+
+| Method | Recovery Δlab (global) | Recovery Δwlab (windowed) |
+|---|---|---|
+| Macenko | +9.04 | **+8.09** |
+| Reinhard | +5.81 | **+5.08** |
+| Histogram Matching | +3.23 | **+2.41** |
+| Best diffusion (A2 r8 \@0.30) | +1.72 | **+0.18** |
+
+Some diffusion configs actually **flip to a negative windowed recovery delta**
+even though their global delta is positive — e.g. A0\@0.30: +0.95 global vs
+**−0.81** windowed; A4\@0.30: −0.13 global vs **−1.71** windowed. So the
+"global histogram gaming" effect the caveat worried about is real, but it's a
+~1-LAB-unit effect that shaves classical's lead slightly — it is nowhere near
+large enough to explain classical's ~5-8x margin over diffusion, and diffusion
+does not benefit from the correction; if anything its relative position gets
+slightly worse.
+
+**Result 2 — CIEDE2000, as implemented (pixel-wise on the registered pair), is
+not an independent signal.** It's mechanically the same "pixel-exact" family
+as SSIM/PSNR/MAE (P2-06 below): it rewards not moving pixels, which classical
+remaps do by construction and diffusion resynthesis cannot. Every diffusion
+config scores **worse on `de2000_mean` than the raw do-nothing baseline**
+(13.6–17.4 vs baseline's 10.41), while classical methods score close to or
+*better* than raw (10.6–11.3):
+
+| Method | ALL SSIM | ALL `de2000_mean` |
+|---|---|---|
+| Raw baseline | 0.733 | 10.41 |
+| Macenko | 0.628 | 10.61 |
+| Reinhard | 0.681 | 10.63 |
+| Histogram Matching | 0.651 | 11.31 |
+| A0 \@0.30 | 0.285 | 14.93 |
+| A1 \@0.30 | 0.389 | 13.55 |
+| A2 (r8) \@0.30 | 0.289 | 14.97 |
+| A3 \@0.30 | 0.386 | 13.67 |
+| A4 \@0.30 | 0.398 | 13.89 |
+| A5 \@0.30 | 0.389 | 13.91 |
+
+CIEDE2000 tracks SSIM almost exactly rank-for-rank here — it isn't adding a
+new axis of evidence, just restating the structural-alignment confound already
+documented under P2-06 in colour-difference units.
+
+**Net conclusion for the write-up:** across three independent metric families
+now measured — global colour distribution, local/windowed colour distribution,
+and pixel-exact structure/colour — classical stain-transfer methods dominate
+this pipeline's diffusion configs on this held-out set. The metric-construction
+confound flagged earlier is confirmed real but modest, and doesn't change the
+outcome. This should be reported as a genuine, if uncomfortable, finding
+rather than explained away — see P2-08 (Relative Dice vs HoVer-Net) as the
+still-open structural-safety check that could tell a different story, since it
+scores downstream nucleus-detection agreement rather than raw pixel/colour
+agreement.
 
 **Not yet run:** StainNet and (pretrained) StainGAN/ParamNet — no existing code
 found in this repo; would need new inference wrappers and pretrained weights
@@ -499,6 +592,14 @@ its own dedicated instrument — **P2-08's Relative Dice against HoVer-Net**, wh
 scores downstream nucleus-detection agreement rather than raw pixel/SSIM agreement,
 is the more appropriate structural-safety check for a generative method, and this
 result is a concrete reason why P2-08 shouldn't be skipped.
+
+**Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
+whether a perceptual colour-difference metric would tell a different story than
+SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it
+belongs to the same pixel-exact family and tracks SSIM rank-for-rank (every
+diffusion config scores *worse* on `de2000_mean` than the raw do-nothing
+baseline, same as SSIM). See the P2-11 follow-up above for the full table and
+the metric that *did* provide independent evidence (windowed LAB-Wasserstein).
 
 ## Local file index
 
