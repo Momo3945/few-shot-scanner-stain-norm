@@ -278,20 +278,44 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
    label files carry full-resolution instance maps and are the bulk of it.)
 2. ✅ `tiatoolbox==1.6.0` installed and verified in the new `stainnorm-hovernet`
    env (see above).
-3. New `src/eval/hovernet_wrapper.py` — thin wrapper around
-   `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke")`, tiling each
-   Lizard region into 256×256 crops (reusing `grid_offsets()`-style logic from
-   `metrics.py`) and producing an instance mask per crop.
-4. New `src/eval/lizard_dice.py` (or extend `metrics.py`) — binary Dice + the named
-   secondary metrics between a predicted mask and the `.mat` ground-truth `inst_map`.
+3. ✅ `src/eval/hovernet_wrapper.py` written and committed (`2167c5c`) — wraps
+   `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke", mode="tile")`
+   run directly over whole Lizard region images (design changed from the original
+   plan: tiatoolbox's own internal patch extraction + stitching already tiles and
+   reassembles at native resolution, so manually pre-tiling via `grid_offsets()`
+   would only have introduced boundary artefacts — clipped/split nuclei at tile
+   edges — that tiatoolbox is specifically built to avoid). Rasterises each
+   predicted nucleus contour into a binary mask via `cv2.fillPoly`, re-serialises
+   tiatoolbox's joblib output as stdlib `pickle` so downstream scoring has zero
+   tiatoolbox/joblib dependency. Runs in `stainnorm-hovernet`.
+4. ✅ `src/eval/lizard_dice.py` written and committed (`2167c5c`) — binary
+   pixel-pooled Dice (primary), IoU, greedy centroid-matched object-F1 (documented
+   as a simplified convention, not Hungarian-optimal — the primary pass/fail
+   metric is Dice, not this), and nuclear count ratio, all against the `.mat`
+   ground-truth `inst_map`/`centroid` fields. `--against <summary.csv>` computes
+   Relative Dice = Dice(this)/Dice(against) with the proposal's ≥0.95 verdict
+   printed directly. Runs in the plain `stainnorm` env (no tiatoolbox needed).
+   **Verified before deploying:** Dice/IoU/F1 math against synthetic masks
+   (known-answer checks, e.g. two offset 4×4 squares → Dice 0.5625 exactly as
+   hand-computed), and `load_gt()` against the real `dpath_1.mat` — mask shape
+   (928,1190) and centroid count (2411) both matched the values already
+   confirmed during scoping. Both scripts syntax-check in their real cluster
+   envs (`stainnorm` / `stainnorm-hovernet` respectively).
 5. Run the best Phase 1 config (per P3-01: A4, or the P1-09 strength-0.20 operating
-   point) as the "normalisation" step over the tiled Lizard crops to produce B.
+   point) as the "normalisation" step over the Lizard images to produce B — likely
+   needs `infer_colour_lora.py` adapted or pointed at a Lizard-shaped manifest
+   rather than the MITOS `heldout_frames.csv` schema it currently expects; not
+   yet designed.
 6. Compute Dice(A,G) first as the validation gate (proposal: HoVer-Net must be
    trusted as an instrument before Relative Dice means anything) — only proceed to
-   Relative Dice = Dice(B,G)/Dice(A,G) once that gate is sane.
+   Relative Dice = Dice(B,G)/Dice(A,G) once that gate is sane. `lizard_dice.py`
+   already supports this directly (run once without `--against` for the gate,
+   again with `--against` for the real comparison).
 
-**Next step:** write `src/eval/hovernet_wrapper.py` (step 3) — infra is fully ready,
-no remaining blocker.
+**Next step:** an actual GPU test run of `hovernet_wrapper.py` against the real
+`lizard_heldout/images/` on `bigbatch` (step 6's validation gate, Dice(A,G)) —
+needs an `sbatch` job, will ask for confirmation before submitting per project
+rules. Step 5 (the normalisation side, B) still needs design work first.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
