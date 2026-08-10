@@ -48,5 +48,16 @@ echo "== SD 3.5 large (safetensors only) =="
 # account, and (2) `hf auth login` (or HF_TOKEN) on this cluster -- currently "Not logged in".
 # Neither can be done from a script; this line will keep failing until both are done manually.
 hf download stabilityai/stable-diffusion-3.5-large --include "*.safetensors" --include "*.json" --include "*.txt" --include "*.model"
+echo "== LCM-LoRA (SDXL) =="
+# Named explicitly in the proposal (sec:phase3_sdxl): "the latent-consistency/lcm-lora-sdxl
+# adapter provides an SDXL-compatible LCM-LoRA pathway for 2-8 step inference". Needed for
+# P3-03/P3-04 -- confirmed NOT present in the cache as of 2026-08-10 (PHASE3-TICKETS.md P3-01).
+hf download latent-consistency/lcm-lora-sdxl
+echo "== ControlNet Canny (SDXL) =="
+# Proposal only says "SDXL ControlNet checkpoints support Canny" generically, no repo named.
+# diffusers/controlnet-canny-sdxl-1.0 is the canonical SDXL Canny ControlNet released by the
+# diffusers team (same role as lllyasviel/sd-controlnet-canny for SD1.5 above). Also confirmed
+# NOT present in the cache as of 2026-08-10.
+hf download diffusers/controlnet-canny-sdxl-1.0
 
 echo "ALL DOWNLOADS COMPLETE"
