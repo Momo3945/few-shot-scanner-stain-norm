@@ -69,15 +69,65 @@ code: `lcm-lora-sdxl` 393.9MB, `controlnet-canny-sdxl-1.0` 5.0GB (fp16 + fp32
 variants both present). All Phase 3 model weights are now cached and verified.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
-**Status:** TODO — fully unblocked (2026-08-10). All model weights verified
-present (P3-02). Recommended base config: **A4** (ControlNet + colour LoRA +
-LCM-LoRA), per P3-01. Not yet started.
+**Status:** TODO — fully unblocked (2026-08-10). Implementation plan drafted
+(design-only, no code/jobs yet) — see below. All model weights verified present
+(P3-02). Recommended base config: **A4** (ControlNet + colour LoRA + LCM-LoRA),
+per P3-01. Not yet started.
 **Source:** `sec:phase3_sdxl`
 **Description:** Transfer ONLY the best-performing SD1.5 configuration (from A0–A5).
 The proposal is explicit: **do not** repeat the full ablation ladder on SDXL — that
 would multiply compute cost without proportional scientific value, since Phase 1
 already isolates each component's contribution.
 **Tooling:** same diffusers training ecosystem; `lcm-lora-sdxl` for 2–8 step inference.
+**Plan (2026-08-10):** fork `train_colour_lora_sdxl.py`/`infer_colour_lora_sdxl.py`
+from the SD1.5 scripts (dual text encoders + pooled embeds + micro-conditioning
+make a flag-based extension impractical; the multi-adapter `set_adapters`
+composition logic ports over almost unchanged). Force the VAE to fp32 while the
+rest of the pipeline stays fp16 (SDXL's official VAE is documented to NaN under
+fp16 — must not be "fixed" back to fp16 by a future edit). New Slurm launchers
+follow the existing OUT_TAG/fail-fast conventions, output to
+`lora/a2h_r8_sdxl/` and `eval/a4_sdxl/` (namespaced so nothing collides with
+the committed SD1.5 results). `score_outputs.py` needs zero changes (confirmed
+fully generic over resolution, same as the P2-11 baselines).
+**Resolution decision (2026-08-10):** train at the **existing 512×512 crops**
+in `pairs/train`, told honestly to SDXL via its micro-conditioning
+(`original_size=(512,512)`) rather than spoofed as 1024. Zero new data
+extraction, keeps `pairs/train` and its leak-checks completely untouched,
+fastest path to a first real result. If this underperforms or looks
+structurally degraded, see the native-1024 fallback in **P3-03b** below —
+do not preemptively re-extract data before finding out whether 512 was
+actually the bottleneck.
+**Not yet submitted:** no `sbatch` has been run for this ticket — per project
+rule, every job needs explicit confirmation with the exact script+args first.
+
+## P3-03b — Supplementary: SDXL training at native 1024×1024 resolution (contingent)
+**Status:** TODO — contingent, not started. Only pursue if P3-03's 512×512
+result underperforms or looks structurally degraded; do not start this
+pre-emptively.
+**Source:** derived from P3-03's planning pass (2026-08-10) — SDXL was
+predominantly trained at ≥1024px, so this is the fallback path if training at
+512 (P3-03's chosen default) turns out to be the bottleneck rather than the
+backbone itself.
+**Description:** Re-extract MITOS training pairs at 1024×1024 into a **new**
+sibling folder `pairs/train_1024` (via `extract_pairs.py --crop 1024`) — never
+overwrite `pairs/train`, since the SD1.5 pipeline still depends on it. Retrain
+the SDXL colour LoRA (`train_colour_lora_sdxl.py`, once it exists per P3-03) on
+this new data at native resolution, then repeat P3-03's inference+scoring
+sequence for a direct 512-vs-1024 comparison.
+**Known constraint (unresolved, check before starting):** the raw MITOS-ATYPIA
+training frames are only ~1539×1376 (Aperio) / ~1663×1485 (Hamamatsu) per
+`extract_pairs.py`'s own docstring — only ~1.5× a 1024 crop, vs ~3× at 512.
+Re-extracting at 1024 will sharply shrink the number of usable per-frame crop
+positions `grid_offsets()` can place under the same tissue-threshold filter, so
+the resulting training set will be meaningfully smaller than today's 512-crop
+`pairs/train`. Before starting: confirm the actual usable crop count with a
+read-only cluster check (raw frame dimensions × `grid_offsets(H,1024)` ×
+`grid_offsets(W,1024)` per frame × number of raw training frames) and decide
+whether that's enough data for a rank-8 LoRA before committing training compute.
+**Trigger condition:** pursue only if P3-04's SDXL-vs-SD1.5 comparison shows
+either (a) visibly degraded/structurally off SDXL outputs at 512, or (b) SDXL
+underperforming SD1.5's A4 in a way plausibly attributable to under-resolution
+training rather than the backbone itself.
 
 ## P3-04 — SDXL vs SD1.5 comparison
 **Status:** TODO — blocked on P3-03
