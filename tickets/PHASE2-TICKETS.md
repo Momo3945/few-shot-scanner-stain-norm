@@ -312,10 +312,19 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
    already supports this directly (run once without `--against` for the gate,
    again with `--against` for the real comparison).
 
-**Next step:** an actual GPU test run of `hovernet_wrapper.py` against the real
-`lizard_heldout/images/` on `bigbatch` (step 6's validation gate, Dice(A,G)) —
-needs an `sbatch` job, will ask for confirmation before submitting per project
-rules. Step 5 (the normalisation side, B) still needs design work first.
+**Slurm launchers:** `slurm/infer_hovernet.slurm` (GPU/`bigbatch`, activates
+`stainnorm-hovernet`, takes `TAG [IMAGES_DIR] [PRETRAINED_MODEL] [LIMIT]` so the
+same script serves both the original-Lizard and future normalised runs) and
+`slurm/score_lizard.slurm` (CPU/`stampede`, plain `stainnorm` env, takes
+`PRED_TAG [AGAINST_TAG]` — omit `AGAINST_TAG` for the Dice(A,G) validation gate,
+supply it for Relative Dice). Both syntax-checked locally and on the cluster.
+
+**Next step:** an actual GPU test run —
+`sbatch slurm/infer_hovernet.slurm lizard_original "" "" 5` (smoke test, 5
+images) then `sbatch slurm/score_lizard.slurm lizard_original` — for step 6's
+validation gate, Dice(A,G). Will ask for confirmation with the exact command
+before submitting, per project rules. Step 5 (the normalisation side, B) still
+needs design work first.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
