@@ -47,6 +47,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from scipy.stats import wasserstein_distance
+from skimage.color import deltaE_ciede2000, rgb2lab
 from skimage.metrics import structural_similarity
 
 from progress import progress
@@ -63,6 +64,14 @@ def lab_wasserstein(rgb1: np.ndarray, rgb2: np.ndarray,
     Returns {'L':.., 'a':.., 'b':.., 'total':..}. Lower is closer. The metric is
     distributional (no spatial alignment needed), so it is valid on unregistered
     crops as well as registered ones.
+
+    Caveat (found 2026-08-10, P2-11): this is a pure marginal/pooled-histogram
+    metric with no spatial or content term, so a method that remaps every crop's
+    histogram onto one fixed target regardless of content (e.g. skimage's global
+    match_histograms) scores well here almost by construction, not because it
+    produces content-correct colour. See ciede2000_stats() and
+    windowed_lab_wasserstein() below for metrics that resist that failure mode --
+    always report at least one of them alongside this one, not this alone.
     """
     lab1 = cv2.cvtColor(rgb1, cv2.COLOR_RGB2LAB).reshape(-1, 3).astype(np.float32)
     lab2 = cv2.cvtColor(rgb2, cv2.COLOR_RGB2LAB).reshape(-1, 3).astype(np.float32)
@@ -76,6 +85,56 @@ def lab_wasserstein(rgb1: np.ndarray, rgb2: np.ndarray,
         out[ch] = float(wasserstein_distance(lab1[:, i], lab2[:, i]))
     out["total"] = out["L"] + out["a"] + out["b"]
     return out
+
+
+def windowed_lab_wasserstein(rgb1: np.ndarray, rgb2: np.ndarray, tile: int = 64) -> dict:
+    """Tile-wise LAB Wasserstein: same metric as lab_wasserstein(), computed
+    independently per `tile`x`tile` sub-block instead of pooled over the whole
+    crop, then aggregated (mean + worst tile).
+
+    A global histogram remap (e.g. match_histograms) can satisfy the pooled
+    crop-level distribution while still failing locally -- different sub-regions
+    (dense nuclei vs pale stroma) have different true local colour statistics
+    that one global mapping can't simultaneously match. This metric is local
+    but still distributional (doesn't require pixel-exact spatial alignment
+    the way ciede2000_stats() does), so it is a middle-ground check.
+
+    Incomplete edge tiles (when the crop dimension isn't an exact multiple of
+    `tile`) are dropped rather than padded.
+    """
+    H, W = rgb1.shape[:2]
+    totals = []
+    for y in range(0, H - tile + 1, tile):
+        for x in range(0, W - tile + 1, tile):
+            t1 = rgb1[y:y + tile, x:x + tile]
+            t2 = rgb2[y:y + tile, x:x + tile]
+            totals.append(lab_wasserstein(t1, t2, max_samples=tile * tile)["total"])
+    if not totals:
+        return {"mean": None, "worst": None, "n_tiles": 0}
+    return {"mean": float(np.mean(totals)), "worst": float(max(totals)), "n_tiles": len(totals)}
+
+
+def ciede2000_stats(rgb_pred: np.ndarray, rgb_ref: np.ndarray,
+                    max_samples: int = 200_000, seed: int = 0) -> dict:
+    """Per-pixel CIEDE2000 perceptual colour difference (mean + 90th percentile).
+
+    Unlike lab_wasserstein(), this REQUIRES pixel-aligned, spatially registered
+    inputs (same requirement as grayscale_ssim/psnr/mae -- use registration.py's
+    output, never raw unregistered crops). It scores each pixel against the true
+    colour at that exact location, so a content-blind global recolour is
+    penalized wherever its fixed palette doesn't match the true local colour --
+    directly closes the gaming loophole a pooled/marginal metric has.
+
+    Returns {'mean':.., 'p90':..}. Lower is closer; ΔE00 < 1 is imperceptible
+    to the human eye (standard colour-science interpretability threshold).
+    """
+    lab1 = rgb2lab(rgb_pred)
+    lab2 = rgb2lab(rgb_ref)
+    de = deltaE_ciede2000(lab1, lab2).reshape(-1)
+    rng = np.random.default_rng(seed)
+    if de.shape[0] > max_samples:
+        de = de[rng.choice(de.shape[0], max_samples, replace=False)]
+    return {"mean": float(np.mean(de)), "p90": float(np.percentile(de, 90))}
 
 
 # ----------------------------------------------------------------------
@@ -102,8 +161,12 @@ def mae(rgb1: np.ndarray, rgb2: np.ndarray) -> float:
 def score_aligned_pair(rgb_pred: np.ndarray, rgb_ref: np.ndarray) -> dict:
     """All metrics for one aligned (pred, reference) pair."""
     lw = lab_wasserstein(rgb_pred, rgb_ref)
+    wlw = windowed_lab_wasserstein(rgb_pred, rgb_ref)
+    de = ciede2000_stats(rgb_pred, rgb_ref)
     return {
         "lab_L": lw["L"], "lab_a": lw["a"], "lab_b": lw["b"], "lab_total": lw["total"],
+        "wlab_mean": wlw["mean"], "wlab_worst": wlw["worst"],
+        "de2000_mean": de["mean"], "de2000_p90": de["p90"],
         "ssim": grayscale_ssim(rgb_pred, rgb_ref),
         "psnr": psnr(rgb_pred, rgb_ref),
         "mae": mae(rgb_pred, rgb_ref),
@@ -184,8 +247,9 @@ def run_baseline(root: Path, heldout_csv: Path, out_dir: Path,
 
     per_crop_path = out_dir / "baseline_per_crop.csv"
     fields = ["aperio_slide", "frame_id", "x", "y", "tissue_frac", "reg_ok", "ecc_score",
-              "lab_L", "lab_a", "lab_b", "lab_total", "ssim", "psnr", "mae"]
-    metric_keys = ("lab_total", "ssim", "psnr", "mae")
+              "lab_L", "lab_a", "lab_b", "lab_total", "wlab_mean", "wlab_worst",
+              "de2000_mean", "de2000_p90", "ssim", "psnr", "mae"]
+    metric_keys = ("lab_total", "wlab_mean", "de2000_mean", "ssim", "psnr", "mae")
     per_slide = {}
     n_crops = n_frames_flagged = 0
 
@@ -256,17 +320,20 @@ def run_baseline(root: Path, heldout_csv: Path, out_dir: Path,
     summary_path = out_dir / "baseline_summary.csv"
     with open(summary_path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["scope", "n_crops", "lab_total", "ssim", "psnr", "mae",
-                    "robust_z", "outlier"])
-        w.writerow(["ALL", all_n, all_summary["lab_total"], all_summary["ssim"],
+        w.writerow(["scope", "n_crops", "lab_total", "wlab_mean", "de2000_mean",
+                    "ssim", "psnr", "mae", "robust_z", "outlier"])
+        w.writerow(["ALL", all_n, all_summary["lab_total"], all_summary["wlab_mean"],
+                    all_summary["de2000_mean"], all_summary["ssim"],
                     all_summary["psnr"], all_summary["mae"], "", ""])
         if outlier_slides:
             w.writerow(["ALL_excl_outliers", clean_n, clean_summary["lab_total"],
+                        clean_summary["wlab_mean"], clean_summary["de2000_mean"],
                         clean_summary["ssim"], clean_summary["psnr"],
                         clean_summary["mae"], "", ""])
         for s in sorted(per_slide):
             ss = slide_summary[s]
-            w.writerow([s, len(per_slide[s]["lab_total"]), ss["lab_total"], ss["ssim"],
+            w.writerow([s, len(per_slide[s]["lab_total"]), ss["lab_total"],
+                        ss["wlab_mean"], ss["de2000_mean"], ss["ssim"],
                         ss["psnr"], ss["mae"],
                         round(flags[s]["z"], 3), flags[s]["outlier"]])
 
@@ -277,18 +344,20 @@ def run_baseline(root: Path, heldout_csv: Path, out_dir: Path,
               f"-- see registration_report.")
 
     print("\nPer-slide breakdown (RAW Aperio vs registered real Hamamatsu):")
-    print(f"  {'slide':7}{'n':>6}{'lab_total':>11}{'ssim':>8}{'psnr':>8}"
+    print(f"  {'slide':7}{'n':>6}{'lab_total':>11}{'wlab':>8}{'de2000':>8}{'ssim':>8}{'psnr':>8}"
           f"{'mae':>8}{'robust_z':>10}  flag")
     for s in sorted(per_slide):
         ss = slide_summary[s]
         flag = "  *** OUTLIER" if flags[s]["outlier"] else ""
         print(f"  {s:7}{len(per_slide[s]['lab_total']):>6}{ss['lab_total']:>11.2f}"
+              f"{ss['wlab_mean']:>8.2f}{ss['de2000_mean']:>8.2f}"
               f"{ss['ssim']:>8.3f}{ss['psnr']:>8.2f}{ss['mae']:>8.2f}"
               f"{flags[s]['z']:>10.2f}{flag}")
 
     print("\nAggregate:")
     print(f"  ALL ({len(per_slide)} slides)      : "
-          f"lab {all_summary['lab_total']}  ssim {all_summary['ssim']}  "
+          f"lab {all_summary['lab_total']}  wlab {all_summary['wlab_mean']}  "
+          f"de2000 {all_summary['de2000_mean']}  ssim {all_summary['ssim']}  "
           f"psnr {all_summary['psnr']}  mae {all_summary['mae']}")
     if outlier_slides:
         print(f"  excl. {len(outlier_slides)} outlier ({', '.join(sorted(outlier_slides))}): "

@@ -101,25 +101,28 @@ def main():
     with open(per_crop_path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["strength", "slide", "frame", "x", "y",
-                    "lab_total", "ssim", "psnr", "mae"])
+                    "lab_total", "wlab_mean", "wlab_worst", "de2000_mean", "de2000_p90",
+                    "ssim", "psnr", "mae"])
         for r in rows:
             out_rgb = read_rgb_png(eval_dir / r["output_path"])
             ref_rgb = read_rgb_png(eval_dir / r["reference_path"])
             m = score_aligned_pair(out_rgb, ref_rgb)
             per[r["strength"]][r["slide"]].append(m)
             w.writerow([r["strength"], r["slide"], r["frame"], r["x"], r["y"],
-                        round(m["lab_total"], 5), round(m["ssim"], 5),
+                        round(m["lab_total"], 5), round(m["wlab_mean"], 5),
+                        round(m["wlab_worst"], 5), round(m["de2000_mean"], 5),
+                        round(m["de2000_p90"], 5), round(m["ssim"], 5),
                         round(m["psnr"], 5), round(m["mae"], 5)])
 
     baseline = read_baseline_lab(args.baseline) if args.baseline else None
 
     summary_path = eval_dir / "eval_summary.csv"
-    keys = ("lab_total", "ssim", "psnr", "mae")
+    keys = ("lab_total", "wlab_mean", "de2000_mean", "ssim", "psnr", "mae")
     print("\nColour-LoRA output vs registered real Hamamatsu (per denoising strength):")
     with open(summary_path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["strength", "scope", "n_crops", "lab_total", "ssim", "psnr", "mae",
-                    "robust_z", "outlier", "recovery_delta_lab"])
+        w.writerow(["strength", "scope", "n_crops", "lab_total", "wlab_mean", "de2000_mean",
+                    "ssim", "psnr", "mae", "robust_z", "outlier", "recovery_delta_lab"])
         for strength in sorted(per):
             slides = per[strength]
             slide_lab = {s: _mean_finite([m["lab_total"] for m in slides[s]]) for s in slides}
@@ -145,17 +148,21 @@ def main():
                 else f" [baseline restricted to {','.join(sorted(slides))}]"
             print(f"\n  strength {strength}:")
             print(f"    ALL ({len(slides)} slides, n={alln}): lab {allm['lab_total']}  "
+                  f"wlab {allm['wlab_mean']}  de2000 {allm['de2000_mean']}  "
                   f"ssim {allm['ssim']}  psnr {allm['psnr']}  mae {allm['mae']}"
                   + (f"   recovery Δlab {delta}{partial_note}" if delta != "" else ""))
-            w.writerow([strength, "ALL", alln, allm["lab_total"], allm["ssim"],
-                        allm["psnr"], allm["mae"], "", "", delta])
+            w.writerow([strength, "ALL", alln, allm["lab_total"], allm["wlab_mean"],
+                        allm["de2000_mean"], allm["ssim"], allm["psnr"], allm["mae"],
+                        "", "", delta])
 
             if outliers:
                 cleanm, cleann = pool(exclude=outliers)
                 print(f"    excl {','.join(sorted(outliers))}: lab {cleanm['lab_total']}  "
+                      f"wlab {cleanm['wlab_mean']}  de2000 {cleanm['de2000_mean']}  "
                       f"ssim {cleanm['ssim']}  psnr {cleanm['psnr']}  mae {cleanm['mae']}")
                 w.writerow([strength, "ALL_excl_outliers", cleann, cleanm["lab_total"],
-                            cleanm["ssim"], cleanm["psnr"], cleanm["mae"], "", "", ""])
+                            cleanm["wlab_mean"], cleanm["de2000_mean"], cleanm["ssim"],
+                            cleanm["psnr"], cleanm["mae"], "", "", ""])
 
             for s in sorted(slides):
                 sm = {k: _mean_finite([m[k] for m in slides[s]]) for k in keys}
@@ -163,12 +170,13 @@ def main():
                 if baseline and s in baseline["per_slide"] and sm["lab_total"] is not None:
                     sdelta = round(baseline["per_slide"][s][0] - sm["lab_total"], 4)
                 flag = "*** OUTLIER" if flags[s]["outlier"] else ""
-                print(f"      {s}: lab {sm['lab_total']:.2f}  ssim {sm['ssim']:.3f}  "
+                print(f"      {s}: lab {sm['lab_total']:.2f}  wlab {sm['wlab_mean']:.2f}  "
+                      f"de2000 {sm['de2000_mean']:.2f}  ssim {sm['ssim']:.3f}  "
                       f"mae {sm['mae']:.2f}  z={flags[s]['z']:.2f}  {flag}"
                       + (f"  Δlab {sdelta}" if sdelta != "" else ""))
-                w.writerow([strength, s, len(slides[s]), sm["lab_total"], sm["ssim"],
-                            sm["psnr"], sm["mae"], round(flags[s]["z"], 3),
-                            flags[s]["outlier"], sdelta])
+                w.writerow([strength, s, len(slides[s]), sm["lab_total"], sm["wlab_mean"],
+                            sm["de2000_mean"], sm["ssim"], sm["psnr"], sm["mae"],
+                            round(flags[s]["z"], 3), flags[s]["outlier"], sdelta])
 
     print(f"\nPer-crop : {per_crop_path}")
     print(f"Summary  : {summary_path}")
