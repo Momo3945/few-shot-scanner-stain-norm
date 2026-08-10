@@ -83,7 +83,15 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - **Never run heavy work on the login node** — always `sbatch`, or a short `srun --pty` for tests.
 - Some `bigbatch` nodes come up GPU-less; GPU jobs must fail-fast if
   `torch.cuda.is_available()` is False (do not CPU-crawl — this has happened before
-  and burned ~1 hour on job 3809).
+  and burned ~1 hour on job 3809). **Confirmed GPU-less/broken node: `mscluster48`**
+  (job 42115, 2026-08-10 — `nvidia-smi`: "No devices were found", torch: "CUDA
+  initialization: CUDA unknown error"; fail-fast caught it in 1:44, no wasted
+  compute). Use `--exclude=mscluster48` if a GPU job lands there again.
+- **`mscluster40` (on `stampede`) is slow/contended for CPU-only jobs** — two
+  otherwise-identical scoring jobs (41839, 41843) TIMEOUT'd at the 1hr limit on
+  this node while every other run on `mscluster22` finished in ~21-22min
+  (2026-08-10). Use `--exclude=mscluster40` if a `stampede` job runs
+  suspiciously long.
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 
