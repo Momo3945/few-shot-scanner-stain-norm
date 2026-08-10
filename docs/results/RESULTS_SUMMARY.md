@@ -390,6 +390,116 @@ non-A06 damage) but has the weakest A06 recovery of the three.
 found in this repo; would need new inference wrappers and pretrained weights
 before they could be added to this table (`tab:baselines` scope).
 
+## P2-06: ground-truth direct comparison (SSIM / PSNR / MAE)
+
+Proposal's `sec:experiments` "Ground Truth Direct Comparison" experiment: normalised
+Aperio output vs. registered real Hamamatsu on held-out slides, scored by grayscale
+SSIM, PSNR, MAE. **No new compute was needed for this** — `score_aligned_pair()` in
+`src/eval/metrics.py` (line 102) already calls `grayscale_ssim`, `psnr`, and `mae`
+alongside `lab_wasserstein` for every scored crop, so the `ssim`/`psnr`/`mae` columns
+already exist in every completed run's `eval_summary.csv`. This section just pulls
+those columns together into the dedicated view the proposal names, across every
+config in `docs/results/`. (Note on the proposal wording: `grayscale_ssim` converts
+to grayscale before scoring as specified; `psnr`/`mae` are computed directly on the
+0–255 RGB arrays, not converted to grayscale first — `metrics.py` lines 90–99.)
+
+### Aggregate — ALL, A06, and outlier-excluded, all 16 configs
+
+Per CLAUDE.md's reporting guardrail, the pooled `ALL` column is never reported
+alone — A06 (confirmed genuine colour-gap outlier) and the outlier-excluded
+aggregate sit next to it in every row.
+
+| Rung / method | Strength | ALL SSIM | ALL PSNR | ALL MAE | A06 SSIM | A06 PSNR | A06 MAE | Excl-outlier SSIM | Excl-outlier PSNR | Excl-outlier MAE |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Raw baseline (do-nothing) | n/a | 0.733 | 19.31 | 22.70 | 0.627 | 12.19 | 53.48 | 0.748 | 20.29 | 18.45 |
+| A0 (frozen base) | 0.30 | 0.285 | 14.81 | 35.38 | 0.186 | 11.03 | 57.54 | 0.299 | 15.37 | 32.10 |
+| A1 (+ControlNet) | 0.30 | 0.389 | 15.72 | 32.11 | 0.260 | 11.24 | 56.59 | 0.408 | 16.38 | 28.48 |
+| A2 (colour LoRA r4) | 0.30 | 0.289 | 14.83 | 34.99 | 0.192 | 11.12 | 56.67 | 0.303 | 15.39 | 31.78 |
+| A2 (colour LoRA r8) | 0.30 | 0.289 | 14.87 | 35.00 | 0.191 | 11.09 | 57.02 | 0.304 | 15.43 | 31.74 |
+| A3 (ControlNet+LoRA r8) | 0.30 | 0.386 | 15.72 | 31.99 | 0.259 | 11.27 | 56.30 | 0.404 | 16.38 | 28.38 |
+| A4 (+LCM-LoRA 8-step) | 0.30 | 0.398 | 15.57 | 32.60 | 0.272 | 11.27 | 56.44 | 0.417 | 16.21 | 29.07 |
+| A5 (+histopathology LoRA) | 0.30 | 0.389 | 15.38 | 33.29 | 0.265 | 11.11 | 57.95 | 0.407 | 16.02 | 29.63 |
+| A3 (P1-09 sweep) | 0.20 | 0.425 | 16.26 | 30.22 | 0.292 | 11.39 | 55.73 | 0.445 | 16.98 | 26.44 |
+| A4 (P1-09 sweep) | 0.20 | 0.459 | 16.59 | 29.16 | 0.322 | 11.49 | 55.19 | 0.480 | 17.35 | 25.30 |
+| A5 (P1-09 sweep) | 0.20 | 0.454 | 16.48 | 29.53 | 0.316 | 11.39 | 56.03 | 0.475 | 17.24 | 25.61 |
+| A4 (P1-09 sweep) | 0.70 | 0.271 | 13.87 | 39.23 | 0.174 | 11.07 | 58.67 | 0.286 | 14.28 | 36.35 |
+| A5 (P1-09 sweep) | 0.70 | 0.268 | 13.67 | 40.25 | 0.179 | 10.90 | 60.84 | 0.281 | 14.08 | 37.20 |
+| Macenko | n/a | 0.628 | 16.50 | 26.76 | 0.479 | 13.62 | 41.57 | 0.649 | 16.93 | 24.56 |
+| Reinhard | n/a | 0.681 | 17.70 | 25.56 | 0.545 | 15.01 | 35.87 | 0.701\* | 18.10\* | 24.04\* |
+| Histogram Matching | n/a | 0.651 | 17.55 | 26.51 | 0.562 | 16.70 | 27.35 | 0.664\* | 17.68\* | 26.38\* |
+
+\*Reinhard and Histogram Matching's own automatic per-run outlier flag did not mark
+A06 (its LAB gap wasn't extreme *relative to the other four slides in that specific
+run*, since these methods already recover much of A06's colour). Per CLAUDE.md, A06
+is treated as a genuine outlier unconditionally, so these two `Excl-outlier` values
+are computed here directly from the per-slide rows using the same crop-weighted
+pooling `metrics.py`/`score_outputs.py` already use elsewhere (verified against A0's
+CSV-native `ALL_excl_outliers` row, which reproduces exactly under the same formula)
+— not sourced from a pre-existing `ALL_excl_outliers` row, since none exists in
+`reinhard/eval_summary.csv` / `histogram_matching/eval_summary.csv`.
+
+### Per-slide SSIM — core ladder (baseline, A0–A5 @ strength 0.30)
+
+Mirrors the "Main comparison" table's per-slide layout above, SSIM instead of Δlab
+(PSNR/MAE per-slide for every config are in each `eval_summary.csv`; omitted here
+for brevity since SSIM is this doc's established headline structural metric).
+
+| Rung | A06 SSIM | A08 SSIM | A09 SSIM | A13 SSIM | A16 SSIM |
+|---|---|---|---|---|---|
+| Raw baseline | 0.627 | 0.792 | 0.727 | 0.675 | 0.759 |
+| A0 | 0.186 | 0.298 | 0.269 | 0.283 | 0.325 |
+| A1 | 0.260 | 0.411 | 0.376 | 0.367 | 0.441 |
+| A2 (r4) | 0.192 | 0.301 | 0.275 | 0.284 | 0.329 |
+| A2 (r8) | 0.191 | 0.302 | 0.275 | 0.286 | 0.329 |
+| A3 | 0.259 | 0.408 | 0.372 | 0.363 | 0.438 |
+| A4 | 0.272 | 0.421 | 0.389 | 0.370 | 0.449 |
+| A5 | 0.265 | 0.411 | 0.380 | 0.364 | 0.438 |
+
+### Interpretation — this diverges sharply from the LAB-Wasserstein story, and the divergence matters
+
+The per-rung *ranking within the diffusion family* is consistent with what the
+LAB-Wasserstein tables already show: ControlNet lifts SSIM (A0→A1: 0.285→0.389),
+low-strength LCM (0.20, ~1 real step) is the best operating point on every structural
+metric (highest SSIM/PSNR, lowest MAE of any diffusion config — matches the P1-09
+"1-step LCM is the best general-purpose point" finding), and strength 0.70 is the
+worst (matches the known structure/colour tradeoff). Nothing new there.
+
+**What is new, and strikingly different, is the comparison *across* method families.**
+On LAB Wasserstein / recovery delta, every diffusion rung shows a *positive* delta
+over the raw baseline (doing something beats doing nothing), and the classical
+methods (P2-11) beat diffusion further still. On SSIM/PSNR/MAE, the ranking is not
+just smaller in magnitude — it **inverts**: the raw do-nothing baseline (SSIM 0.733
+pooled, 0.627 on A06) beats *every single diffusion rung* (SSIM 0.27–0.46 pooled,
+0.17–0.32 on A06), including on the outlier slide diffusion is specifically supposed
+to help. The classical remap baselines (Macenko/Reinhard/Histogram Matching, SSIM
+0.63–0.68 pooled) sit almost as close to the raw baseline as to each other, and
+likewise beat every diffusion rung.
+
+The mechanism is straightforward once stated: SSIM/PSNR/MAE require **pixel-exact**
+correspondence (that's why registration exists at all), and Macenko/Reinhard/
+Histogram Matching are deterministic per-pixel colour remaps — they never move a
+pixel, so whatever structural correlation survives registration is preserved
+untouched. Raw Aperio vs. registered Hamamatsu preserves it trivially (no transform
+applied at all). Diffusion img2img, even with ControlNet-Canny conditioning, is a
+**generative resynthesis** process — it regenerates pixel content conditioned on an
+edge map and colour LoRA, not a deterministic per-pixel recolouring, so some texture/
+geometry drift relative to the exact registered reference is inherent to the
+approach, and that drift is exactly what SSIM/PSNR/MAE penalise hardest. Colour
+distribution can genuinely improve (LAB Wasserstein down) at the same time
+pixel-exact fidelity gets worse (SSIM down) — the two metric families are measuring
+different things, and this experiment is the first place in the write-up where they
+are shown side by side and visibly disagree.
+
+This is not a scoring bug (same pipeline, same registered references, same
+`score_aligned_pair()` call every other table in this file draws from) — it is a
+genuine, reportable limitation of the generative approach relative to deterministic
+colour-remap baselines and relative to doing nothing, on this specific metric family.
+It strengthens the case (already flagged under P2-11) that structural fidelity needs
+its own dedicated instrument — **P2-08's Relative Dice against HoVer-Net**, which
+scores downstream nucleus-detection agreement rather than raw pixel/SSIM agreement,
+is the more appropriate structural-safety check for a generative method, and this
+result is a concrete reason why P2-08 shouldn't be skipped.
+
 ## Local file index
 
 ```

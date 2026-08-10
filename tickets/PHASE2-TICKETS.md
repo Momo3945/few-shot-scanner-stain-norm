@@ -146,11 +146,30 @@ for P1-04:** rank 8 as the marginal edge-case winner, but this is a weak signal,
 a strong one — worth noting in the writeup rather than treating as decisive.
 
 ## P2-06 — Cycle consistency: ground-truth direct comparison
-**Status:** TODO — depends on P2-04
+**Status:** ✅ DONE (2026-08-10) — no new compute required.
 **Source:** `sec:experiments` "Ground Truth Direct Comparison"; equation for
 A06_00A → Â H06_00A ↔ Real H06_00A
 **Description:** Normalised Aperio output compared directly to registered real
 Hamamatsu on held-out test slides. Metrics: grayscale SSIM, PSNR, MAE (post-registration).
+**Why no new compute was needed:** this exact metric triple, computed against the
+registered real Hamamatsu reference, is already produced as a byproduct of every
+`score_outputs.py` run via `src/eval/metrics.py`'s `score_aligned_pair()` (calls
+`grayscale_ssim`, `psnr`, `mae` alongside `lab_wasserstein`), and is already written
+into every completed run's `eval_summary.csv` (`ssim`/`psnr`/`mae` columns) for
+baseline, A0–A5, the P1-09 extended-strength sweep, and the P2-11 classical
+baselines. P2-06 was therefore a compilation task, not an experiment: pulled the
+`ssim`/`psnr`/`mae` columns already present across all 16 already-scored
+configs into one dedicated ground-truth-direct-comparison view.
+**Results:** `docs/results/RESULTS_SUMMARY.md` ("P2-06: ground-truth direct
+comparison (SSIM / PSNR / MAE)"). Headline: this metric lens tells a starkly
+**different** story than the LAB-Wasserstein recovery-delta tables elsewhere in
+this file — the raw do-nothing baseline (SSIM 0.733 pooled) and the classical
+colour-remap baselines (SSIM 0.63–0.68) both beat every diffusion rung (SSIM
+0.27–0.46) on SSIM/PSNR/MAE, including on A06. Diffusion img2img regeneration
+trades pixel-exact structural/luminance fidelity for improved colour-distribution
+matching, whereas raw/classical methods leave pixel structure untouched. See the
+results file for the full table and interpretation — this is a real limitation to
+flag in the write-up, not a scoring artefact.
 
 ## P2-07 — Cycle consistency: round-trip reconstruction
 **Status:** TODO — depends on both A2H and H2A LoRAs at the chosen rank (P1-03a/c done
