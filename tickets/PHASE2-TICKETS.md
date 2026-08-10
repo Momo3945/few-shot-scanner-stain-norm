@@ -189,11 +189,32 @@ distances) and after (D_post, 10 distances) normalisation. Success = D_post < D_
 3 patients/centre, 100 random 512×512 patches/patient, pooled per centre.
 
 ## P2-11 — Baseline method comparisons
-**Status:** TODO — not started
+**Status:** ✅ Macenko/Reinhard/Histogram Matching DONE (2026-08-10, jobs 40521/
+40619/40628 score). StainNet/StainGAN/ParamNet still TODO — no existing code in
+this repo, needs new inference wrappers + pretrained weights.
 **Source:** `tab:baselines`
 **Description:** Macenko, Reinhard, Histogram Matching, StainNet, (pretrained StainGAN
 if reproducible), ParamNet — run against the same held-out set and clinical classifier
-for a fair comparison table.
+for a fair comparison table. (Clinical classifier arm blocked on P2-09, not yet built.)
+**Code:** `src/eval/baseline_methods.py` (verified against a reference Macenko/
+Reinhard implementation, one documented deviation — closed-form pseudo-inverse
+instead of constrained LASSO for Macenko's concentration solve), `src/eval/
+infer_baseline.py` (CPU-only, writes the same manifest schema as
+`infer_colour_lora.py` so `score_outputs.py` needed zero changes), `slurm/
+infer_baseline.slurm` (runs on `stampede`, no GPU).
+**Results:** full table + methodological caveat in `docs/results/RESULTS_SUMMARY.md`
+("Classical baseline comparison (P2-11)"). Headline: all three classical methods
+beat every diffusion rung on A06 recovery (histogram_matching +69.12 vs best
+diffusion A5\@0.70's +24.43), **but this is confirmed to be a metric-construction
+confound, not a clean win** — verified directly (not just from the summary CSV)
+that `match_histograms` forces near-identical output color statistics onto every
+crop regardless of content (checked across 5 slides), and the eval metric
+(`lab_wasserstein`) is itself a pure marginal-distribution distance, so the
+method and the metric optimize close to the same quantity by construction.
+Macenko/Reinhard fit summary statistics rather than the full histogram, so they
+carry a milder version of the same bias (smaller but still large A06 numbers).
+**Any write-up conclusion from this table must state the confound explicitly** —
+do not present "classical beats diffusion" as a clean finding on its own.
 
 ---
 

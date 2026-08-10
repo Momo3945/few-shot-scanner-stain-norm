@@ -319,6 +319,77 @@ setting badly damages every other slide.
 Raw data: `docs/results/{a3_ext_s02,a4_ext_s02,a5_ext_s02,a4_ext_s07,a5_ext_s07,a4_ext_s67,a5_ext_s67}/`.
 Reproducible analysis script: `docs/results/analyze.py`.
 
+## Classical baseline comparison (P2-11) — Macenko, Reinhard, Histogram Matching
+
+Same held-out set, same registration/crop/scoring pipeline as every diffusion
+rung above (`score_outputs.py`, zero changes needed — `infer_baseline.py`
+writes the same manifest schema). All three fit/match against the same fixed
+few-shot reference crop the colour LoRA trains on (`A03_00A_c000_hamamatsu.png`).
+CPU-only, `stampede` partition. Code: `src/eval/baseline_methods.py`,
+`src/eval/infer_baseline.py`.
+
+| Method | ALL Δlab | ALL SSIM | A06 Δlab | A08 Δlab | A09 Δlab | A13 Δlab | A16 Δlab |
+|---|---|---|---|---|---|---|---|
+| Macenko | +9.04 | 0.628 | +44.54 (outlier, z=4.73) | +6.86 | +6.28 | **−8.59** | +6.72 |
+| Reinhard | +5.81 | 0.681 | +58.50 | +5.64 | +1.00 | −6.56 | −5.65 |
+| Histogram Matching | +3.23 | 0.651 | **+69.12** | +0.33 | −4.51 | +3.59 | **−14.96** |
+| *(best diffusion rung, for reference)* | *A3\@0.20: +1.59* | *A1\@0.30: 0.389* | *A5\@0.70: +24.43* | *A3\@0.20: +2.45* | *A3\@0.20: +1.88* | *A3\@0.20: +5.29* | *A3\@0.20: +1.46* |
+
+**Headline pattern:** all three classical methods beat every diffusion rung on
+A06 recovery, by a wide margin — histogram matching's +69.12 is nearly 3× the
+best diffusion result found anywhere in this project (A5\@0.70's +24.43). Taken
+at face value this reads as "classical wins outright." **It does not, and the
+gap needs to be read with the caveat below before drawing that conclusion.**
+
+### Caveat — this is a metric-construction confound, not just "simple beats sophisticated"
+
+Before writing this up, I re-verified the histogram_matching output directly
+(not just the summary CSV): outputs are not accidentally identical to their
+references (real per-crop MAE ~27-29, MD5s differ), file counts match the
+manifest, and a sample crop looks like a plausible H&E recolorization when
+inspected visually. So the numbers are not a scoring bug.
+
+But per-crop output color statistics are essentially **constant across every
+slide**, regardless of source content:
+
+| Slide | output mean (R,G,B) | output std |
+|---|---|---|
+| A06 | 194.5, 108.5, 168.0 | 41.8, 60.8, 41.0 |
+| A08 | 194.2, 108.5, 167.8 | 41.9, 61.0, 40.9 |
+| A09 | 194.6, 108.6, 168.0 | 41.8, 60.7, 40.8 |
+| A13 | 194.3, 108.6, 168.0 | 41.9, 61.0, 40.9 |
+| A16 | 194.4, 108.8, 167.9 | 42.0, 61.3, 40.9 |
+
+This is expected mechanics for `skimage.exposure.match_histograms`: it's a
+deterministic per-channel CDF remap that forces the *entire* output histogram
+onto one fixed target image's histogram, independent of the source crop's own
+content. The eval metric (`lab_wasserstein`, `metrics.py:59`) is *also* a pure
+per-channel marginal distributional distance with no spatial/content term.
+Histogram matching therefore isn't winning because it produces more faithful
+stain-normalized histology — it's winning because it and the metric optimize
+close to the same quantity, by construction. Macenko and Reinhard fit summary
+statistics (stain vectors / LAB mean-std) rather than the full histogram, so
+they carry a milder version of the same bias, not the full effect (note their
+smaller, though still large, A06 numbers vs. histogram_matching).
+
+**How this is being handled:** the numbers above are reported as-measured (not
+suppressed), but any write-up conclusion drawn from this table must state the
+confound explicitly — do not present "classical baselines outperform the
+diffusion pipeline" as a clean finding without this paragraph attached. A
+fairer follow-up would need a metric with a spatial/local term (e.g. windowed
+per-patch color-consistency) that a global histogram remap can't trivially
+game; not yet implemented.
+
+**Also note the trade-off pattern within the classical methods themselves:**
+histogram_matching has the largest A06 win but the worst pooled cost elsewhere
+(A16 −14.96, A09 −4.51); Macenko is the only one of the three to *lose* on A13
+across the board (−8.59); Reinhard is the most balanced (smallest average
+non-A06 damage) but has the weakest A06 recovery of the three.
+
+**Not yet run:** StainNet and (pretrained) StainGAN/ParamNet — no existing code
+found in this repo; would need new inference wrappers and pretrained weights
+before they could be added to this table (`tab:baselines` scope).
+
 ## Local file index
 
 ```
@@ -338,6 +409,9 @@ docs/results/
 ├── a5_ext_s07/           P1-09 follow-up: A5 at strength 0.70 = 5 real LCM steps (full)
 ├── a4_ext_s67/           P1-09 follow-up: A4 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
 ├── a5_ext_s67/           P1-09 follow-up: A5 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
+├── macenko/              P2-11: Macenko baseline (summary only pulled; full outputs on cluster)
+├── reinhard/              P2-11: Reinhard baseline (summary only pulled; full outputs on cluster)
+├── histogram_matching/    P2-11: histogram matching baseline (summary only pulled; full outputs on cluster)
 ├── analyze.py             reproducible per-crop trend analysis behind the P1-09 experiment picks
 └── qualitative/          side-by-side comparison composites (A0-A5 ladder + P1-09 strength sweeps)
     └── strength_sweep/    component crops for the strength_sweep_* composites (source material)
