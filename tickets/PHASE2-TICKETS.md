@@ -189,11 +189,26 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** TODO — scoped and unblocked on data (2026-08-10, design-only, no code/jobs
-yet). Lizard data is confirmed present locally at `data/lizard/` (gitignored, 1.8GB —
-the earlier "1.8GB local" note was correct after all; it just wasn't found in the
-first pass because it's outside git's tracked tree). No cluster upload has happened
-yet and no HoVer-Net wrapper exists yet (not started).
+**Status:** TODO — infra ready, wrapper code not started (2026-08-10). Lizard
+`dpath_*`/`glas_*` subset (130 images + `.mat` labels, 695MB) uploaded to
+`/datasets/mhoosen/stain-norm/lizard_heldout/{images,labels}/`, verified (file
+counts match the local staged copy exactly). `tiatoolbox==1.6.0` installed and
+verified working (`tiatoolbox 1.6.0`, `torch 2.5.1+cu121`, `cuda available: True`,
+`NucleusInstanceSegmentor` imports cleanly) in a **new, separate conda env
+`stainnorm-hovernet`** — NOT the working `stainnorm` env, because a dry-run showed
+tiatoolbox's dependency stack would downgrade `scipy` 1.15.3→1.14.1, `scikit-image`
+0.25.2→0.24.0, and `opencv-python-headless` 5.0.0.93→4.11.0.86, which are exactly
+the packages every already-verified LAB-Wasserstein/CIEDE2000/SSIM number in this
+project depends on. Isolating into a second env avoided that risk entirely.
+**Install notes for reference:** needed `pip install openslide-bin` afterward (missing
+native `libopenslide.so`, not a Python-level issue — tiatoolbox imports openslide at
+module load time even though this eval doesn't need whole-slide-image support).
+The cluster login node's SSH connection dropped mid-install twice during this
+work — unrelated to tiatoolbox itself; fixed by re-running with `nohup ... &
+disown` so the remote process survives a dropped session, then polling the log
+for a completion marker instead of holding one long-lived SSH connection open.
+**Not yet done:** `src/eval/hovernet_wrapper.py` and `src/eval/lizard_dice.py`
+(steps 3-4 in the pipeline below) have not been written.
 **Source:** `sec:experiments` "Structural Safety"; success threshold Relative Dice ≥ 0.95
 **Description:** Dice(B,G)/Dice(A,G) where G=Lizard ground truth, A=HoVer-Net on
 original patch, B=HoVer-Net on normalised patch. PanNuke excluded from this eval
@@ -256,13 +271,13 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
   suggest 130 images tiled into 256×256 patches is a low-tens-of-minutes job, not a
   long run.
 
-**Planned pipeline (no external blocker remaining):**
-1. Upload the `dpath_*`/`glas_*` subset (images + matching `.mat` labels, ~237MB) to
-   the cluster (`/datasets/mhoosen/stain-norm/lizard_heldout/`, following the existing
-   raw-data folder convention used for `mitos_heldout/`) — no need to upload the full
-   1.8GB, only the 130 usable images and their labels.
-2. `pip install tiatoolbox==1.6.0` into `stainnorm` (dry-run check first, per above —
-   never let this silently touch the pinned torch build).
+**Planned pipeline:**
+1. ✅ Upload the `dpath_*`/`glas_*` subset (130 images + matching `.mat` labels,
+   695MB) to `/datasets/mhoosen/stain-norm/lizard_heldout/{images,labels}/`,
+   verified. (Actual size 695MB, not the ~237MB images-only estimate — `.mat`
+   label files carry full-resolution instance maps and are the bulk of it.)
+2. ✅ `tiatoolbox==1.6.0` installed and verified in the new `stainnorm-hovernet`
+   env (see above).
 3. New `src/eval/hovernet_wrapper.py` — thin wrapper around
    `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke")`, tiling each
    Lizard region into 256×256 crops (reusing `grid_offsets()`-style logic from
@@ -275,8 +290,8 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
    trusted as an instrument before Relative Dice means anything) — only proceed to
    Relative Dice = Dice(B,G)/Dice(A,G) once that gate is sane.
 
-**Next step:** upload the filtered Lizard subset to the cluster and do the
-`tiatoolbox==1.6.0` dry-run install check — no external/manual blocker remains.
+**Next step:** write `src/eval/hovernet_wrapper.py` (step 3) — infra is fully ready,
+no remaining blocker.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
