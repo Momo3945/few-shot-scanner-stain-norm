@@ -262,6 +262,13 @@ A4/A5, not the smooth continuous dial it is for A3's 50-step DDIM.
 optimal" claim earlier in this document was never tested against anything
 lower — 0.20 is just the new best point found, and the true floor is still open.
 
+**A3 qualitative — same crop across 0.20/0.30/0.40/0.50:**
+![A3 strength sweep, A08](qualitative/strength_sweep_a3_08.png)
+![A3 strength sweep, A06](qualitative/strength_sweep_a3_06.png)
+Progressive colour shift toward the Hamamatsu reference is visible across the
+sweep on both crops; nothing here looks broken or artefacted at 0.20, backing
+up the quantitative finding that it's a genuine improvement, not noise.
+
 **Finding 3 — A4/A5: behaviour vs strength is non-monotonic, and A4/A5 diverge
 sharply from each other at the extremes.**
 
@@ -286,6 +293,19 @@ vs A4 would keep shrinking or flip permanently positive at higher strength — i
 does narrow/flip between strength 0.30 and 0.50, but reverses hard and gets
 much worse than A4 by 5 steps (0.70). A good illustration of why the
 confirmatory full run mattered rather than trusting a 3-point extrapolation.
+
+**A4/A5 qualitative — same crops across the full 1-5 real-step range:**
+![A4 strength sweep, A08](qualitative/strength_sweep_a4_08.png)
+![A4 strength sweep, A06](qualitative/strength_sweep_a4_06.png)
+![A5 strength sweep, A08](qualitative/strength_sweep_a5_08.png)
+![A5 strength sweep, A06](qualitative/strength_sweep_a5_06.png)
+On A08 (typical), both A4 and A5 visibly over-saturate into flat, muddy pink
+by 5 steps — a real, visible degradation matching the negative recovery
+deltas, worse for A5 than A4. On A06 (outlier), the colour shift toward the
+Hamamatsu reference's deep purple becomes visibly stronger step by step,
+clearest at A5's 5-step result — the single best visual and quantitative
+match to the reference found anywhere in this project, right before the same
+setting badly damages every other slide.
 
 **Practical takeaway — no single best strength, it depends on the goal:**
 - **General-purpose robustness across all slides**: 1-step LCM (strength
@@ -319,7 +339,8 @@ docs/results/
 ├── a4_ext_s67/           P1-09 follow-up: A4 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
 ├── a5_ext_s67/           P1-09 follow-up: A5 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
 ├── analyze.py             reproducible per-crop trend analysis behind the P1-09 experiment picks
-└── qualitative/          side-by-side A0-A5 comparison composites (3 example crops)
+└── qualitative/          side-by-side comparison composites (A0-A5 ladder + P1-09 strength sweeps)
+    └── strength_sweep/    component crops for the strength_sweep_* composites (source material)
 ```
 
 Each folder: `eval_manifest.csv` (crop-level path bookkeeping), `eval_per_crop.csv`
