@@ -244,6 +244,12 @@ def run_baseline(root: Path, heldout_csv: Path, out_dir: Path,
         rows = list(csv.DictReader(fh))
     if limit:
         rows = rows[:limit]
+    # heldout_frames.csv was generated on Windows and stores backslash-separated
+    # relative paths; normalise to forward slashes so Path() joins correctly on
+    # Linux (same fix already applied in infer_baseline.py).
+    for r in rows:
+        r["aperio_path"] = r["aperio_path"].replace("\\", "/")
+        r["hamamatsu_path"] = r["hamamatsu_path"].replace("\\", "/")
 
     per_crop_path = out_dir / "baseline_per_crop.csv"
     fields = ["aperio_slide", "frame_id", "x", "y", "tissue_frac", "reg_ok", "ecc_score",
