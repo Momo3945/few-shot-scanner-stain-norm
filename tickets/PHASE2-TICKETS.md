@@ -189,13 +189,11 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** TODO — scoped (2026-08-10, design-only, no code/jobs yet). Hard blocker:
-Lizard access requires registering through Warwick TIA's institutional sign-on
-(`warwick.ac.uk/fac/cross_fac/tia/data/lizard/`) — this is a manual step only I can
-do, with unknown approval lag, and is the critical path for everything else here.
-No HoVer-Net wrapper exists yet (not started); the earlier "1.8 GB local" note could
-not be verified — no Lizard data was found anywhere in this repo/machine, treat as
-needing a fresh download once access is granted.
+**Status:** TODO — scoped and unblocked on data (2026-08-10, design-only, no code/jobs
+yet). Lizard data is confirmed present locally at `data/lizard/` (gitignored, 1.8GB —
+the earlier "1.8GB local" note was correct after all; it just wasn't found in the
+first pass because it's outside git's tracked tree). No cluster upload has happened
+yet and no HoVer-Net wrapper exists yet (not started).
 **Source:** `sec:experiments` "Structural Safety"; success threshold Relative Dice ≥ 0.95
 **Description:** Dice(B,G)/Dice(A,G) where G=Lizard ground truth, A=HoVer-Net on
 original patch, B=HoVer-Net on normalised patch. PanNuke excluded from this eval
@@ -218,24 +216,33 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
   `MultiTaskSegmentor` in newer releases, but 1.6.0's API is what we're pinning to).
   License BSD-3 (toolkit) / CC BY-NC (weights) — fine for this non-commercial project.
 - **Checkpoint choice: `hovernet_fast-pannuke`.** "Fast" mode's 256×256-in/164×164-out
-  shape matches Lizard's native patch convention (see below) far better than
-  "original" mode's 270×270-in/80×80-out. Being trained on PanNuke does not conflict
-  with excluding PanNuke-*sourced Lizard patches* from the eval set — those are
-  separate concerns (this is a third-party off-the-shelf instrument being validated
-  via Dice(A,G), not a component under test for data leakage).
-- **Lizard packaging decision:** target the **CoNIC-repackaged 256×256 patch version**
-  of Lizard (4,981 patches) rather than the original release's 291 large
-  ~1016×917 regions — matches HoVer-Net's native input size, avoids extra
-  crop/tiling work. **Open item to verify on first data inspection** (could not be
-  confirmed from public sources): exactly how DigestPath/GlaS source-origin is
-  encoded per patch, since Lizard combines 6 source datasets (DigestPath, CRAG,
-  GlaS, PanNuke, CoNSeP, TCGA) and the proposal wants only the DigestPath/GlaS
-  subset. Don't hard-code an assumed filename/metadata convention — inspect the
-  actual downloaded files first.
-- **Ground-truth annotation format:** expected `.mat`/`.npy` per-image instance map +
-  class-ID map (HoVer-Net's standard training-data convention), but not independently
-  confirmed against the primary Lizard release — verify on download, don't design
-  ingestion code around an unconfirmed schema.
+  shape is the tiling target for inference (see below). Being trained on PanNuke does
+  not conflict with excluding PanNuke-*sourced Lizard images* from the eval set —
+  those are separate concerns (this is a third-party off-the-shelf instrument being
+  validated via Dice(A,G), not a component under test for data leakage).
+- **Local Lizard data inspected directly (2026-08-10) — both open items from the
+  first scoping pass are now resolved, not just hypothesized:**
+  - **Packaging:** this is the **original variable-size region release** (NOT the
+    CoNIC 256×256 repackaging guessed at earlier). 238 images total across
+    `data/lizard/lizard_images{1,2}/Lizard_Images{1,2}/`, real sizes verified
+    directly (`dpath_1.png` 1190×928, `glas_1.png` 775×522, `crag_1.png` 1509×1516)
+    — will need `grid_offsets()`-style tiling into HoVer-Net's 256×256 input, the
+    same tiling approach already used for MITOS crops elsewhere in this codebase.
+    No new tiling logic needed, just reuse of the existing pattern.
+  - **Source-origin encoding: a plain filename prefix**, verified by listing both
+    image folders — `consep_*` (16), `crag_*` (64), `dpath_*` (69), `glas_*` (61),
+    `pannuke_*` (28) = 238. No `tcga_*` present — Lizard's own README explains the
+    authors are holding the TCGA portion back for a future challenge, so it was
+    never part of any download, not something missing from this copy.
+    **Usable subset for this eval: `dpath_*` + `glas_*` = 130 images, ~237MB.**
+  - **Ground-truth format: verified directly via `scipy.io.loadmat`**, not just
+    trusted from the README — `data/lizard/lizard_labels/Lizard_Labels/Labels/
+    dpath_1.mat` has exactly the documented keys: `inst_map` (int32, shape == image
+    H×W exactly, 0=background), `id` (N,1), `class` (N,1, confirmed values 1–6),
+    `bbox` (N,4), `centroid` (N,2). One `.mat` per image, flat directory, 238 files
+    matching 238 images 1:1. `Lizard_Labels/info.csv` also ships a
+    Filename/Source/Split column (the dataset's own paper split) — not needed for
+    this eval but available if a train/val/test provenance check is ever useful.
 - **Dice metric: binary, pixel-pooled foreground-vs-background Dice** (nucleus
   pixels vs. not, instance identity collapsed) — this is HoVer-Net's own
   `get_dice_1()`/"standard DICE", and also what the Lizard paper's own authors report
@@ -246,30 +253,30 @@ masks (Dice(A,G)) before being trusted as a measurement instrument.
   the same instance-map output tiatoolbox/hover_net already produce, at no extra
   inference cost.
 - **Compute:** GPU on `bigbatch`; published HoVer-Net benchmarks (~5s/1000×1000 image)
-  suggest a few hundred 256×256 patches is a low-tens-of-minutes job, not a long run.
+  suggest 130 images tiled into 256×256 patches is a low-tens-of-minutes job, not a
+  long run.
 
-**Planned pipeline (once Lizard access is granted):**
-1. (Manual, external) Register for Lizard access; download the CoNIC 256×256 packaging.
-2. Data-recon pass on the downloaded files: confirm source-origin encoding, filter to
-   DigestPath/GlaS only (excluding PanNuke/CoNSeP/CRAG/TCGA-sourced patches), confirm
-   ground-truth annotation schema.
-3. Upload the filtered patch set to the cluster (`/datasets/mhoosen/stain-norm/
-   lizard_heldout/`, following the existing raw-data folder convention used for
-   `mitos_heldout/`).
-4. `pip install tiatoolbox==1.6.0` into `stainnorm` (dry-run check first, per above).
-5. New `src/eval/hovernet_wrapper.py` — thin wrapper around
-   `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke")`, producing an
-   instance mask per patch.
-6. New `src/eval/lizard_dice.py` (or extend `metrics.py`) — binary Dice + the named
-   secondary metrics between a predicted mask and Lizard's ground-truth mask.
-7. Run the best Phase 1 config (per P3-01: A4, or the P1-09 strength-0.20 operating
-   point) as the "normalisation" step over the filtered Lizard patches to produce B.
-8. Compute Dice(A,G) first as the validation gate (proposal: HoVer-Net must be
+**Planned pipeline (no external blocker remaining):**
+1. Upload the `dpath_*`/`glas_*` subset (images + matching `.mat` labels, ~237MB) to
+   the cluster (`/datasets/mhoosen/stain-norm/lizard_heldout/`, following the existing
+   raw-data folder convention used for `mitos_heldout/`) — no need to upload the full
+   1.8GB, only the 130 usable images and their labels.
+2. `pip install tiatoolbox==1.6.0` into `stainnorm` (dry-run check first, per above —
+   never let this silently touch the pinned torch build).
+3. New `src/eval/hovernet_wrapper.py` — thin wrapper around
+   `NucleusInstanceSegmentor(pretrained_model="hovernet_fast-pannuke")`, tiling each
+   Lizard region into 256×256 crops (reusing `grid_offsets()`-style logic from
+   `metrics.py`) and producing an instance mask per crop.
+4. New `src/eval/lizard_dice.py` (or extend `metrics.py`) — binary Dice + the named
+   secondary metrics between a predicted mask and the `.mat` ground-truth `inst_map`.
+5. Run the best Phase 1 config (per P3-01: A4, or the P1-09 strength-0.20 operating
+   point) as the "normalisation" step over the tiled Lizard crops to produce B.
+6. Compute Dice(A,G) first as the validation gate (proposal: HoVer-Net must be
    trusted as an instrument before Relative Dice means anything) — only proceed to
    Relative Dice = Dice(B,G)/Dice(A,G) once that gate is sane.
 
-**Next step:** start the Lizard registration (manual, external, unknown lag) — it's
-the critical path. Everything else above can be built in parallel while waiting.
+**Next step:** upload the filtered Lizard subset to the cluster and do the
+`tiatoolbox==1.6.0` dry-run install check — no external/manual blocker remains.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
