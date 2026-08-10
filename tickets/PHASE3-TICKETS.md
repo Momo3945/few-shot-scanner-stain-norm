@@ -41,10 +41,11 @@ evidence. Three possible outcomes per the proposal:
   (rank-change noise). A5 beats A4 on A06 by +2.6 / +5.8 / +8.7 LAB units across
   strengths 0.30/0.40/0.50 — one to two orders of magnitude past the floor. See
   P3-05 below, now unblocked.
-- **New Phase 3 blocker, not previously on this list:** `latent-consistency/
+- ~~**New Phase 3 blocker, not previously on this list:** `latent-consistency/
   lcm-lora-sdxl` and an SDXL Canny ControlNet checkpoint are not in the cache at
-  all (confirmed via cluster search, zero matches) — already flagged under P3-02
-  below but restated here since it directly blocks P3-03's LCM/ControlNet legs.
+  all~~ **RESOLVED (2026-08-10)** — job 40399 fetched both, verified with real
+  byte sizes not exit code: `lcm-lora-sdxl` 393.9MB, `diffusers/controlnet-
+  canny-sdxl-1.0` 5.0GB. See P3-02 below. P3-03 is now fully unblocked.
 
 ## P3-02 — Fix SDXL model weight download
 **Status:** ✅ DONE (2026-08-08) — job 37073 COMPLETED 16:49; verified with real file
@@ -61,16 +62,16 @@ config/tokenizer files, 3.2M, zero `.safetensors` — matches the actual cache e
 **Fix applied:** `slurm/fetch_models.slurm` now uses repeated `--include` flags (the
 CLI's own documented syntax), verified via dry-run to actually select the
 `.safetensors` files this time.
-**Next step:** run `sbatch slurm/fetch_models.slurm` (stampede, CPU-only) and verify
-with real file-size checks after, not job exit code.
-**Also needed:** `latent-consistency/lcm-lora-sdxl` and an SDXL Canny ControlNet
-(e.g. `diffusers/controlnet-canny-sdxl-1.0`) — not yet downloaded at all, not yet
-added to `fetch_models.slurm`.
+**Update (2026-08-10):** `latent-consistency/lcm-lora-sdxl` and an SDXL Canny
+ControlNet (`diffusers/controlnet-canny-sdxl-1.0`) added to `fetch_models.slurm`
+and fetched — job 40399 COMPLETED 4:20, verified with real byte sizes not exit
+code: `lcm-lora-sdxl` 393.9MB, `controlnet-canny-sdxl-1.0` 5.0GB (fp16 + fp32
+variants both present). All Phase 3 model weights are now cached and verified.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
-**Status:** TODO — unblocked (P3-01 done). Still needs `lcm-lora-sdxl` + SDXL
-Canny ControlNet fetched (see P3-02's "Also needed" note) before it can run.
-Recommended base config: **A4** (ControlNet + colour LoRA + LCM-LoRA), per P3-01.
+**Status:** TODO — fully unblocked (2026-08-10). All model weights verified
+present (P3-02). Recommended base config: **A4** (ControlNet + colour LoRA +
+LCM-LoRA), per P3-01. Not yet started.
 **Source:** `sec:phase3_sdxl`
 **Description:** Transfer ONLY the best-performing SD1.5 configuration (from A0–A5).
 The proposal is explicit: **do not** repeat the full ablation ladder on SDXL — that
