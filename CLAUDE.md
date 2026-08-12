@@ -83,10 +83,14 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - **Never run heavy work on the login node** — always `sbatch`, or a short `srun --pty` for tests.
 - Some `bigbatch` nodes come up GPU-less; GPU jobs must fail-fast if
   `torch.cuda.is_available()` is False (do not CPU-crawl — this has happened before
-  and burned ~1 hour on job 3809). **Confirmed GPU-less/broken node: `mscluster48`**
-  (job 42115, 2026-08-10 — `nvidia-smi`: "No devices were found", torch: "CUDA
-  initialization: CUDA unknown error"; fail-fast caught it in 1:44, no wasted
-  compute). Use `--exclude=mscluster48` if a GPU job lands there again.
+  and burned ~1 hour on job 3809). **Confirmed GPU-less/broken nodes on `bigbatch`:
+  `mscluster48`, `mscluster65`, `mscluster46`** (jobs 42115/42117/42420,
+  2026-08-10/2026-08-11 — all three show the identical signature: `nvidia-smi`:
+  "No devices were found", torch: "CUDA initialization: CUDA unknown error"; the
+  fail-fast check caught every one in under 2 minutes, no wasted compute). This is
+  a recurring pattern, not a one-off — always pass
+  `--exclude=mscluster48,mscluster65,mscluster46` on `bigbatch` GPU jobs, and add
+  any new bad node hit to this list rather than re-discovering it.
 - **`mscluster40` (on `stampede`) is slow/contended for CPU-only jobs** — two
   otherwise-identical scoring jobs (41839, 41843) TIMEOUT'd at the 1hr limit on
   this node while every other run on `mscluster22` finished in ~21-22min
