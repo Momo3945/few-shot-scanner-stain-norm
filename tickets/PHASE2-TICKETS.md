@@ -189,7 +189,10 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** TODO — infra ready, wrapper code not started (2026-08-10). Lizard
+**Status:** IN PROGRESS (2026-08-12) — wrapper code written, smoke-tested
+end-to-end (inference + Dice(A,G) scoring both run successfully on 5 images).
+Full 130-image Dice(A,G) gate and the normalisation (B) side are still open.
+Lizard
 `dpath_*`/`glas_*` subset (130 images + `.mat` labels, 695MB) uploaded to
 `/datasets/mhoosen/stain-norm/lizard_heldout/{images,labels}/`, verified (file
 counts match the local staged copy exactly). `tiatoolbox==1.6.0` installed and
@@ -319,12 +322,38 @@ same script serves both the original-Lizard and future normalised runs) and
 `PRED_TAG [AGAINST_TAG]` — omit `AGAINST_TAG` for the Dice(A,G) validation gate,
 supply it for Relative Dice). Both syntax-checked locally and on the cluster.
 
-**Next step:** an actual GPU test run —
-`sbatch slurm/infer_hovernet.slurm lizard_original "" "" 5` (smoke test, 5
-images) then `sbatch slurm/score_lizard.slurm lizard_original` — for step 6's
-validation gate, Dice(A,G). Will ask for confirmation with the exact command
-before submitting, per project rules. Step 5 (the normalisation side, B) still
-needs design work first.
+**Smoke test (2026-08-12):** first attempt (job 42420) landed on a bad GPU node
+and failed fast (1:10, fail-fast guard caught it). Resubmit (job 42904)
+COMPLETED 3:13 — `sbatch slurm/infer_hovernet.slurm lizard_original "" "" 5`,
+5/5 `dpath_*` images processed, `instances/`+`masks/`+`manifest.csv` written to
+`eval/lizard_original/` (nucleus counts 1624-7224/image, mask dims match image
+dims exactly — sane output, no design changes needed from the earlier
+`hovernet_wrapper.py` write-up).
+**Dice(A,G) validation gate (2026-08-12), job 43055 COMPLETED 27s:**
+`sbatch slurm/score_lizard.slurm lizard_original` — 5-image smoke sample:
+
+| image | dice | iou | object_f1 | count_ratio |
+|---|---|---|---|---|
+| dpath_1 | 0.722 | 0.565 | 0.832 | 0.784 |
+| dpath_10 | 0.776 | 0.634 | 0.864 | 0.855 |
+| dpath_11 | 0.700 | 0.539 | 0.796 | 0.749 |
+| dpath_12 | 0.671 | 0.505 | 0.836 | 0.854 |
+| dpath_13 | 0.765 | 0.619 | 0.858 | 0.824 |
+| **mean** | **0.727** | **0.573** | **0.837** | **0.813** |
+
+Consistent across all 5 (0.67-0.78 Dice, no outliers/failures) — HoVer-Net
+behaves as a sane instrument on this data (under-detects nuclei somewhat,
+~75-85% of ground-truth count, typical for a PanNuke-pretrained model applied
+out-of-domain, not a pipeline bug). This is a 5-image smoke sample, not yet the
+full validation gate — n=5 is too small to trust as the official Dice(A,G)
+baseline that Relative Dice will be divided by.
+**Next step:** full run — `sbatch slurm/infer_hovernet.slurm lizard_original ""
+"" ` (no limit, all 130 `dpath_*`+`glas_*` images) then `sbatch
+slurm/score_lizard.slurm lizard_original` again (overwrites the 5-image
+summary with the full-130 one) for the real Dice(A,G) gate value. Step 5 (the
+normalisation side, B) still needs design work before Relative Dice can be
+computed. Will ask for confirmation with the exact command before submitting,
+per project rules.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
