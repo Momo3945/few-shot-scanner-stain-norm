@@ -84,19 +84,23 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Some `bigbatch` nodes come up GPU-less; GPU jobs must fail-fast if
   `torch.cuda.is_available()` is False (do not CPU-crawl — this has happened before
   and burned ~1 hour on job 3809). **Confirmed GPU-less/broken nodes on `bigbatch`:
-  `mscluster48`, `mscluster65`, `mscluster46`** (jobs 42115/42117/42420,
-  2026-08-10/2026-08-11 — all three show the identical signature: `nvidia-smi`:
-  "No devices were found", torch: "CUDA initialization: CUDA unknown error"; the
-  fail-fast check caught every one in under 2 minutes, no wasted compute). This is
-  a recurring pattern, not a one-off — always pass
-  `--exclude=mscluster48,mscluster65,mscluster46` on `bigbatch` GPU jobs, and add
-  any new bad node hit to this list rather than re-discovering it. Corroborated
-  2026-08-11: `squeue`/`scontrol` show other users' CPU-only jobs currently
-  running fine on all three nodes (so the hardware/node itself is up), and a
-  different user's own job (42901, user `ybassera`) independently carries
-  `ExcNodeList=...,48,65,...` — i.e. someone else has already found `mscluster48`
-  and `mscluster65` bad for GPU work too. This is specifically a GPU/CUDA fault on
-  these nodes, not a general node outage — CPU-only jobs are unaffected.
+  `mscluster48`, `mscluster65`, `mscluster46`, `mscluster44`** (jobs
+  42115/42117/42420/43056, 2026-08-10/2026-08-11/2026-08-12 — all show the
+  identical signature: `nvidia-smi`: "No devices were found", torch: "CUDA
+  initialization: CUDA unknown error"; the fail-fast check caught every one in
+  under 2 minutes, no wasted compute). `mscluster44` was first seen as a
+  transient one-off during P1-09 (2026-08-10) but recurred with the same exact
+  signature on job 43056 (2026-08-12) — promoted from "transient" to confirmed
+  bad. This is a recurring pattern, not a one-off — always pass
+  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44` on `bigbatch` GPU
+  jobs, and add any new bad node hit to this list rather than re-discovering it.
+  Corroborated 2026-08-11: `squeue`/`scontrol` show other users' CPU-only jobs
+  currently running fine on all three of the originally-confirmed nodes (so the
+  hardware/node itself is up), and a different user's own job (42901, user
+  `ybassera`) independently carries `ExcNodeList=...,48,65,...` — i.e. someone
+  else has already found `mscluster48` and `mscluster65` bad for GPU work too.
+  This is specifically a GPU/CUDA fault on these nodes, not a general node
+  outage — CPU-only jobs are unaffected.
 - **`mscluster40` (on `stampede`) is slow/contended for CPU-only jobs** — two
   otherwise-identical scoring jobs (41839, 41843) TIMEOUT'd at the 1hr limit on
   this node while every other run on `mscluster22` finished in ~21-22min
