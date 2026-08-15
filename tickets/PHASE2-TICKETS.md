@@ -189,9 +189,9 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** IN PROGRESS (2026-08-12) — wrapper code written, smoke-tested
-end-to-end (inference + Dice(A,G) scoring both run successfully on 5 images).
-Full 130-image Dice(A,G) gate and the normalisation (B) side are still open.
+**Status:** IN PROGRESS (2026-08-15) — Dice(A,G) validation gate DONE on the
+full 130-image set (mean Dice 0.6982, jobs 43364/43365). Normalisation (B)
+side and Relative Dice are still open — step 5 not yet designed.
 Lizard
 `dpath_*`/`glas_*` subset (130 images + `.mat` labels, 695MB) uploaded to
 `/datasets/mhoosen/stain-norm/lizard_heldout/{images,labels}/`, verified (file
@@ -347,13 +347,34 @@ behaves as a sane instrument on this data (under-detects nuclei somewhat,
 out-of-domain, not a pipeline bug). This is a 5-image smoke sample, not yet the
 full validation gate — n=5 is too small to trust as the official Dice(A,G)
 baseline that Relative Dice will be divided by.
-**Next step:** full run — `sbatch slurm/infer_hovernet.slurm lizard_original ""
-"" ` (no limit, all 130 `dpath_*`+`glas_*` images) then `sbatch
-slurm/score_lizard.slurm lizard_original` again (overwrites the 5-image
-summary with the full-130 one) for the real Dice(A,G) gate value. Step 5 (the
-normalisation side, B) still needs design work before Relative Dice can be
-computed. Will ask for confirmation with the exact command before submitting,
-per project rules.
+**Full 130-image Dice(A,G) validation gate (2026-08-15):** job 43364
+(`sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44
+slurm/infer_hovernet.slurm lizard_original "" ""`) COMPLETED 8:36 on
+`mscluster79` — "Processed 130/130 images", `instances/`+`masks/`+
+`manifest.csv` written to `eval/lizard_original/` (first attempt at this full
+run, job 43114, had failed on `mscluster83` with a healthy GPU due to a stale
+`_tiatoolbox_raw/` dir left over from the 5-image smoke test occupying the
+same output path — fixed by deleting the stale `_tiatoolbox_raw/`/`instances/`
+/`masks/`/`manifest.csv` before resubmitting, not a hardware fault). Rescored:
+job 43365 (`sbatch slurm/score_lizard.slurm lizard_original`) COMPLETED 1:06,
+`per_image.csv` has 130 rows.
+
+| metric | value | n |
+|---|---|---|
+| Dice | 0.6982 | 130 |
+| IoU | 0.5394 | 130 |
+| object-F1 | 0.7332 | 130 |
+| count_ratio | 0.6678 | 130 |
+
+This is the official Dice(A,G) baseline Relative Dice will be divided by —
+lower than the 5-image smoke mean (0.727), as expected once the full
+distribution (incl. `glas_*`) is included; still consistent with the smoke
+test's read that HoVer-Net is a sane (if somewhat under-detecting)
+out-of-domain instrument, not a broken one.
+**Next step:** step 5 (the normalisation side, B) still needs design work —
+running the best Phase 1 config over the Lizard images to produce normalised
+outputs — before Relative Dice = Dice(B,G)/Dice(A,G) can be computed. Not yet
+designed.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
