@@ -70,11 +70,12 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   files cached, a prior job logging "✓ Downloaded"/exit 0 despite empty weights —
   no longer applies; kept the history here as a reminder to always verify with
   `hf cache scan` or checked file sizes, never trust an exit code alone.)
-  **Still missing for Phase 3 (found 2026-08-10, not yet fetched):
-  `latent-consistency/lcm-lora-sdxl` and an SDXL Canny ControlNet checkpoint
-  (e.g. `diffusers/controlnet-canny-sdxl-1.0`) — neither is in the cache at all.**
-  Needed before P3-03/P3-04 (SDXL base transfer) can run; add to
-  `fetch_models.slurm`.
+  **`latent-consistency/lcm-lora-sdxl` and SDXL Canny ControlNet
+  (`diffusers/controlnet-canny-sdxl-1.0`): FETCHED 2026-08-10 (job 40399,
+  added to `fetch_models.slurm` in commit `46d270c`) — re-verified 2026-08-17
+  with real byte sizes: LCM-LoRA main blob 393.8MB safetensors, ControlNet
+  2.5GB + 5.0GB safetensors variants, neither a config/tokenizer stub.**
+  P3-03/P3-04/P3-05 (SDXL base transfer) are unblocked on the model-asset side.
 - **GPUs are selected by PARTITION ONLY. `#SBATCH --gres=gpu:1` is REJECTED** ("Invalid gres").
   Partitions confirmed via `sinfo`: `stampede` (CPU/weak GPU), `bigbatch` (RTX 3090 24GB —
   default for GPU work), `biggpu` (mature jobs only), plus a default `batch*` and a
