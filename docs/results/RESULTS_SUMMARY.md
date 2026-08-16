@@ -593,6 +593,16 @@ scores downstream nucleus-detection agreement rather than raw pixel/SSIM agreeme
 is the more appropriate structural-safety check for a generative method, and this
 result is a concrete reason why P2-08 shouldn't be skipped.
 
+**Update (2026-08-17): P2-08 is complete, and it does not tell a different
+story.** Relative Dice = Dice(B,G)/Dice(A,G) = 0.6105/0.6982 = **0.8745**, below
+the proposal's 0.95 threshold, at the P1-09 best general-purpose operating point
+(colour LoRA + ControlNet-Canny + LCM-LoRA, 1-step LCM/strength 0.20). Full
+130-image runs on both sides (Dice(A,G) validation gate and Dice(B,G)), no
+shape-mismatch skips. So the downstream nucleus-detection metric agrees with
+the pixel-exact metrics above, not against them: normalisation costs real
+structural/detection fidelity by this measure too. Full detail and job IDs:
+`tickets/PHASE2-TICKETS.md` P2-08.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

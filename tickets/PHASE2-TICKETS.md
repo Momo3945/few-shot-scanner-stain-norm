@@ -189,9 +189,11 @@ sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural d
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
-**Status:** IN PROGRESS (2026-08-15) — Dice(A,G) validation gate DONE on the
-full 130-image set (mean Dice 0.6982, jobs 43364/43365). Normalisation (B)
-side and Relative Dice are still open — step 5 not yet designed.
+**Status:** DONE — gate FAILED (2026-08-17). Dice(A,G) validation gate DONE on
+the full 130-image set (mean Dice 0.6982, jobs 43364/43365). Normalisation (B)
+side complete (jobs 43465/43537) and Relative Dice computed (job 43661):
+**0.8745, below the 0.95 threshold — H3/RQ2 does not hold** at the P1-09 best
+general-purpose operating point. See full results below.
 Lizard
 `dpath_*`/`glas_*` subset (130 images + `.mat` labels, 695MB) uploaded to
 `/datasets/mhoosen/stain-norm/lizard_heldout/{images,labels}/`, verified (file
@@ -371,10 +373,59 @@ lower than the 5-image smoke mean (0.727), as expected once the full
 distribution (incl. `glas_*`) is included; still consistent with the smoke
 test's read that HoVer-Net is a sane (if somewhat under-detecting)
 out-of-domain instrument, not a broken one.
-**Next step:** step 5 (the normalisation side, B) still needs design work —
-running the best Phase 1 config over the Lizard images to produce normalised
-outputs — before Relative Dice = Dice(B,G)/Dice(A,G) can be computed. Not yet
-designed.
+**Step 5 — normalisation (B side) + Relative Dice (2026-08-16/17):** new
+standalone script `src/eval/normalize_lizard.py` + launcher
+`slurm/normalize_lizard.slurm`, deliberately not a reuse of
+`infer_colour_lora.py` (Lizard has no Aperio/Hamamatsu pair or registration
+step, and `lizard_dice.py:154` requires the normalised output to match its
+source image's `(H, W)` exactly or that image is silently skipped). Approach:
+pad each image to a multiple of `--crop` (512) with reflect padding, tile into
+non-overlapping blocks (deliberately not `grid_offsets()`'s overlap-sampling —
+overlap would double-process pixels and seam on reassembly), run the P1-09 best
+general-purpose config (colour LoRA `a2h_r8` + ControlNet-Canny + LCM-LoRA, A2H,
+strength 0.20, 8 steps, guidance 1.5, seed 0 — `infer_a4_lcm.slurm`'s A4 config,
+not A5@0.70's outlier-rescue mode, since Lizard is a general held-out set) per
+tile, stitch, crop back to source size.
+
+Smoke test (job 43375, 5 images): all 5 shapes matched their originals exactly,
+pixel stats non-degenerate. Full run (job 43465, `mscluster51`, COMPLETED 7:26):
+**130/130 images normalised**, no shape-mismatch errors, output count verified
+(`ls | wc -l` = 130).
+
+HoVer-Net on the normalised images (job 43537, `mscluster84`, COMPLETED 9:02):
+**"Processed 130/130 images"**, 130 masks + 130 instance files verified directly
+(not just exit code).
+
+Final scoring (job 43661, `sbatch slurm/score_lizard.slurm lizard_normalised
+lizard_original`, `mscluster41`, COMPLETED 1:21), `per_image.csv` has 131 lines
+(header + 130 rows, no skips):
+
+| metric | value | n |
+|---|---|---|
+| Dice (B,G) | 0.6105 | 130 |
+| IoU | 0.4428 | 130 |
+| object-F1 | 0.6816 | 130 |
+| count_ratio | 0.6274 | 130 |
+
+**Relative Dice = Dice(B,G)/Dice(A,G) = 0.6105/0.6982 = 0.8745 — FAIL (< 0.95
+threshold).** `relative_dice.csv`: `this_dice=0.61054, baseline_dice=0.69818,
+relative_dice=0.87447, threshold=0.95, pass=False`. H3/RQ2 does not hold at this
+operating point: normalising with the best general-purpose Phase 1 config costs
+~12.5% of HoVer-Net's nucleus-detection agreement relative to the unmodified
+image. Consistent with, and reinforces, the P2-06 finding that diffusion
+resynthesis does not preserve pixel-exact/structural fidelity as well as doing
+nothing — this is the same pattern showing up in a downstream-task metric
+(nucleus detection) rather than only in raw pixel metrics (SSIM/PSNR/MAE),
+which strengthens rather than complicates that earlier finding. Report as a
+genuine negative result, not explained away — per this project's standing
+convention (CLAUDE.md) of reporting negative findings plainly.
+
+**Not yet done / possible follow-up (not required to close this ticket):**
+Relative Dice was only computed at the single P1-09 "best general-purpose"
+operating point. Whether a different config (e.g. A5's outlier-rescue strength,
+or literal ControlNet-only A1) changes the verdict is untested — could be a
+worthwhile discussion-section caveat or a small follow-up ablation, not
+currently scoped as a ticket.
 
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** TODO — not started; classifier training infra not yet built
