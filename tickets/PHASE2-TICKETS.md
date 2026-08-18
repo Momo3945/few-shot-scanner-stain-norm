@@ -180,13 +180,49 @@ LAB-Wasserstein, added under P2-11 — see that ticket and
 `docs/results/RESULTS_SUMMARY.md` for the full analysis.
 
 ## P2-07 — Cycle consistency: round-trip reconstruction
-**Status:** TODO — depends on both A2H and H2A LoRAs at the chosen rank (P1-03a/c done
-for rank 8)
+**Status:** ✅ DONE (2026-08-17/18)
 **Source:** `sec:experiments` "Round Trip Reconstruction"
 **Description:** A06 → (LoRA A→H) → Ĥ06 → (LoRA H→A) → Â06 ↔ Original A06.
 **IMPORTANT (proposal is explicit):** this test uses a **deterministic 50-step DDIM
 sampler**, NOT LCM — LCM's stochastic drift would contaminate the structural deviation
 measurement. LCM is reserved strictly for the unidirectional deployment pipeline.
+
+**Implementation:** new `src/eval/roundtrip_a06.py` + `slurm/roundtrip_a06.slurm` —
+deliberately not a reuse of `infer_colour_lora.py`, which always ECC-registers
+against a real Hamamatsu image and scores against that real reference; this test
+never touches a real Hamamatsu image (Ĥ06 is synthetic) and compares Â06 back to
+the exact same original A06 crop it started from (trivially pixel-aligned by
+construction, no registration needed). Two sequential single-adapter DDIM passes
+(A→H LoRA, then H→A LoRA on the result), strength 0.20 (P1-09's best
+general-purpose point), no ControlNet (the proposal's round-trip equation names
+only the trained LoRA weights). Scored with `metrics.py`'s existing
+`score_aligned_pair` (SSIM/PSNR/MAE + bonus LAB/windowed-LAB/CIEDE2000), no new
+metric code.
+
+Smoke test (job 43667, 2 frames, 20-step DDIM, n=8 crops): mechanically clean,
+finite non-degenerate numbers. **Full run (job 43971, all 16 A06 frames, 50-step
+DDIM, n=64 crops, `per_crop.csv` confirmed 64 rows):**
+
+| metric | value |
+|---|---|
+| SSIM | 0.1429 |
+| PSNR | 13.11 |
+| MAE | 41.54 |
+| LAB total | 28.17 |
+
+**Reading this result:** SSIM 0.1429 is very low structural preservation —
+notably lower even than the one-way normalisation-vs-real-Hamamatsu SSIM numbers
+already reported under P2-06 (0.27–0.46 for the best diffusion rungs at their
+best strength). Since this round trip never touches a real Hamamatsu image at
+all, this isolates the pipeline's own structural drift (both LoRA passes
+combined) with the colour-matching task removed entirely — the round trip
+should, in principle, return close to the identity if the LoRAs were only
+learning colour. It doesn't. This is consistent with, and reinforces, the
+P2-06/P2-08 pattern (diffusion resynthesis does not preserve pixel-exact
+structure well) rather than complicating it — a third independent metric family
+(after SSIM/PSNR/MAE on real pairs, and Relative Dice) now points the same
+direction. No proposal-stated pass/fail threshold exists for this experiment
+(unlike H3's 0.95); reported descriptively per this project's convention.
 
 ## P2-08 — Structural safety: HoVer-Net vs Lizard (Relative Dice)
 **Status:** DONE — gate FAILED (2026-08-17). Dice(A,G) validation gate DONE on
