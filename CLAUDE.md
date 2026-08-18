@@ -121,9 +121,21 @@ do not create new top-level folders without updating this list.
   This is the only raw-data folder here — everything else is derived. Needed as
   `infer_colour_lora.slurm`'s `MITOS_ROOT` (its paths join directly with
   `heldout_frames.csv`'s relative `aperio_path`/`hamamatsu_path` columns).
-- `lora/` — trained colour-LoRA checkpoints, one dir per `<direction>_r<rank>` run.
+- `lora/` — trained colour-LoRA checkpoints, one dir per `<direction>_r<rank>` run
+  (SD1.5) or `<direction>_r<rank>_sdxl` (SDXL, P3-03).
 - `eval/` — inference + scoring outputs per run (`eval_manifest.csv`, `eval_per_crop.csv`,
   `eval_summary.csv`).
+- `lizard_heldout/` — **raw** Lizard held-out set (`images/`, `labels/`), P2-08's
+  Dice(A,G)/Relative Dice structural-safety check. Added 2026-08-15.
+- `mitos_atypia_train_aperio/` — **raw** MITOS-ATYPIA-14 training-slide Aperio data
+  (11 official training slides, Aperio side only — Hamamatsu side not needed),
+  extracted from `mitos_atypia_2014_training_aperio.zip`. P2-09's classifier
+  training source. Added 2026-08-18.
+- `classifier/` — trained downstream-classifier checkpoints (P2-09), one dir per
+  run (e.g. `atypia_r18/`). Added 2026-08-18.
+- `camelyon17_patches/` — **raw** CAMELYON17 patches (`centre_<0-4>_patient_<id>/
+  *.png`, extracted locally then uploaded — see P2-10 for why extraction happens
+  off-cluster). Added 2026-08-19.
 - No stray `.zip` archives here — if a folder was extracted from one, the zip is deleted
   once the extraction is verified (source zips still exist locally if needed again).
 

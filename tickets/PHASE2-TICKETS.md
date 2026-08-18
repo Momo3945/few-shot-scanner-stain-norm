@@ -464,7 +464,8 @@ worthwhile discussion-section caveat or a small follow-up ablation, not
 currently scoped as a ticket.
 
 ## P2-09 — Clinical utility: downstream classifier delta
-**Status:** TODO — not started; classifier training infra not yet built
+**Status:** 🔄 IN PROGRESS (2026-08-19) — classifier trained (val_acc 0.9468),
+scoring against all 9 methods + raw Hamamatsu/Aperio running now (job 44205).
 **Source:** `sec:experiments` "Clinical Utility"
 **Description:** Standard diagnostic classifier trained on raw Aperio, evaluated on
 raw Hamamatsu + all baseline methods (P2-11) + A0–A5 outputs. Primary metric:
@@ -472,14 +473,160 @@ recovery delta = performance(Proposed) − performance(Raw Hamamatsu). Primary d
 metric: atypia score accuracy at ×20 (macro-AUC/F1 secondary); mitosis F-measure at
 ×40 as cross-magnification generalisation check.
 
+**Scope decision:** atypia classification only, not the mitosis F-measure arm —
+that needs an object-detector architecture (centroid/bbox prediction + IoU
+matching), a materially larger, different build than a classifier. Split off as
+follow-up **P2-09b** (not yet ticketed in detail) rather than blocking this on
+it, same scope-split precedent as P3-03/P3-03b.
+
+**Label data (found this session, previously completely unused by any script
+in this repo):** MITOS-ATYPIA-14's `<slide>/atypia/x20/<slide>_<frame>_
+cna_score_decision.csv` files (bare integer 1–3, no header) carry the adjudicated
+atypia score per ×20 frame. Present for the 5 held-out/testing slides already on
+the cluster; present for all 11 official training slides only locally
+(`D:\Research\Mitos\data\mitos\mitos_atypia_2014_training_aperio\`) until this
+session — `mitos_atypia_2014_training_aperio.zip` (11.6GB, Aperio side only,
+Hamamatsu side not needed for training) uploaded and extracted on the cluster
+under `/datasets/mhoosen/stain-norm/mitos_atypia_train_aperio/`. Real quirks
+found and handled while building the manifest join (`src/data/
+build_atypia_manifest.py`, not assumed from documentation — verified directly
+against real files): (a) 3 of 300 training decision files are genuinely empty,
+no adjudicated score at all (`A10_01C`, `A14_00A`, `A17_02B`) — skipped, not
+treated as parse errors; (b) the training archive's directory layout is
+**inconsistent across slides** — A03 is doubled (`A03/A03/atypia/x20/...`,
+matches the pre-existing CLAUDE.md note about a different, earlier A03
+extraction) but the other 10 training slides are not doubled
+(`A10/atypia/x20/...` directly) — the manifest builder resolves the slide root
+relative to each label file's own parent chain rather than assuming either
+layout. Result: **297/300 training frames labelled** (score distribution
+`{1: 23, 2: 222, 3: 52}`), **120/124 testing frames labelled**
+(`{1: 38, 2: 60, 3: 22}`) — both manifests cross-checked against a real raw
+label file (not just the script's own summary output) before being trusted.
+
+**Training methodology (`src/train/train_atypia_classifier.py`):**
+- **Model**: `torchvision.models.resnet18` (ImageNet-pretrained), final `fc`
+  replaced with a 3-class linear head, fine-tuned end-to-end. A defensible
+  "standard diagnostic classifier" baseline — the proposal doesn't mandate a
+  specific architecture.
+- **Data granularity**: each training example is a 512×512 tissue crop (same
+  `grid_offsets`/`tissue_fraction` tiling convention used everywhere else in
+  this project), inheriting its **parent frame's** atypia score as a weak,
+  frame-level label — MITOS-ATYPIA-14 assesses atypia per ROI, not per
+  sub-tile, so this is the standard assumption for histopathology patch
+  classification. This also means the eval side needs no frame-level
+  aggregation step later: each existing eval crop can be scored directly
+  against its frame's true label.
+- **Class imbalance**: training labels are heavily skewed (`2` is ~75% of
+  frames) — `CrossEntropyLoss` is class-weighted (inverse frequency) to avoid a
+  degenerate "always predict 2" classifier that would still report a
+  misleadingly high raw accuracy.
+- **Train/val split**: **by slide**, not by crop, to avoid leaking crops from
+  the same frame across the split — the 2 alphabetically-last training slides
+  (A17, A18) held out for validation by default, giving 250 train / 47 val
+  frames → 1000 train / 188 val tissue crops after tiling. Train class counts:
+  `{score1: 88, score2: 704, score3: 208}`.
+- **Checkpointing**: every `save_every` steps, tracks `best.pt` by val accuracy
+  separately from the final-step checkpoint — matters in practice (see below).
+
+**Smoke test (job 44082, `mscluster54`, COMPLETED 3:36):** 5 steps, real finite
+decreasing-ish loss, checkpoint saved and verified (44.8MB, real ResNet18 size),
+before committing to the full run.
+
+**Full training run (job 44146, `mscluster61`, COMPLETED 53:31, 2000 steps):**
+train accuracy reaches 1.000 by ~step 1550 (expected — weak frame-level labels
+shared across many crops of the same frame are easy to fit exactly). **Val
+accuracy peaked at 0.9468 at step 400**, then drifted down with continued
+training (0.894 at step 1400, down to 0.824 by the final step 2000) — a real,
+visible overfitting trend past the peak, which is exactly why `best.pt`
+(step-400 weights) is the checkpoint used for evaluation, not `final.pt`.
+Verified directly: `best.pt` is 44.8MB and `torch.load` confirms
+`step=400, val_acc=0.9468`, not just trusting the training log's own printout.
+
+**Not yet done:** `score_atypia_classifier.py`'s recovery-delta table (job
+44205, in progress) — accuracy/macro-F1/macro-AUC per method vs. raw Hamamatsu,
+per-slide + outlier-excluded aggregate. Ticket status will move to DONE once
+that lands and is sanity-checked (per this project's standing rule: a job
+leaving the queue is not proof of success).
+
 ## P2-10 — CAMELYON17 multi-centre generalisation
-**Status:** TODO — blocked: CAMELYON17 is local-only (232 GB, only 5/15 patients
-extracted), no tiatoolbox patch-extraction script written yet, and this must run as
-a cluster CPU job per the cluster guide (not on the login node)
+**Status:** 🔄 IN PROGRESS (2026-08-19) — patch extraction, upload, and D_pre
+all done. Normalisation smoke test running (job 44203); D_post not yet computed.
 **Source:** `sec:experiments` "Colour Accuracy" — CAMELYON17 subsection; `tab:camelyon`
 **Description:** Pairwise LAB Wasserstein between all 5 centres, before (D_pre, 10
 distances) and after (D_post, 10 distances) normalisation. Success = D_post < D_pre.
 3 patients/centre, 100 random 512×512 patches/patient, pooled per centre.
+
+**Extraction (local, not cluster — reasoning below):** `data/camelyon17/
+camelyon_patches.py` is a pre-existing local extraction pipeline (tiatoolbox +
+a Philips-tifffile fallback for one scanner brand) that already had 1/15
+patients extracted before this session. **Why local, not cluster**: raw
+CAMELYON17 is 232GB, genuinely too large to move — per-patient extraction
+(tissue-thresholded 512×512 patch sampling from whole-slide TIFFs) is
+disk/CPU-bound classical image processing, not model training/inference, so it
+doesn't collide with CLAUDE.md's "never train/infer locally" rule the way
+running the actual diffusion pipeline would; only the small resulting patch set
+(order ~1GB) needed to reach the cluster, not the raw slides.
+
+**Two real bugs found and fixed during extraction (not hypothetical, hit
+directly on real files):**
+1. **OOM on large Philips-format slides.** The original fallback path
+   (`series.levels[0].asarray()`) tried to materialise a whole slide into RAM —
+   confirmed needing 52.1GB/40.9GB for two of `patient_080`'s nodes, on a 32GB
+   local machine. Fixed by switching to a zarr-backed lazy read
+   (`level.aszarr()`) that only loads the sampled 512×512 window per attempt —
+   verified directly against a real node file (non-degenerate 512×512×3 uint8
+   patch, values 150–249) before trusting it at scale. One further wrinkle:
+   `aszarr()` on a single pyramid level still returns a multiscale zarr
+   *Group* keyed `'0'`..`'N'`, not a plain Array — has to be descended into
+   (`group['0']`) explicitly, confirmed by direct inspection, not assumed.
+2. **Attempt-budget undershoot on sparse-tissue nodes.** `MAX_ATTEMPTS_MULT`
+   raised from 25→60 (500→1200 random-crop attempts per node before giving up)
+   — materially improved yield on most patients, but `patient_061` stayed
+   genuinely low (47/100 total across two extraction passes) even after a
+   dedicated top-up attempt: 4 of its 5 nodes are near-empty regardless of
+   attempt budget (confirmed: 0/1/1/20/0 patches per node on the top-up run) —
+   real sparse tissue on that slide, not a bug, accepted as-is.
+
+**Disk management (local):** only 122.6GB free vs. potentially 165GB needed to
+unzip all 10 remaining patient archives at once — processed **one patient at a
+time** (unzip → extract ~100 patches → delete that patient's large `.tif`,
+keep the zip as a re-extractable backup — user-confirmed policy) rather than
+unzipping everything upfront. Final result: **all 15 patients across 5 centres,
+2,103 patches total, 863MB** (well above the ticket's 1,500-patch target).
+
+**Upload (this session):** `scp -r` to `/datasets/mhoosen/stain-norm/
+camelyon17_patches/`, verified byte-for-byte — file count (2,103) and total
+size (863MB) match the local copy exactly.
+
+**D_pre (job 44165, `mscluster23`, COMPLETED 2:01):** `src/eval/
+score_camelyon_wasserstein.py` pools every patch for a centre by
+`np.concatenate` (not `np.stack` — `metrics.py`'s `lab_wasserstein` calls
+`cv2.cvtColor` internally, which rejects a 4D stacked array with "Bad number of
+channels" — this was the plan's original assumption and it was wrong, caught
+and fixed by testing directly against real uploaded patches before writing the
+real script, then independently re-verified: self-distance ≈0.19 near-zero,
+cross-centre ≈34.5 real, on a separate local check). All `C(5,2)=10` pairwise
+distances computed on the raw patches:
+
+| pair | LAB total |
+|---|---|
+| centre_0 vs centre_1 | 37.03 |
+| centre_0 vs centre_2 | 42.55 |
+| centre_0 vs centre_3 | 27.69 |
+| centre_0 vs centre_4 | 65.67 |
+| centre_1 vs centre_2 | 74.85 |
+| centre_1 vs centre_3 | 22.68 |
+| centre_1 vs centre_4 | 99.85 |
+| centre_2 vs centre_3 | 62.67 |
+| centre_2 vs centre_4 | 42.05 |
+| centre_3 vs centre_4 | 91.93 |
+| **mean** | **56.70** |
+
+Verified `pairwise.csv` has exactly 10 rows before trusting this table.
+
+**Not yet done:** normalisation (job 44203, smoke test, in progress) → full run
+→ D_post → `--against` comparison → PASS/FAIL verdict on `D_post_mean <
+D_pre_mean`.
 
 ## P2-11 — Baseline method comparisons
 **Status:** ✅ Macenko/Reinhard/Histogram Matching DONE (2026-08-10, jobs 40521/

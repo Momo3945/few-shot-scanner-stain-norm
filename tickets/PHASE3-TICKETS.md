@@ -69,10 +69,11 @@ code: `lcm-lora-sdxl` 393.9MB, `controlnet-canny-sdxl-1.0` 5.0GB (fp16 + fp32
 variants both present). All Phase 3 model weights are now cached and verified.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
-**Status:** TODO — fully unblocked (2026-08-10). Implementation plan drafted
-(design-only, no code/jobs yet) — see below. All model weights verified present
-(P3-02). Recommended base config: **A4** (ControlNet + colour LoRA + LCM-LoRA),
-per P3-01. Not yet started.
+**Status:** 🔄 IN PROGRESS (2026-08-18) — A2H colour LoRA trained on SDXL (job
+43969, real checkpoint verified). Inference pipeline built, debugged (offline
+snapshot-completeness bug found + fixed), and smoke-tested successfully (job
+44125). Full inference run in progress (job 44206). Scoring + P3-04 comparison
+not yet done.
 **Source:** `sec:phase3_sdxl`
 **Description:** Transfer ONLY the best-performing SD1.5 configuration (from A0–A5).
 The proposal is explicit: **do not** repeat the full ablation ladder on SDXL — that
@@ -97,8 +98,59 @@ fastest path to a first real result. If this underperforms or looks
 structurally degraded, see the native-1024 fallback in **P3-03b** below —
 do not preemptively re-extract data before finding out whether 512 was
 actually the bottleneck.
-**Not yet submitted:** no `sbatch` has been run for this ticket — per project
-rule, every job needs explicit confirmation with the exact script+args first.
+**Implementation (2026-08-17/18):** `src/train/train_colour_lora_sdxl.py` +
+`src/eval/infer_colour_lora_sdxl.py` + `slurm/train_colour_lora_sdxl.slurm` +
+`slurm/infer_colour_lora_sdxl.slurm`, forked from the SD1.5 scripts per the plan
+above. Confirmed `diffusers 0.39.0` in the `stainnorm` env exposes
+`StableDiffusionXLControlNetImg2ImgPipeline`/`StableDiffusionXLImg2ImgPipeline`/
+`StableDiffusionXLPipeline.save_lora_weights` — no new env needed. Training
+script builds `encoder_hidden_states` by concatenating both text encoders'
+penultimate hidden states and `added_cond_kwargs["text_embeds"]` from
+`text_encoder_2`'s pooled output, with `add_time_ids` set to the honest
+`(512,512)/(0,0)/(512,512)` micro-conditioning values (not spoofed 1024, per the
+resolution decision above). VAE forced fp32 and kept outside the autocast
+region in both scripts, exactly as planned. `unet.enable_gradient_checkpointing()`
+added (new vs. the SD1.5 script — SDXL's ~2.6B-param UNet needed it to fit
+LoRA fine-tuning on a 24GB RTX 3090 alongside bf16 autocast + fp32 VAE).
+
+**Training run (job 43969, `mscluster60`, COMPLETED 17:24):** A2H direction
+only (P3-03's scope — H2A-on-SDXL is out of scope, not needed for the P3-04
+comparison), rank 8, 1000 steps. Real finite loss throughout (0.06–0.36 range,
+no NaN), final checkpoint `lora/a2h_r8_sdxl/final/pytorch_lora_weights.safetensors`
+verified as a real 44.4MB file (matches 11.6M trainable params, not a stub).
+A 5-step smoke test (job 43763) ran first and passed cleanly before committing
+to the full run — same discipline as every other training job this project runs.
+
+**Bug found and fixed (2026-08-18): offline pipeline loading failed despite
+component-level loading succeeding.** The training script loads SDXL components
+individually (`AutoencoderKL.from_pretrained(..., subfolder="vae")` etc.) and
+worked immediately. The inference script's pipeline-level
+`StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(...)` call failed
+under `HF_HUB_OFFLINE=1` with `OSError: model is not cached locally`, even
+though `model_index.json` and every subfolder were present. Root cause,
+confirmed by direct testing with `local_files_only=True`: diffusers' full-
+pipeline load validates the **entire repo's file manifest** (not just the
+subfolders it actually needs) before proceeding — `fetch_models.slurm`'s
+original download used `--include "*.safetensors" --include "*.json" --include
+"*.txt" --include "*.model"` to save bandwidth, which left 27 non-essential
+files missing (`.gitattributes`, example PNGs, `LICENSE.md` — no weights among
+them), and that's enough to fail the pipeline-level completeness check even
+though component-level loads never look at those files. **Fix:** a plain
+`hf download stabilityai/stable-diffusion-xl-base-1.0` (no `--include` filter)
+completed the snapshot to 57 files (job 44124, 7:26, verified via a direct
+`local_files_only=True` reload afterward — the earlier "✓ Downloaded"-only
+check would NOT have caught this, per CLAUDE.md's standing warning about
+trusting exit codes/log lines alone). **Worth remembering for any future SDXL/
+SD3.5 pipeline-level load**: `--include` filters that work fine for
+component-level loading can silently break pipeline-level loading later.
+
+**Inference (job 44125, smoke test, `mscluster49`, COMPLETED 10:01):** 2 frames,
+8 output crops, verified non-degenerate (plausible H&E pixel stats, full 0–255
+dynamic range) after the fix. **Full run submitted as job 44206** (all held-out
+MITOS crops, strength 0.20 — matching SD1.5's P1-09 best point so the P3-04
+comparison is apples-to-apples) — in progress, not yet scored.
+**Not yet done:** score with `score_outputs.py` once inference completes;
+P3-04's actual SDXL-vs-SD1.5 comparison table.
 
 ## P3-03b — Supplementary: SDXL training at native 1024×1024 resolution (contingent)
 **Status:** TODO — contingent, not started. Only pursue if P3-03's 512×512

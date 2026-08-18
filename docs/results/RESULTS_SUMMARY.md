@@ -603,6 +603,33 @@ the pixel-exact metrics above, not against them: normalisation costs real
 structural/detection fidelity by this measure too. Full detail and job IDs:
 `tickets/PHASE2-TICKETS.md` P2-08.
 
+**Update (2026-08-18): P2-07 (cycle consistency, round-trip reconstruction) is
+also complete, and it's a third independent metric family pointing the same
+way.** A06 → LoRA(A→H) → LoRA(H→A) → A06, deterministic 50-step DDIM, no
+ControlNet (proposal's round-trip equation names only the trained LoRA
+weights), never touches a real Hamamatsu image at all — isolates the
+pipeline's own structural drift from the colour-matching task entirely. Full
+16-frame run (n=64 crops): **SSIM 0.1429**, PSNR 13.11, MAE 41.54 — lower even
+than the one-way normalisation-vs-real-Hamamatsu SSIM already reported above
+(0.27–0.46 for the best diffusion rungs). Full detail: `tickets/
+PHASE2-TICKETS.md` P2-07.
+
+**In progress as of 2026-08-19 (not yet final results, tracked here so this
+doc doesn't go stale — see each ticket for live status and full methodology):**
+- **P2-09 (clinical utility — downstream atypia classifier)**: ResNet18
+  classifier trained on real MITOS-ATYPIA-14 atypia-score labels (previously
+  unused by any script in this repo), best val accuracy 0.9468. Scoring against
+  all 9 methods + raw Hamamatsu/Aperio for the recovery-delta table is running
+  now. Full training methodology: `tickets/PHASE2-TICKETS.md` P2-09.
+- **P2-10 (CAMELYON17 multi-centre generalisation)**: patch extraction (2,103
+  patches, 5 centres), upload, and D_pre computed — mean pairwise LAB
+  Wasserstein **56.70** across the 5 centres (range 22.68–99.85). Normalisation
+  (D_post side) running now. Full detail: `tickets/PHASE2-TICKETS.md` P2-10.
+- **P3-03 (SDXL transfer of the A4 config)**: colour LoRA trained on SDXL
+  (real checkpoint, 1000 steps). Inference pipeline built and debugged (a real
+  offline-loading bug found and fixed — see the ticket), full inference run in
+  progress. Full detail: `tickets/PHASE3-TICKETS.md` P3-03.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it
