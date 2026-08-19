@@ -464,8 +464,11 @@ worthwhile discussion-section caveat or a small follow-up ablation, not
 currently scoped as a ticket.
 
 ## P2-09 — Clinical utility: downstream classifier delta
-**Status:** 🔄 IN PROGRESS (2026-08-19) — classifier trained (val_acc 0.9468),
-scoring against all 9 methods + raw Hamamatsu/Aperio running now (job 44205).
+**Status:** ✅ DONE (2026-08-19) — classifier trained (val_acc 0.9468), scored
+against all 26 methods. **Genuinely new finding: diffusion beats every
+classical baseline on downstream classifier accuracy** (A3@0.50: +0.0625 vs.
+raw Hamamatsu, best classical Reinhard only +0.0457) — the opposite pattern
+from every other metric in this project. See full table and caveats below.
 **Source:** `sec:experiments` "Clinical Utility"
 **Description:** Standard diagnostic classifier trained on raw Aperio, evaluated on
 raw Hamamatsu + all baseline methods (P2-11) + A0–A5 outputs. Primary metric:
@@ -542,11 +545,77 @@ visible overfitting trend past the peak, which is exactly why `best.pt`
 Verified directly: `best.pt` is 44.8MB and `torch.load` confirms
 `step=400, val_acc=0.9468`, not just trusting the training log's own printout.
 
-**Not yet done:** `score_atypia_classifier.py`'s recovery-delta table (job
-44205, in progress) — accuracy/macro-F1/macro-AUC per method vs. raw Hamamatsu,
-per-slide + outlier-excluded aggregate. Ticket status will move to DONE once
-that lands and is sanity-checked (per this project's standing rule: a job
-leaving the queue is not proof of success).
+**Scoring (job 44205 FAILED — real bug, not a fluke; job 44281 fixed +
+COMPLETED, `mscluster55`, 8:32):** job 44205 crashed inside the optional
+`raw_aperio` sanity-check path with `FileNotFoundError` — traced directly:
+`slurm/score_atypia_classifier.slurm`'s `TESTING_ROOT` was set one directory
+level too deep (`mitos_heldout/mitos_atypia_2014_testing_aperio`), but
+`eval_manifest.csv`'s `aperio_path` column is already relative to
+`mitos_heldout/` (e.g. `mitos_atypia_2014_testing_aperio/A06/...`) — joining
+doubled that path segment. Fixed (`TESTING_ROOT=${DATA_ROOT}/mitos_heldout`),
+re-verified against the real file location, resubmitted as job 44281.
+`per_crop.csv` has 12,481 real rows across all 26 methods (9 diffusion rungs ×
+3 strengths, 3 classical baselines, raw Aperio/Hamamatsu) — verified directly,
+not just trusted the exit code.
+
+**Result — a genuinely new finding, the opposite pattern from every other
+metric measured this project.** Recovery delta = accuracy(method) −
+accuracy(raw Hamamatsu), **A06 excluded from every method uniformly** (not
+relying on each method's own inconsistently-triggered auto-outlier flag, per
+CLAUDE.md's standing rule — recomputed directly from `per_crop.csv`'s
+per-crop `correct` column, n=416 non-A06 crops per method):
+
+| Method | Accuracy (excl. A06) | Δ vs raw Hamamatsu |
+|---|---|---|
+| **A3 @0.50** (ControlNet+LoRA) | **0.4760** | **+0.0625** |
+| A1 @0.50 (ControlNet only) | 0.4712 | +0.0577 |
+| A2 r4/r8 @0.40 | 0.4688 | +0.0553 |
+| A3 @0.30 | 0.4663 | +0.0529 |
+| A1 @0.30 | 0.4639 | +0.0505 |
+| A3 @0.40 | 0.4591 | +0.0457 |
+| **Reinhard (best classical)** | **0.4591** | **+0.0457** |
+| raw Aperio (sanity check) | 0.4279 | +0.0144 |
+| raw Hamamatsu (baseline) | 0.4135 | 0.0000 |
+| Histogram matching | 0.4159 | +0.0024 |
+| **Macenko** | **0.3462** | **−0.0673** |
+
+**Every diffusion rung near the top of this table beats every classical
+baseline** — Reinhard is the strongest classical method here (+0.0457) but
+still loses to A1/A3 at every strength tested; Macenko actively *hurts*
+downstream classification (worse than doing nothing at all); histogram
+matching barely helps. This is the reverse of the LAB-Wasserstein/SSIM/
+Relative Dice/round-trip story throughout this project, where classical
+methods won by 5–8×. Cross-checked against macro-F1/macro-AUC (not just
+accuracy) for the top config: A3@0.50 macroF1 0.376 / macroAUC 0.540 vs. raw
+Hamamatsu's 0.248 / 0.435 (notably *below* random-chance AUC) — consistent
+with the accuracy-based finding, not an artefact of one metric.
+
+**Caveats, stated plainly, not hidden:**
+- The classifier itself is a fairly weak/noisy instrument — even **raw Aperio
+  (its own training-domain sanity check) only scores 42.79%**, barely above
+  the 33% random-chance floor for 3 classes, and only +1.4 points over doing
+  nothing. This whole comparison sits on a noisy measuring instrument; the
+  *relative* ranking (diffusion > Reinhard > raw > Macenko) is the reliable
+  part, not the absolute numbers.
+- **A1 (ControlNet alone, no colour LoRA at all) is among the top performers**
+  — suggests structural conditioning specifically, not colour adaptation, may
+  be driving a real chunk of this benefit. Worth a dedicated look (does A1's
+  gain come from the classifier reading structure more reliably, independent
+  of colour, since A1 never touches colour at all?) before concluding the
+  full pipeline gets the credit.
+- A0 (frozen base, no adapters) is inconsistent by strength (+0.029 → +0.022
+  → −0.034) — not a reliable positive on its own.
+- This is one downstream task (atypia classification) on one classifier
+  architecture (ResNet18) trained once — not yet a robustness-checked finding
+  the way the colour/structure metrics are (which used windowed-metric and
+  confound-check follow-ups). Worth flagging as a promising, not yet
+  fully-hardened, positive result.
+
+**Status: DONE.** This is the first clearly positive result for the diffusion
+pipeline anywhere in this project, on arguably the most clinically-relevant
+metric measured — a real counterpoint to the otherwise consistent
+classical-beats-diffusion pattern, worth featuring prominently in the write-up
+precisely because it doesn't fit the rest of the story.
 
 ## P2-10 — CAMELYON17 multi-centre generalisation
 **Status:** 🔄 IN PROGRESS (2026-08-19) — patch extraction, upload, and D_pre

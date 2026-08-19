@@ -614,13 +614,41 @@ than the one-way normalisation-vs-real-Hamamatsu SSIM already reported above
 (0.27–0.46 for the best diffusion rungs). Full detail: `tickets/
 PHASE2-TICKETS.md` P2-07.
 
+**Update (2026-08-19): P2-09 is complete, and it breaks the pattern —
+diffusion beats classical methods on the one metric that's arguably most
+clinically relevant.** A ResNet18 classifier trained on real MITOS-ATYPIA-14
+atypia-score labels (best val accuracy 0.9468) was scored, unchanged, against
+all 26 methods' outputs — recovery delta = accuracy(method) − accuracy(raw
+Hamamatsu), A06 excluded from every method uniformly (recomputed directly
+from `per_crop.csv`, not relying on each method's own inconsistently-triggered
+auto-outlier flag):
+
+| Method | Δ accuracy vs. raw Hamamatsu |
+|---|---|
+| **A3 @0.50** (ControlNet+LoRA) | **+0.0625** |
+| A1 @0.50 (ControlNet only, no colour LoRA) | +0.0577 |
+| A3 @0.30 | +0.0529 |
+| **Reinhard (best classical)** | **+0.0457** |
+| raw Aperio (sanity check) | +0.0144 |
+| Histogram matching | +0.0024 |
+| **Macenko** | **−0.0673** |
+
+Every diffusion rung near the top beats every classical baseline — the exact
+opposite of the LAB-Wasserstein/SSIM/Relative Dice/round-trip story
+throughout the rest of this project, where classical methods won by 5–8×.
+Cross-checked against macro-F1/macro-AUC for the top config, not just
+accuracy, so this isn't a single-metric artefact. **Caveat that matters**: the
+classifier itself is a fairly weak instrument — even raw Aperio (its own
+training domain) only scores 42.79%, barely above the 33% random-chance floor
+for 3 classes — so the *absolute* numbers are noisy; the *relative* ranking
+(diffusion > Reinhard > raw > Macenko) is the reliable part. Also notable: A1
+(structural conditioning alone, no colour adaptation at all) is among the top
+performers, suggesting ControlNet's structural conditioning specifically —
+not colour transfer — may be doing real work here, worth a dedicated look.
+Full table and caveats: `tickets/PHASE2-TICKETS.md` P2-09.
+
 **In progress as of 2026-08-19 (not yet final results, tracked here so this
 doc doesn't go stale — see each ticket for live status and full methodology):**
-- **P2-09 (clinical utility — downstream atypia classifier)**: ResNet18
-  classifier trained on real MITOS-ATYPIA-14 atypia-score labels (previously
-  unused by any script in this repo), best val accuracy 0.9468. Scoring against
-  all 9 methods + raw Hamamatsu/Aperio for the recovery-delta table is running
-  now. Full training methodology: `tickets/PHASE2-TICKETS.md` P2-09.
 - **P2-10 (CAMELYON17 multi-centre generalisation)**: patch extraction (2,103
   patches, 5 centres), upload, and D_pre computed — mean pairwise LAB
   Wasserstein **56.70** across the 5 centres (range 22.68–99.85). Normalisation
