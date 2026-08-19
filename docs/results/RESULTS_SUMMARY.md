@@ -625,10 +625,19 @@ doc doesn't go stale — see each ticket for live status and full methodology):*
   patches, 5 centres), upload, and D_pre computed — mean pairwise LAB
   Wasserstein **56.70** across the 5 centres (range 22.68–99.85). Normalisation
   (D_post side) running now. Full detail: `tickets/PHASE2-TICKETS.md` P2-10.
-- **P3-03 (SDXL transfer of the A4 config)**: colour LoRA trained on SDXL
-  (real checkpoint, 1000 steps). Inference pipeline built and debugged (a real
-  offline-loading bug found and fixed — see the ticket), full inference run in
-  progress. Full detail: `tickets/PHASE3-TICKETS.md` P3-03.
+- **P3-03/P3-04 (SDXL transfer of the A4 config, vs. SD1.5)**: DONE and
+  scored. Genuinely surprising result: at the exact same nominal operating
+  point (strength 0.20, 8-step LCM) that was SD1.5's best, SDXL's colour
+  recovery **flips sign** — SD1.5 +1.53 ALL Δlab vs. SDXL **−5.60** (negative
+  on every single slide, not just pooled) — while structural fidelity gets
+  *better* (SSIM 0.527 vs 0.459, the highest recorded anywhere in this
+  project). Leading hypothesis: the SDXL LCM-LoRA is a separately-trained
+  distillation and there's no guarantee "strength 0.20" maps to the same
+  effective noise level as it does for SD1.5's — i.e. few-step LCM operating
+  points may not be portable across backbones by strength/step number alone,
+  which is itself a real methodological finding. Not yet conclusive — an
+  SDXL-side strength sweep and a base-model-only ablation are still open.
+  Full detail: `tickets/PHASE3-TICKETS.md` P3-04.
 
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than

@@ -29,7 +29,7 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-TESTING_ROOT=${DATA_ROOT}/mitos_heldout/mitos_atypia_2014_testing_aperio
+TESTING_ROOT=${DATA_ROOT}/mitos_heldout
 export TORCH_HOME=/datasets/mhoosen/torch_cache
 
 CHECKPOINT=${1:-${DATA_ROOT}/classifier/atypia_r18/best.pt}

@@ -69,11 +69,11 @@ code: `lcm-lora-sdxl` 393.9MB, `controlnet-canny-sdxl-1.0` 5.0GB (fp16 + fp32
 variants both present). All Phase 3 model weights are now cached and verified.
 
 ## P3-03 — Transfer best Phase 1 configuration to SDXL
-**Status:** 🔄 IN PROGRESS (2026-08-18) — A2H colour LoRA trained on SDXL (job
-43969, real checkpoint verified). Inference pipeline built, debugged (offline
-snapshot-completeness bug found + fixed), and smoke-tested successfully (job
-44125). Full inference run in progress (job 44206). Scoring + P3-04 comparison
-not yet done.
+**Status:** ✅ DONE (2026-08-19) — A2H colour LoRA trained on SDXL (job 43969),
+inference pipeline built and debugged (offline snapshot-completeness bug found
++ fixed), full inference run (job 44206) and scoring (job 44282) complete, all
+496 held-out crops. See P3-04 for the comparison result — a genuinely
+interesting one, not a clean transfer.
 **Source:** `sec:phase3_sdxl`
 **Description:** Transfer ONLY the best-performing SD1.5 configuration (from A0–A5).
 The proposal is explicit: **do not** repeat the full ablation ladder on SDXL — that
@@ -144,13 +144,12 @@ trusting exit codes/log lines alone). **Worth remembering for any future SDXL/
 SD3.5 pipeline-level load**: `--include` filters that work fine for
 component-level loading can silently break pipeline-level loading later.
 
-**Inference (job 44125, smoke test, `mscluster49`, COMPLETED 10:01):** 2 frames,
-8 output crops, verified non-degenerate (plausible H&E pixel stats, full 0–255
-dynamic range) after the fix. **Full run submitted as job 44206** (all held-out
-MITOS crops, strength 0.20 — matching SD1.5's P1-09 best point so the P3-04
-comparison is apples-to-apples) — in progress, not yet scored.
-**Not yet done:** score with `score_outputs.py` once inference completes;
-P3-04's actual SDXL-vs-SD1.5 comparison table.
+**Inference (job 44125, smoke test, `mscluster49`, COMPLETED 10:01; job 44206,
+full run, COMPLETED 59:58):** 496 output crops — matches the SD1.5 runs' crop
+count exactly, same held-out set. Scored (job 44282, `score_outputs.slurm`,
+COMPLETED 20:23) — see P3-04 below for the result.
+**Status: DONE** as far as this ticket's own scope (transfer + inference +
+scoring). P3-05 (A5-on-SDXL) remains a separate, still-unstarted ticket.
 
 ## P3-03b — Supplementary: SDXL training at native 1024×1024 resolution (contingent)
 **Status:** TODO — contingent, not started. Only pursue if P3-03's 512×512
@@ -182,11 +181,65 @@ underperforming SD1.5's A4 in a way plausibly attributable to under-resolution
 training rather than the backbone itself.
 
 ## P3-04 — SDXL vs SD1.5 comparison
-**Status:** TODO — blocked on P3-03
+**Status:** 🔄 IN PROGRESS (2026-08-19) — first real comparison point in hand,
+genuinely surprising result, worth a closer look before calling this closed.
 **Source:** `sec:phase3_sdxl`
 **Description:** Compare the transferred SDXL configuration against its SD1.5
 counterpart using the same colour, structure, and speed metrics from Phase 2's
 harness (reuse `score_outputs.py`).
+
+**Result — A4 config, strength 0.20, both backbones, same 496-crop held-out
+set:**
+
+| Backbone | ALL recovery Δlab | ALL SSIM | A06 Δlab | A06 SSIM |
+|---|---|---|---|---|
+| SD1.5 | **+1.53** | 0.459 | +0.42 | — |
+| SDXL | **−5.60** | **0.527** | −3.58 | 0.386 |
+
+SDXL's colour-fidelity result is not just weaker than SD1.5's at the same
+operating point — it's the **opposite sign**. The pipeline moves colour
+*away* from the target scanner on the larger backbone, on every slide
+(A06 −3.58, A08 −5.92, A09 −5.19, A13 −4.75, A16 −5.10 — negative across the
+board, not just pooled). At the same time, **structural fidelity is
+genuinely better on SDXL** (SSIM 0.527 vs SD1.5's 0.459 — the highest SSIM
+recorded anywhere in this project for this config).
+
+**Reading this, not yet conclusive:** two things worth testing before treating
+this as "SDXL is worse at this task":
+1. **The most likely candidate — the operating point may not actually
+   transfer.** "Strength 0.20 + 8-step LCM" was tuned as the best point *for
+   SD1.5's specific LCM-LoRA distillation*. `latent-consistency/lcm-lora-sdxl`
+   is a separately-trained distillation on a different base model — there's
+   no guarantee it maps the same nominal strength/step values onto the same
+   effective noise level or number of real denoising steps. Higher SSIM +
+   negative colour shift together is exactly the signature you'd expect if
+   SDXL's LCM path is *effectively more conservative* than SD1.5's at the
+   same nominal settings (preserves more of the input generally) — which
+   would explain the better structure score, but also means the colour LoRA
+   gets even less relative influence to work with, and whatever colour drift
+   the frozen SDXL base's own prior contributes (conditioned on the fixed
+   "H&E stained histopathology tissue" prompt) isn't necessarily aligned with
+   Hamamatsu's specific palette the way it may incidentally have been for
+   SD1.5's base. A proper SDXL-side strength sweep (the same P1-09-style
+   investigation already done for SD1.5) hasn't been run yet — this is one
+   untuned point, not SDXL's best possible point.
+2. **Possible under-training relative to backbone size.** SDXL's UNet is
+   ~3x SD1.5's parameter count; the same 1000 training steps at rank 8 that
+   was sufficient for SD1.5 may just not be enough signal for a
+   proportionally larger network to learn as strong a colour-shifting
+   adapter. Not yet tested (would mean a longer SDXL training run, not a
+   re-scoring).
+
+**Not yet done:** an SDXL strength/step sweep before drawing a firm
+conclusion; comparing against a possible "no colour LoRA, base SDXL only"
+ablation to check whether the negative shift is coming from the base model's
+own prior rather than the trained adapter. Until one of those runs, treat
+"does the backbone change the negative-fidelity story" as **still open** —
+what's concretely established is that transferring the exact same nominal
+config doesn't transparently transfer results, which is itself a real,
+reportable methodological finding for the write-up (few-step LCM operating
+points appear to be backbone-specific, not portable by strength/step number
+alone).
 
 ## P3-05 — A5 warm-start variant on SDXL (contingent)
 **Status:** TODO — UNBLOCKED (2026-08-10). P1-07 resolved: A5 shows measurable

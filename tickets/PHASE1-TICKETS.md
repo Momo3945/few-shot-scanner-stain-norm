@@ -493,6 +493,168 @@ should be framed as a "rescue mode" option rather than a general default.
 **Next step:** none required for Phase 1. Worth citing when choosing the
 deployment strength for P3-03/P3-04's SDXL transfer and comparison.
 
+## P1-10 — Corrective experiment: source-conditioned scanner translation
+**Status:** TODO — supplementary design/approval gate; no code or compute yet.
+This does not reopen, replace, or relabel the completed A0–A5 ladder. The
+existing target-only LoRA remains the faithfully reported original method and
+negative result; any revised model must use a new script, checkpoint tag, and
+evaluation tag.
+**Source:** proposal `sec:training_order` step 3 and “LoRA: Data-Efficient
+Domain Mapping”, which describe the colour LoRA as learning paired A→H/H→A
+scanner mappings; proposal architecture-decision gate outcome (iii), which
+permits deeper SD1.5 diagnostic ablations when Phase 1 reveals a fundamental
+architecture issue. Motivated by the completed Phase 1/2 evidence: classical
+methods beat the diffusion ladder on global and windowed colour metrics, raw
+and classical methods beat it on structural metrics, Relative Dice is 0.8745
+(below 0.95), and round-trip SSIM is 0.1429.
+
+**Problem this ticket addresses:** `train_colour_lora.py` receives a directory
+containing coordinate-corresponding Aperio/Hamamatsu pairs, but
+`list_target_images()` selects only `*_hamamatsu.png` for A2H (or only
+`*_aperio.png` for H2A). The training loop then performs ordinary target-image
+noise-prediction under one fixed generic prompt. The source crop never enters
+the dataset item, UNet conditioning, loss, or gradient path. The checkpoint
+therefore learns a target-domain generative prior, approximately `P(H)`, not
+the proposal's directional conditional mapping `P(H|A)`. At inference,
+img2img is expected to infer the direction from the source latent while also
+surviving VAE compression, added noise, and generative denoising. The observed
+strength trade-off is consistent with this mismatch: low strength preserves
+more structure but shifts colour weakly; high strength shifts colour further
+but resynthesises morphology.
+
+**Why a small patch to the existing loop is not enough:** simply loading both
+filenames, concatenating them in a batch, or adding target pixel L1/SSIM would
+not create a valid translator. The A03/H03 pairs are coordinate-corresponding,
+not pixel-exact, and the standing methodology guardrail prohibits training-time
+registration. A direct output-vs-target pixel loss would therefore optimise
+scanner/section misalignment as though it were a model error. Conversely,
+continuing target-only denoising with a differently worded prompt still would
+not condition the learned prediction on the source image.
+
+**Required decision before implementation (supervisor/methodology gate):**
+approve a supplementary *source-conditioned conditional diffusion* experiment
+that keeps the ≤50-pair budget and never uses the five held-out slides. The
+recommended design is a parameter-efficient source-conditioning branch plus a
+colour LoRA, rather than overwriting `train_colour_lora.py` or fine-tuning the
+full SD1.5 UNet. If that method expansion is not approved or cannot fit the
+project timeline, retain the current negative result and document target-only
+conditioning as the principal limitation; do not silently describe the
+existing checkpoint as a learned paired mapping.
+
+**Proposed implementation (new code path):**
+1. Create `src/train/train_colour_translation_lora.py`; keep
+   `train_colour_lora.py` unchanged for reproducibility of A2–A5. Create a new
+   launcher such as `slurm/train_colour_translation_lora.slurm`, new checkpoint
+   tag `lora/a2h_cond_r8/`, and new inference/evaluation tag
+   `eval/a2h_cond_r8/`. Never reuse or overwrite the official A0–A5 folders.
+2. Replace `list_target_images()` with a paired manifest/dataset that returns
+   `source_pixel_values`, `target_pixel_values`, direction, and pair ID. Assert
+   that both files exist, have the expected scanner suffix, belong only to
+   A03/H03, and that A06/A08/A09/A13/A16 never appear. Save the exact pair list
+   and its hash in `training_config.json`.
+3. Preserve the standard conditional-diffusion target: encode the *target*
+   crop, add noise, and predict that noise. Separately encode the *source* crop
+   deterministically (`latent_dist.mode()`) and feed it through a lightweight,
+   zero-initialised source-conditioning adapter (ControlNet/T2I-Adapter-style
+   residual branch or an equivalent explicitly documented source-latent
+   conditioner). Inject its residuals into the frozen UNet while training the
+   colour LoRA and only the new conditioning parameters. Keep the VAE, text
+   encoder, and base UNet frozen and report the added trainable-parameter count.
+   Do not merely rely on the source latent being the img2img start state at
+   inference; the source must affect the training-time noise prediction.
+4. Provide the source structural signal to the conditioning branch (start with
+   the existing Canny pathway; prefer the proposal's HoVer-Net nuclear-boundary
+   signal when available). This gives the model an explicit content/geometry
+   input while the target denoising objective supplies the requested scanner
+   appearance. Because the scans are not pixel-exact, use spatial jitter or an
+   alignment-tolerant conditioning design and document it; do not introduce a
+   hidden registration step.
+5. Keep ordinary target noise-prediction as the core loss. If an auxiliary
+   loss is added, it must respect the correspondence limitation: target colour
+   may use global/windowed LAB or optical-density statistics, while source
+   preservation may use edge/nuclear-feature consistency. Do not use raw
+   output-to-target L1, MAE, PSNR, or SSIM without a separately approved change
+   to the training-data/registration methodology. Log every loss component
+   independently so a lower combined scalar cannot hide structural damage.
+6. Add a validation split from non-held-out training slides or a strictly
+   training-domain leave-one-frame-out split for checkpoint selection. Never
+   select steps, rank, strength, or adapter weights on A06/A08/A09/A13/A16.
+   Evaluate at least checkpoints 250/500/750/1000; the final step is not
+   automatically the best checkpoint.
+7. Build a matching inference path that supplies the same source condition used
+   during training. Establish quality first with deterministic 50-step DDIM and
+   no LCM-LoRA or hist-LoRA. Only after the conditional model passes its quality
+   gate should ControlNet scale, LoRA scale, low-strength DDIM, and finally LCM
+   acceleration be added one at a time. This prevents adapter/scheduler
+   interactions from obscuring whether source-conditioned training itself
+   worked.
+
+**Mandatory diagnostic controls before the full run:**
+- **VAE-only floor:** encode and immediately decode the 496 fixed evaluation
+  crops with no noise/UNet. Report SSIM/PSNR/MAE and Relative Dice where
+  practical. This separates unavoidable VAE reconstruction loss from denoising
+  drift.
+- **Source-conditioning ablation:** for the same target/noise/timestep, compare
+  the correct source, a zero source condition, and a deliberately shuffled
+  source. The prediction/output must change materially and the correct source
+  must win on structural/content metrics; otherwise the new branch is being
+  ignored and the ticket has not fixed the identified problem.
+- **Seed protocol:** derive a deterministic seed from pair/crop identity and
+  reuse it across compared methods/strengths, rather than resetting every crop
+  to the same global noise tensor. Confirm the conclusion across at least three
+  seed sets and report mean ± spread.
+- **Overfit test:** first prove that the model can learn a tiny 4–8-pair subset
+  without NaNs and that swapping the source condition changes the result. A
+  finite diffusion loss alone is not a pass signal.
+
+**Evaluation protocol (fix fairness issues at the same time):**
+- Freeze one canonical 496-crop coordinate manifest and use those exact crops
+  for raw, conditional diffusion, original target-only diffusion, and every
+  classical method. Recompute the raw baseline on that subset instead of
+  subtracting a 1,475-crop mean from 496 model crops.
+- Treat A06 as the fixed raw-baseline outlier for every method; do not rerun
+  outlier discovery separately after each method changes its colour gap.
+- Primary colour metric: windowed LAB-Wasserstein, with global LAB reported
+  alongside it. Primary structural safety: Relative Dice and round-trip
+  reconstruction; SSIM/PSNR/MAE remain supporting pixel-exact measures.
+- Compare against the best existing diffusion operating points (A4/A5 at 0.20),
+  raw input, Macenko, Reinhard, and histogram matching. Report per-slide,
+  pooled, and A06-excluded results; never use the pooled number alone.
+
+**Go/no-go smoke gate:** run a small, balanced subset containing A06 plus at
+least one typical slide. Continue to the full held-out run only if the correct
+source condition beats both the target-only LoRA and its own shuffled-source
+ablation on windowed colour recovery *without* reducing structural fidelity.
+Failure is still a valid result: it would show that ≤50 coordinate-corresponding
+pairs are insufficient for this conditional architecture or that SD1.5/VAE
+resynthesis, rather than the missing conditioning alone, is the limiting
+factor.
+
+**Acceptance criteria:**
+- The saved training manifest proves both sides of every pair are consumed and
+  held-out leakage checks pass.
+- A unit/integration test proves source conditioning participates in the forward
+  pass and gradients reach only the colour LoRA plus new conditioning branch.
+- The VAE-only, correct-source, zero-source, shuffled-source, and target-only
+  controls are all reported.
+- On the fixed 496-crop set, the revised model jointly exceeds the current best
+  general-purpose diffusion point (A5@0.20: ΔwLAB ≈+1.16, SSIM 0.454) on colour
+  and structure, rather than improving one by sacrificing the other. Relative
+  Dice must not fall below the current 0.8745; the proposal target of ≥0.95
+  remains the desired structural-safety pass criterion.
+- Results, dependency versions, checkpoint-selection rule, three-seed spread,
+  and per-slide/A06-excluded tables are added to
+  `docs/results/RESULTS_SUMMARY.md`, explicitly labelled supplementary.
+
+**Expected interpretation:** a pass would demonstrate that the original loss
+was the main bottleneck and that few-shot *conditional* translation is more
+appropriate than target-domain LoRA adaptation. A fail after the conditioning
+and VAE controls would strengthen the conclusion that SD1.5 latent resynthesis
+is intrinsically mismatched to pixel-preserving scanner normalisation under the
+project's ≤50-pair constraint. Either outcome is more informative than simply
+increasing LoRA rank or training steps, because rank 4 and rank 8 already behave
+nearly identically and neither change supplies the missing source condition.
+
 ---
 
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review
