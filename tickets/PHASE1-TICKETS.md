@@ -494,11 +494,14 @@ should be framed as a "rescue mode" option rather than a general default.
 deployment strength for P3-03/P3-04's SDXL transfer and comparison.
 
 ## P1-10 — Corrective experiment: source-conditioned scanner translation
-**Status:** TODO — supplementary design/approval gate; no code or compute yet.
-This does not reopen, replace, or relabel the completed A0–A5 ladder. The
-existing target-only LoRA remains the faithfully reported original method and
-negative result; any revised model must use a new script, checkpoint tag, and
-evaluation tag.
+**Status:** 🔄 IN PROGRESS (2026-08-20) — approved, infrastructure built and
+heavily bug-fixed (two review rounds, six real bugs found and fixed — see
+below), overfit-test control run at 300 steps, mandatory ablation control run
+and FAILED (see "Progress log" below) — re-running at more steps before
+concluding anything. This does not reopen, replace, or relabel the completed
+A0–A5 ladder. The existing target-only LoRA remains the faithfully reported
+original method and negative result; any revised model must use a new script,
+checkpoint tag, and evaluation tag.
 **Source:** proposal `sec:training_order` step 3 and “LoRA: Data-Efficient
 Domain Mapping”, which describe the colour LoRA as learning paired A→H/H→A
 scanner mappings; proposal architecture-decision gate outcome (iii), which
@@ -654,6 +657,71 @@ is intrinsically mismatched to pixel-preserving scanner normalisation under the
 project's ≤50-pair constraint. Either outcome is more informative than simply
 increasing LoRA rank or training steps, because rank 4 and rank 8 already behave
 nearly identically and neither change supplies the missing source condition.
+
+### Progress log (2026-08-19/20)
+
+**Implementation**: `src/train/train_colour_translation_lora.py` +
+`src/eval/infer_colour_translation.py` + `src/eval/score_p1_10_ablation.py` +
+two launchers. Fresh `ControlNetModel.from_unet(unet, conditioning_channels=6)`
+(diffusers 0.39.0, confirmed on the cluster), conditioned on 6 channels =
+source RGB (appearance, ticket step 3) + source Canny (structure, ticket step
+4) concatenated — resolves the two-signal reading of the ticket's steps 3/4
+directly, not treated as alternatives. Backbone (cloned UNet down/mid blocks)
+frozen; only the genuinely new `controlnet_cond_embedding` +
+`controlnet_down_blocks` + `controlnet_mid_block` layers trained (confirmed
+live: exactly 12,566,592 trainable / 348,712,960 frozen) — a real "lightweight
+adapter," not a full ControlNet fine-tune, matching the ticket's wording.
+
+**Two rounds of real bugs found and fixed, not hypothetical**:
+1. Fork's own self-audit: Canny-only conditioning carried zero colour
+   information, functionally overlapping with the already-tested frozen-
+   ControlNet A1/A3 configs — fixed to the 6-channel design above.
+2. User code review caught four more, all confirmed against the actual code
+   before fixing: (a) output filenames/scoring keys collided for
+   pairs-dir crops (hardcoded `x=0,y=0`, `frame_id` dropping the crop index) —
+   8 overfit pairs reduced to 3 unique files; fixed via a `tag_id`/`crop_id`
+   using the real `pair_id`. (b) seed-spread statistic pooled crop and seed
+   variance together instead of aggregating per seed first — fixed. (c) the
+   entire cloned ControlNet was trainable, not just the new adapter layers —
+   fixed (see param counts above). (d) validation resampled noise/timestep
+   *and* VAE-encoding stochasticity every call, making checkpoint comparison
+   meaningless — fixed (deterministic generator + `.mode()` during eval only),
+   plus added actual best-checkpoint tracking (previously absent entirely).
+
+**Overfit-test control (job 44309, 8 pairs, 300 steps, COMPLETED)**: mechanics
+correct, no NaN, checkpoint saved. Loss did not show a clear downward trend
+(0.15–0.26 range throughout) — inconclusive on its own per this project's
+standing note that per-step diffusion loss is a noisy, unreliable signal.
+
+**Source-conditioning ablation control (jobs 44365/44366/44367, COMPLETED) —
+FAILED.** `correct`/`zero`/`shuffled` conditioning produce statistically
+indistinguishable outputs:
+
+| mode | SSIM (mean ± spread across 3 seeds) | paired win-rate (n=8 crops) |
+|---|---|---|
+| correct | 0.0667 ± 0.0039 | 2/8 |
+| zero | 0.0667 ± 0.0039 | 3/8 |
+| shuffled | 0.0667 ± 0.0039 | 3/8 |
+
+Differences between modes are in the 4th decimal — an order of magnitude
+smaller than the seed-to-seed noise. Per the ticket's own acceptance
+criterion, this means the new ControlNet branch is currently being ignored,
+not that the diagnosis is wrong. Inventory check confirmed all three modes
+scored the identical 24-crop set (8 crops × 3 seeds), so this isn't a data
+artefact.
+
+**Reading**: most likely explanation is under-training, not a broken
+mechanism — ControlNet's zero-initialised residual layers start at literally
+zero output and only gain influence as those weights move during training;
+300 steps on 8 pairs is very little for that (published ControlNet training
+typically uses thousands+ steps). This directly explains the flat overfit
+loss curve too. **Not yet concluded either way** — re-running the same
+overfit test at 2000 steps (job 44381, submitted) before treating this as a
+real negative result about the method itself, rather than an artefact of an
+under-trained smoke test.
+
+**Not yet done**: re-run the ablation on the 2000-step checkpoint; VAE-only
+floor check; full training run; smoke gate; full held-out evaluation.
 
 ---
 

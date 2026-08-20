@@ -618,8 +618,9 @@ classical-beats-diffusion pattern, worth featuring prominently in the write-up
 precisely because it doesn't fit the rest of the story.
 
 ## P2-10 — CAMELYON17 multi-centre generalisation
-**Status:** 🔄 IN PROGRESS (2026-08-19) — patch extraction, upload, and D_pre
-all done. Normalisation smoke test running (job 44203); D_post not yet computed.
+**Status:** ✅ DONE (2026-08-20) — FAIL verdict. D_pre=56.70, D_post=57.52,
+only 1/10 centre pairs improved. H2/RQ4's cross-hospital generalisation claim
+does not hold at the P1-09 best operating point. Full table below.
 **Source:** `sec:experiments` "Colour Accuracy" — CAMELYON17 subsection; `tab:camelyon`
 **Description:** Pairwise LAB Wasserstein between all 5 centres, before (D_pre, 10
 distances) and after (D_post, 10 distances) normalisation. Success = D_post < D_pre.
@@ -693,9 +694,43 @@ distances computed on the raw patches:
 
 Verified `pairwise.csv` has exactly 10 rows before trusting this table.
 
-**Not yet done:** normalisation (job 44203, smoke test, in progress) → full run
-→ D_post → `--against` comparison → PASS/FAIL verdict on `D_post_mean <
-D_pre_mean`.
+**Normalisation (job 44203 smoke test, then job 44283, `mscluster55`,
+COMPLETED 15:04):** all 2,103/2,103 patches normalised at the same P1-09 best
+general-purpose config used throughout this project (colour LoRA + ControlNet
++ LCM, A2H direction, strength 0.20), applied uniformly across all 5 centres.
+Verified non-degenerate output (real pixel stats, not blank/NaN).
+
+**D_post (job 44364, `mscluster22`, COMPLETED 1:53):**
+
+| pair | D_pre | D_post | improved? |
+|---|---|---|---|
+| centre_0 vs centre_1 | 37.03 | 36.80 | ✓ |
+| centre_0 vs centre_2 | 42.55 | 43.35 | ✗ |
+| centre_0 vs centre_3 | 27.69 | 28.20 | ✗ |
+| centre_0 vs centre_4 | 65.67 | 66.63 | ✗ |
+| centre_1 vs centre_2 | 74.85 | 76.36 | ✗ |
+| centre_1 vs centre_3 | 22.68 | 23.08 | ✗ |
+| centre_1 vs centre_4 | 99.85 | 100.88 | ✗ |
+| centre_2 vs centre_3 | 62.67 | 64.40 | ✗ |
+| centre_2 vs centre_4 | 42.05 | 42.17 | ✗ |
+| centre_3 vs centre_4 | 91.93 | 93.36 | ✗ |
+| **mean** | **56.70** | **57.52** | **1/10** |
+
+**Verdict: FAIL** (`D_post_mean >= D_pre_mean`). Not a borderline/noisy result
+— 9 of 10 pairs got slightly *worse*, and the one improved pair only moved by
+0.23 (36.80 vs 37.03), a small fraction of typical pair-to-pair variation.
+H2/RQ4's cross-hospital generalisation claim does not hold at this operating
+point: a colour LoRA trained on exactly one scanner pair (Aperio/Hamamatsu),
+applied uniformly to 5 completely unseen hospital centres, does not pull them
+closer together — if anything it adds small, inconsistent per-centre drift
+that doesn't converge. Consistent with the project's broader pattern (H2's
+first half already showed the pipeline losing to classical methods even on
+its trained domain; this shows it doesn't transfer a colour-normalising
+effect to novel scanners either). Verified `pairwise.csv`/
+`d_pre_post_comparison.csv` both have exactly 10 rows before trusting this
+table.
+
+**Status: DONE.**
 
 ## P2-11 — Baseline method comparisons
 **Status:** ✅ Macenko/Reinhard/Histogram Matching DONE (2026-08-10, jobs 40521/
