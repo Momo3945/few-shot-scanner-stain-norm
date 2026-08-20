@@ -836,12 +836,13 @@ Per-slide (P1-10): A06 SSIM 0.3067 (z=44.66, outlier, as expected), A08
    (0.4695 vs 0.480/0.475, ~1-2%). Not the ticket's acceptance-criterion
    requirement of "jointly exceeds... on colour AND structure" — a wash on
    structure specifically, not a win, not a loss.
-4. **Caveat**: this comparison isn't fully apples-to-apples on sampling
-   settings — P1-10 ran at the ticket's mandated conservative first-test
-   settings (plain 50-step DDIM, strength 0.50), while A4/A5@0.20 is SD1.5's
-   most-tuned operating point (8-step LCM, strength 0.20). A strength sweep
-   on this checkpoint is in progress (jobs 44625-44628) to check whether a
-   different strength does better on both axes at once — see below.
+4. **Caveat, now resolved (see strength sweep below)**: this comparison isn't
+   fully apples-to-apples on sampling settings — P1-10 ran at the ticket's
+   mandated conservative first-test settings (plain 50-step DDIM, strength
+   0.50), while A4/A5@0.20 is SD1.5's most-tuned operating point (8-step LCM,
+   strength 0.20). The strength sweep below confirms this doesn't change the
+   verdict: no strength on this checkpoint jointly beats 0.50 on both SSIM
+   and colour recovery.
 
 **VAE-only floor check (job 44515, all 496 crops, COMPLETED)**: pure VAE
 encode→decode, zero denoising — SSIM 0.5393, LAB total 31.24, windowed LAB
@@ -858,11 +859,147 @@ by the conditioning problem P1-10 was built to fix. Status: **DONE** as a
 supplementary corrective experiment — a genuine, reportable, partially-positive
 result (matches the ticket's own framing that either outcome is informative).
 
-**Follow-up in progress**: strength sweep on this checkpoint (0.20/0.30/0.40/
-0.70, A06+A08 diagnostic subset, jobs 44625-44628) to test whether a
-different operating point improves both SSIM and colour recovery
-simultaneously relative to strength 0.50, mirroring SD1.5's own A4/A5 finding
-that 0.20 beat 0.50-equivalent settings.
+**Strength sweep (jobs 44625-44628 + 44637/44641/44642/44649/44650 scoring,
+A06+A08 diagnostic subset, COMPLETED) — a clean, decisive negative result,
+no full re-run warranted.** Tested whether a different operating point
+improves both SSIM and colour recovery simultaneously relative to strength
+0.50, mirroring SD1.5's own A4/A5 finding that 0.20 beat 0.50-equivalent
+settings:
+
+| Strength | SSIM ↑ | windowed LAB ↓ | MAE ↓ |
+|---|---|---|---|
+| 0.20 | 0.3575 | 80.42 | 49.21 |
+| 0.30 | 0.3466 | 79.84 | 49.05 |
+| 0.40 | 0.3401 | 79.28 | 48.92 |
+| 0.50 (reference) | 0.336 | 78.24 | **48.53 (best MAE)** |
+| 0.70 | 0.3196 | **78.11 (best wLAB)** | 49.45 |
+
+A textbook structure/colour tradeoff, no free lunch: SSIM falls monotonically
+as strength rises (0.3575→0.3196), windowed LAB improves monotonically the
+whole way to 0.70. **No strength beats 0.50 on both axes at once** — 0.70
+edges out 0.50 on windowed LAB only marginally (78.11 vs 78.24) while giving
+up meaningfully more SSIM and losing on MAE. Strength 0.50 (the value used in
+the full held-out run above) sits on this tradeoff curve, not dominated by
+anything tested. **Conclusion: the full 496-crop evaluation does not need to
+be re-run at a different strength** — nothing in this sweep would change the
+reported verdict.
+
+## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
+
+**Status:** 🔄 IN PROGRESS (2026-08-20) — implementation complete, local
+syntax/CLI checks pass. Cluster smoke test not yet run (needs `sbatch`
+confirmation, not submitted).
+
+**Source:** `tickets/"Claude Code Task_ Add DDIM-Inversion Inference for
+P1-10(2).md"` (full task spec), following directly from P1-10's own full
+held-out result above (SSIM 0.4485 vs. classical baselines 0.628–0.681,
+capped by the VAE-only floor of 0.5393) and P1-10's strength-sweep finding
+just above (no `strength` value beats 0.50 on both colour and structure at
+once — a textbook tradeoff, not a bug). This ticket asks a narrower,
+complementary question: is part of the remaining structural loss caused
+specifically by `infer_colour_translation.py`'s random-Gaussian-noise img2img
+initialization (VAE-encode source → add noise at fixed `strength` → DDIM
+denoise), rather than by the trained model itself? DDIM inversion replaces
+that arbitrary corruption with a deterministic, source-specific noisy latent
+obtained by literally inverting the source image through the trained model's
+own noise-prediction, then denoising forward again.
+
+**Scope, per the task file's own explicit constraints:** inference-only.
+`lora/a2h_cond_r8/best` (LoRA + ControlNet, confirmed trained with epsilon
+prediction via `training_config.json`) is used exactly as-is — no
+retraining, no rank/architecture/VAE/prompt/dataset changes, no new losses.
+`infer_colour_translation.py` (P1-10's existing, validated inference script)
+is not touched.
+
+**Design decisions (task file left several deliberately open, all resolved
+and documented in the new script's docstring/CLI help, not silently
+guessed):**
+- No diffusers pipeline packages DDIM-inversion-then-conditional-
+  reconstruction for a ControlNet img2img pipeline, so the new script drives
+  `pipe.vae`/`pipe.unet`/`pipe.controlnet`/`pipe.text_encoder` directly in a
+  manual step loop rather than calling `pipe(...)`.
+- Both the forward `DDIMScheduler` and the `DDIMInverseScheduler` are built
+  from the SAME resolved scheduler config the existing P1-10 inference
+  script already uses (`DDIMScheduler.from_config(pipe.scheduler.config)`)
+  — confirmed live on the cluster: `beta_start=0.00085, beta_end=0.012,
+  beta_schedule=scaled_linear, num_train_timesteps=1000, steps_offset=1,
+  set_alpha_to_one=false, clip_sample=false`, `prediction_type` defaults to
+  (and is asserted to equal) `"epsilon"` — matching the checkpoint's actual
+  training, NOT HistDiST's v-prediction/trailing-timesteps/zero-terminal-SNR
+  settings, which this checkpoint was never trained with.
+- `--inversion-guidance` defaults to 1.0 (no CFG during inversion, separate
+  from `--guidance` which stays 2.0 for reconstruction) — standard DDIM-
+  inversion practice, since CFG during inversion is not exactly invertible
+  and accumulates error (the reason Null-text Inversion exists, which is
+  deliberately not implemented here — out of scope per the task file).
+- `--inversion-condition {none,source}` (default `source`) controls ONLY the
+  inversion pass's ControlNet conditioning; documented as the conservative/
+  identity-preserving default since it's the closest analogue to what the
+  model saw during training.
+- `--mode identity` vs `--mode translate` differ only in what conditions the
+  reconstruction half and what the output is scored against — `identity`
+  self-conditions throughout and scores against the original source crop
+  (also computing `vae_only` and the existing random-noise `img2img_baseline`
+  pathway for the same in-memory crop/seed in the same pass, satisfying the
+  task file's mandatory smoke-test rows §13/§14/§23 from one invocation);
+  `translate` conditions per `--source-mode {correct,zero,shuffled}` (same
+  ablation semantics as the existing script) and scores against real
+  registered Hamamatsu. Documented caveat: the LoRA's colour bias is baked
+  into UNet attention weights, not just conditioning, so `identity` mode may
+  still show some colour drift — a genuine diagnostic finding, not masked.
+- Partial inversion (`--inversion-fraction` in (0,1]) takes the first
+  `round(inversion_steps * fraction)` steps of the ascending inverse-
+  scheduler timestep grid; reconstruction starts from the nearest forward
+  timestep `<= ` wherever inversion stopped (not a fixed `strength`).
+  Requested vs. actual fraction/timestep/step-count always logged
+  (discretization may not match exactly).
+- `--strength` is accepted only to be explicitly rejected (`SystemExit`) if
+  passed at all — verified locally (see below).
+
+**Code (2026-08-20):** `src/eval/infer_colour_source_ddim_inversion.py`
+(new) + `slurm/infer_p1_10_ddim_inversion.slurm` (new launcher, mirrors
+`infer_colour_translation.slurm`'s bigbatch/fail-fast-CUDA-guard/bad-node-
+exclude conventions). Manifest schema is a strict superset of
+`infer_colour_translation.py`'s `eval_manifest.csv` (same
+seed/source_mode/crop_id/slide/frame/x/y/output_path/reference_path/
+aperio_path columns, plus method/mode/inversion_fraction/
+inversion_condition/actual_* columns) — `score_p1_10_ablation.py`
+(`csv.DictReader`, tolerates extra columns) scores it completely unchanged,
+no edits needed. A `run_metadata.json` is written per run (checkpoint,
+direction, source/inversion-condition modes, prediction_type, both
+scheduler configs, VAE scaling, step counts, fraction, actual timestep,
+guidance scales, conditioning scale, seeds, dtype, model path, best-effort
+git commit).
+
+**Local verification (2026-08-20, no GPU available off-cluster):**
+`python -m py_compile` clean; `--help` parses cleanly with every flag from
+the design above present at the right default; confirmed by direct test
+that `--strength` raises the exact required error, `--inversion-fraction`
+outside `(0,1]` is rejected, and `--pairs-dir` + `--root`/`--heldout`
+together is rejected — same level of pre-cluster checking every prior P1-10
+script got.
+
+**Not yet done:** cluster smoke test (task file §23-24: VAE-only / existing-
+img2img-baseline / full-inversion / partial-inversion identity checks, then
+translation correct/shuffled/zero at whichever inversion-fraction looks
+best) on the same A06+A08 `LIMIT=20` diagnostic subset P1-10's own smoke
+gate used. Per CLAUDE.md's Slurm permission rule, no `sbatch` job has been
+submitted — needs explicit go-ahead. The full 496-crop run remains
+explicitly gated on the smoke test passing (task file §"E"), a separate,
+later ask regardless of the smoke test's outcome.
+
+**Acceptance criteria (task file §26, not yet evaluated — pending the smoke
+test above):** inversion runs without random `add_noise()`; inversion→
+reconstruction is deterministic; partial inversion works; correct P1-10
+source conditioning stays active during translation; existing checkpoint
+loads with zero retraining; outputs score with the existing scorer
+unchanged; `infer_colour_translation.py` remains untouched; no NaNs/Infs;
+inversion/forward timesteps are correctly paired; identity results are
+directly comparable to the existing img2img pathway. Scientifically
+promising if `SSIM_inversion > SSIM_current-P1-10` while
+`LAB_inversion <= LAB_current-P1-10` (current P1-10 reference: SSIM 0.4485,
+windowed LAB 31.60, PSNR 16.94, MAE 27.81, recovery Δlab +2.89) — or a
+clearly superior colour/structure Pareto point.
 
 ---
 

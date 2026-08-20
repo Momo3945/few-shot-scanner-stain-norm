@@ -718,14 +718,21 @@ point — consistent with the project's broader pattern of the pipeline not
 transferring a colour-normalising effect beyond its own trained domain. Full
 detail: `tickets/PHASE2-TICKETS.md` P2-10.
 
+**Update (2026-08-20): P1-10 strength sweep is complete — no strength beats
+0.50 on both axes, no full re-run warranted.** On the A06+A08 diagnostic
+subset, testing strengths 0.20/0.30/0.40/0.70 against the full held-out
+run's strength (0.50): a clean, textbook structure/colour tradeoff — SSIM
+falls monotonically as strength rises (0.3575 at 0.20 → 0.3196 at 0.70) while
+windowed-colour recovery improves monotonically the whole way to 0.70 (80.42
+→ 78.11). Strength 0.70's colour recovery only marginally edges out 0.50's
+(78.11 vs 78.24) while costing meaningfully more SSIM and losing on MAE — no
+strength jointly wins. This confirms the full held-out result above at
+strength 0.50 doesn't need re-running at a different setting; it already
+sits on the tradeoff curve, not dominated by anything tested. Full detail:
+`tickets/PHASE1-TICKETS.md` P1-10.
+
 **In progress as of 2026-08-20 (not yet final, tracked here so this doc
 doesn't go stale — see each ticket for live status and full methodology):**
-- **P1-10 strength sweep** (follow-up to the full held-out result above): on
-  the A06+A08 diagnostic subset, strengths 0.20/0.30 both show *worse*
-  windowed-colour recovery than strength 0.50 (SSIM improves slightly, colour
-  recovery gets worse) — the same structure/colour tradeoff seen throughout
-  this project, just now confirmed on this checkpoint too. Strengths 0.40/0.70
-  still scoring. Full detail: `tickets/PHASE1-TICKETS.md` P1-10.
 - **P3-05 (A5 histopathology warm-start transfer to SDXL)**: code built
   (`train_hist_lora_sdxl.py`, `infer_colour_lora_sdxl.py` extended with
   `--hist-lora`), no SDXL histopathology LoRA existed yet so this needs a new
