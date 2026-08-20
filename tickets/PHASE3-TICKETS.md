@@ -181,8 +181,12 @@ underperforming SD1.5's A4 in a way plausibly attributable to under-resolution
 training rather than the backbone itself.
 
 ## P3-04 — SDXL vs SD1.5 comparison
-**Status:** 🔄 IN PROGRESS (2026-08-19) — first real comparison point in hand,
-genuinely surprising result, worth a closer look before calling this closed.
+**Status:** ✅ DONE (2026-08-20) — mechanism identified (frozen SDXL base
+drifts colour at this operating point, not the LoRA), and the follow-up A08
+sweep confirms no untested strength rescues the pooled comparison: SDXL's
+best measured pooled SSIM (0.527) stays below every classical baseline.
+Supplementary track only (P1-10 is the more load-bearing open hypothesis for
+the structural-fidelity gap). P3-05 (A5 warm-start) remains open separately.
 **Source:** `sec:phase3_sdxl`
 **Description:** Compare the transferred SDXL configuration against its SD1.5
 counterpart using the same colour, structure, and speed metrics from Phase 2's
@@ -285,6 +289,34 @@ gains for worse typical-slide performance, in which case there may be no
 single SDXL strength that beats SD1.5's pooled A4@0.20 result. **Not yet
 done**: repeat the strength sweep on a typical slide (e.g. A08) before
 concluding either way.
+
+### A08 (typical slide) strength sweep (job 44558 inference, job 44563
+scoring, COMPLETED 2026-08-20) — closes the open question, negative
+
+| Strength | Δlab (A08) | SSIM (A08) | Δlab (A06, known) | SSIM (A06, known) |
+|---|---|---|---|---|
+| 0.20 | −5.92 | 0.562 | −2.45 | 0.399 |
+| 0.30 | −5.60 | 0.534 | −1.33 | 0.374 |
+| 0.40 | −4.66 (least bad) | 0.507 | +1.56 | 0.348 |
+| 0.50 | −5.14 | 0.477 | +5.64 | 0.323 |
+| 0.70 | −5.71 | 0.432 | +9.64 | 0.299 |
+
+A06's "colour recovery flips positive at higher strength" trend does **not**
+generalise. On A08, colour recovery stays negative at every strength tested,
+never crossing zero, with no clean monotonic trend (least-bad point is 0.40,
+not either extreme). SSIM falls monotonically with strength exactly as on
+A06 (0.562 → 0.432). **Conclusion: there is no single SDXL strength that
+both fixes colour recovery and preserves structure on a typical slide** — A06
+and A08 pull in genuinely opposite directions as strength rises, mirroring
+the same A06-vs-typical-slide asymmetry already documented for SD1.5.
+Strength-tuning cannot rescue the pooled A4@0.20 comparison; SDXL's pooled
+SSIM (0.527, job 44282/44206) remains below every classical baseline
+(Macenko 0.628, Reinhard 0.681, Histogram Matching 0.651) and no untested
+strength is expected to change that. This closes P3-04's open question — no
+further strength sweeps planned. Whatever fixes the structural-fidelity gap,
+if anything does, is more likely to come from P1-10 (source-conditioned
+training on SD1.5, see `tickets/PHASE1-TICKETS.md`) than from further SDXL
+tuning.
 
 ## P3-05 — A5 warm-start variant on SDXL (contingent)
 **Status:** TODO — UNBLOCKED (2026-08-10). P1-07 resolved: A5 shows measurable

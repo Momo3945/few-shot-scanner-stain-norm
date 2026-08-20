@@ -647,25 +647,62 @@ performers, suggesting ControlNet's structural conditioning specifically —
 not colour transfer — may be doing real work here, worth a dedicated look.
 Full table and caveats: `tickets/PHASE2-TICKETS.md` P2-09.
 
-**In progress as of 2026-08-19 (not yet final results, tracked here so this
-doc doesn't go stale — see each ticket for live status and full methodology):**
+**Update (2026-08-20): P3-04 (SDXL vs SD1.5) is now closed — the mechanism is
+identified, and it doesn't rescue SDXL.** At the shared operating point
+(strength 0.20, 8-step LCM), SDXL's colour recovery flips sign relative to
+SD1.5 (+1.53 ALL Δlab vs. **−5.60**, negative on every slide) while structural
+fidelity is better (SSIM 0.527 vs 0.459). A base-model-only ablation (LoRA
+omitted entirely) showed the negative drift is **already fully present with
+zero LoRA involvement** (−4.35 vs −5.60 with LoRA) — this is frozen-SDXL-base
+behaviour at this nominal setting, not a broken/undertrained adapter. A
+follow-up strength sweep on A06 found colour recovery flips positive above
+strength ~0.35 there (+9.64 @0.70) — but a second sweep on A08 (a *typical*
+slide) found colour recovery stays **negative at every strength tested**
+(−4.66 to −5.92), with SSIM falling monotonically just like on A06. **No
+single SDXL strength rescues the pooled comparison** — A06 and typical slides
+pull in opposite directions, mirroring the same asymmetry already documented
+for SD1.5. SDXL's best measured pooled SSIM (0.527) stays below every
+classical baseline (Macenko 0.628, Reinhard 0.681, Histogram Matching 0.651).
+Full detail: `tickets/PHASE3-TICKETS.md` P3-04.
+
+**Update (2026-08-20): P1-10 (source-conditioned scanner translation,
+corrective experiment) — DONE, a genuinely mixed result.** Diagnosed cause of
+the structural-fidelity gap above: the original colour LoRA never sees the
+source image during training at all (learns an unconditional target-domain
+prior, not a true `P(H|A)` mapping) — direction is only imposed at inference
+via img2img's starting latent. P1-10 fixes this with genuine training-time
+source conditioning (a lightweight, zero-initialised ControlNet-style branch,
+12.6M trainable params, backbone frozen), conditioned on source RGB + Canny
+jointly. A smoke-test subset (A06+A08) passed decisively — correct-source
+beat both its own shuffled-source ablation and the original target-only LoRA
+on every metric. **The full 496-crop held-out evaluation is more nuanced**:
+
+| Method | ALL SSIM | ALL wLAB | recovery Δlab |
+|---|---|---|---|
+| Macenko/Reinhard/Histogram Matching | 0.628–0.681 | 26–32 | +3.2 to +9.0 |
+| SD1.5 A4/A5@0.20 (prior best) | 0.454–0.459 | 32.9–33.3 | +1.5 to +1.9 |
+| **P1-10 correct-source (full)** | **0.4485** | **31.60** | **+2.89** |
+
+P1-10 clearly beats SD1.5's own prior-best operating point on colour recovery
+but is roughly tied on structure (SSIM marginally behind by ~1%) — not the
+joint win the ticket's acceptance bar asked for. It does **not** beat the
+classical baselines; a dedicated VAE-only floor check (496 crops, zero
+denoising) found SD1.5's VAE alone caps SSIM around **0.54**, below every
+classical baseline regardless of conditioning quality — the real ceiling on
+this whole family of approaches. **Bottom line**: the diagnosis was
+directionally correct (genuine source conditioning measurably improves colour
+recovery without a structure penalty, unlike the strength dial) but doesn't
+close the fundamental gap to classical methods, which is capped by VAE
+resynthesis itself. A follow-up strength sweep on this checkpoint is in
+progress to check whether a different operating point does better on both
+axes at once. Full detail: `tickets/PHASE1-TICKETS.md` P1-10.
+
+**In progress as of 2026-08-20 (not yet final, tracked here so this doc
+doesn't go stale — see each ticket for live status and full methodology):**
 - **P2-10 (CAMELYON17 multi-centre generalisation)**: patch extraction (2,103
   patches, 5 centres), upload, and D_pre computed — mean pairwise LAB
   Wasserstein **56.70** across the 5 centres (range 22.68–99.85). Normalisation
   (D_post side) running now. Full detail: `tickets/PHASE2-TICKETS.md` P2-10.
-- **P3-03/P3-04 (SDXL transfer of the A4 config, vs. SD1.5)**: DONE and
-  scored. Genuinely surprising result: at the exact same nominal operating
-  point (strength 0.20, 8-step LCM) that was SD1.5's best, SDXL's colour
-  recovery **flips sign** — SD1.5 +1.53 ALL Δlab vs. SDXL **−5.60** (negative
-  on every single slide, not just pooled) — while structural fidelity gets
-  *better* (SSIM 0.527 vs 0.459, the highest recorded anywhere in this
-  project). Leading hypothesis: the SDXL LCM-LoRA is a separately-trained
-  distillation and there's no guarantee "strength 0.20" maps to the same
-  effective noise level as it does for SD1.5's — i.e. few-step LCM operating
-  points may not be portable across backbones by strength/step number alone,
-  which is itself a real methodological finding. Not yet conclusive — an
-  SDXL-side strength sweep and a base-model-only ablation are still open.
-  Full detail: `tickets/PHASE3-TICKETS.md` P3-04.
 
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than

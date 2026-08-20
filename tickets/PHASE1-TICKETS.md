@@ -494,13 +494,20 @@ should be framed as a "rescue mode" option rather than a general default.
 deployment strength for P3-03/P3-04's SDXL transfer and comparison.
 
 ## P1-10 — Corrective experiment: source-conditioned scanner translation
-**Status:** 🔄 IN PROGRESS (2026-08-20) — approved, infrastructure built and
-heavily bug-fixed (two review rounds, six real bugs found and fixed — see
-below). Mandatory ablation control FAILED at 300 steps (undertrained), then
-**PASSED decisively at 2000 steps** on the 8-pair overfit set. **Full
-training run on all 50 pairs (4000 steps) completed with clean, monotonic
-validation-loss convergence.** Next: VAE-only floor check, then the smoke
-gate before any full held-out evaluation. This does not reopen, replace, or relabel the completed
+**Status:** ✅ DONE (2026-08-20) — approved, infrastructure built and heavily
+bug-fixed (two review rounds, six real bugs found and fixed — see below).
+Mandatory ablation control FAILED at 300 steps (undertrained), then **PASSED
+decisively at 2000 steps** on the 8-pair overfit set. Full training run on
+all 50 pairs (4000 steps) completed with clean, monotonic validation-loss
+convergence. VAE-only floor check DONE (SSIM 0.5393 — a ceiling below every
+classical baseline, regardless of conditioning quality). Smoke gate PASSED
+decisively on a subset. **Full held-out evaluation (all 496 crops, job
+44542) COMPLETED — a genuinely mixed result**: clearly beats SD1.5's own
+prior-best operating point (A4/A5@0.20) on colour recovery, roughly tied on
+structure (SSIM), does not beat the classical baselines (capped by the VAE
+floor). Diagnosis confirmed directionally correct; does not close the
+structural-fidelity gap. A follow-up strength sweep is in progress. This does
+not reopen, replace, or relabel the completed
 A0–A5 ladder. The existing target-only LoRA remains the faithfully reported
 original method and negative result; any revised model must use a new script,
 checkpoint tag, and evaluation tag.
@@ -761,12 +768,101 @@ signal to learn from rather than memorising a handful of examples.
 `lora/a2h_cond_r8/best/` verified real (1.4GB ControlNet + 6.4MB LoRA,
 correct trainable-param counts in `training_config.json`).
 
-**Not yet done**: VAE-only floor check; smoke gate (A06 + one typical slide,
-comparing this checkpoint against the original target-only LoRA and its own
-shuffled-source ablation on windowed colour recovery, without losing
-structural fidelity — per the ticket's own go/no-go gate); full held-out
-evaluation against the canonical 496-crop set, gated on the smoke gate
-passing.
+**VAE-only floor check (job 44515, all 496 held-out crops, COMPLETED)**: pure
+VAE encode→decode, no UNet/noise/conditioning at all — establishes the
+unavoidable compression ceiling separate from any denoising drift. SSIM
+0.5393, LAB total 31.24, windowed LAB 31.66, PSNR 17.72, MAE 25.96. This is a
+genuinely informative number for the writeup: even with **zero** diffusion
+denoising, SD1.5's VAE alone caps SSIM around 0.54 — meaningfully below every
+classical baseline's pooled SSIM (Macenko 0.628, Reinhard 0.681, Histogram
+Matching 0.651). No diffusion-based method in this pipeline can structurally
+beat those baselines while routing through this VAE, regardless of how good
+the conditioning is.
+
+**Smoke gate (jobs 44515–44518, A06 + A08 subset, LIMIT=20, COMPLETED) —
+PASSES decisively.** Ticket requirement: *"beats both the target-only LoRA
+and its own shuffled-source ablation on windowed colour recovery without
+reducing structural fidelity."* All three conditions run at matched settings
+(50-step DDIM, strength 0.50, `lora/a2h_cond_r8/best` for the two P1-10 arms,
+`lora/a2h_r8/final` for the target-only baseline — the *original*, pre-P1-10
+checkpoint):
+
+| Condition | SSIM ↑ | windowed LAB ↓ | LAB total ↓ | PSNR ↑ | MAE ↓ | dE2000 ↓ |
+|---|---|---|---|---|---|---|
+| **P1-10 correct-source** | **0.336** ± 0.002 | **78.24** | 77.97 | **12.72** | **48.53** | 20.87 |
+| P1-10 shuffled-source (ablation ctrl) | 0.127 ± 0.001 | 79.67 | 78.59 | 11.19 | 56.21 | 23.33 |
+| Target-only LoRA (no conditioning) | 0.133 | 80.46 | 79.74 | 11.25 | 55.58 | 23.22 |
+
+`correct` wins **every single metric** against both required comparisons —
+not just windowed colour recovery, structural fidelity too (SSIM 2.5–2.6x
+higher than either baseline; paired win-rate 80/80 crops on SSIM against
+`shuffled`). Cleaner than the gate strictly required.
+
+**Full held-out evaluation (job 44542, all 496 crops x 3 seeds,
+`lora/a2h_cond_r8/best`, plain 50-step DDIM, strength 0.50 — the ticket's
+mandated staged-rollout settings, not a tuned operating point — COMPLETED,
+scored via `score_p1_10_ablation.py` + a small dedicated aggregation script
+`src/eval/aggregate_p1_10_full.py` since this manifest is source_mode-shaped,
+not strength-shaped, so `score_outputs.py` doesn't apply directly) — a
+genuinely mixed result, not the clean pass the smoke gate suggested:**
+
+| Method | ALL SSIM | ALL wLAB | A06-excl SSIM | A06-excl wLAB | recovery Δlab |
+|---|---|---|---|---|---|
+| Raw (do nothing) | 0.733 | 34.05 | — | — | — |
+| Reinhard | 0.681 | 28.96 | — | — | +5.81 |
+| Macenko | 0.628 | 25.96 | 0.649 | 21.88 | +9.04 |
+| Histogram Matching | 0.651 | 31.64 | — | — | +3.23 |
+| SDXL A4@0.20 | 0.527 | — | — | — | −5.60 |
+| SD1.5 A5@0.20 (prior best) | 0.454 | 32.89 | 0.475 | 23.85 | +1.93 |
+| SD1.5 A4@0.20 (prior best) | 0.459 | 33.25 | 0.480 | 24.15 | +1.53 |
+| **P1-10 correct-source (full)** | **0.4485** | **31.60** | **0.4695** | **22.81** | **+2.89** |
+
+Per-slide (P1-10): A06 SSIM 0.3067 (z=44.66, outlier, as expected), A08
+0.4815, A09 0.4175, A13 0.4581, A16 0.4968.
+
+**Reading, not overstated in either direction:**
+1. **Does not beat classical baselines** — SSIM 0.4485–0.4695 stays nowhere
+   near Macenko/Reinhard/Histogram Matching (0.628–0.681), consistent with
+   every diffusion configuration tested this entire project. Now explained by
+   a new finding this session: the VAE-only floor check (below) shows SD1.5's
+   VAE alone caps SSIM around 0.54 with **zero** denoising — no amount of
+   conditioning quality can push past that ceiling in this pipeline.
+2. **Does genuinely beat SD1.5's own prior best operating point (A4/A5@0.20)
+   on colour recovery** — both pooled (+2.89 vs +1.53/+1.93) and A06-excluded
+   (windowed LAB 22.81 vs 24.15/23.85). This part is real: source
+   conditioning recovers more colour than the target-only approach did.
+3. **On structure, essentially tied with A4/A5@0.20** — SSIM marginally
+   *behind* both, pooled (0.4485 vs 0.459/0.454, ~1%) and A06-excluded
+   (0.4695 vs 0.480/0.475, ~1-2%). Not the ticket's acceptance-criterion
+   requirement of "jointly exceeds... on colour AND structure" — a wash on
+   structure specifically, not a win, not a loss.
+4. **Caveat**: this comparison isn't fully apples-to-apples on sampling
+   settings — P1-10 ran at the ticket's mandated conservative first-test
+   settings (plain 50-step DDIM, strength 0.50), while A4/A5@0.20 is SD1.5's
+   most-tuned operating point (8-step LCM, strength 0.20). A strength sweep
+   on this checkpoint is in progress (jobs 44625-44628) to check whether a
+   different strength does better on both axes at once — see below.
+
+**VAE-only floor check (job 44515, all 496 crops, COMPLETED)**: pure VAE
+encode→decode, zero denoising — SSIM 0.5393, LAB total 31.24, windowed LAB
+31.66, PSNR 17.72, MAE 25.96. Below every classical baseline's SSIM —
+establishes that no diffusion-based method routed through this VAE can
+structurally match the classical remaps, regardless of conditioning quality.
+
+**Bottom line**: P1-10 confirms the diagnosis was directionally correct
+(genuine training-time source conditioning measurably improves colour
+recovery without a structure penalty, unlike the strength dial which trades
+one for the other) but does **not** close the fundamental structural-fidelity
+gap to classical methods — that gap is capped by VAE resynthesis itself, not
+by the conditioning problem P1-10 was built to fix. Status: **DONE** as a
+supplementary corrective experiment — a genuine, reportable, partially-positive
+result (matches the ticket's own framing that either outcome is informative).
+
+**Follow-up in progress**: strength sweep on this checkpoint (0.20/0.30/0.40/
+0.70, A06+A08 diagnostic subset, jobs 44625-44628) to test whether a
+different operating point improves both SSIM and colour recovery
+simultaneously relative to strength 0.50, mirroring SD1.5's own A4/A5 finding
+that 0.20 beat 0.50-equivalent settings.
 
 ---
 
