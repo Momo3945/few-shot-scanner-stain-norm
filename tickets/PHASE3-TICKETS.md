@@ -230,16 +230,61 @@ this as "SDXL is worse at this task":
    adapter. Not yet tested (would mean a longer SDXL training run, not a
    re-scoring).
 
-**Not yet done:** an SDXL strength/step sweep before drawing a firm
-conclusion; comparing against a possible "no colour LoRA, base SDXL only"
-ablation to check whether the negative shift is coming from the base model's
-own prior rather than the trained adapter. Until one of those runs, treat
-"does the backbone change the negative-fidelity story" as **still open** —
-what's concretely established is that transferring the exact same nominal
-config doesn't transparently transfer results, which is itself a real,
-reportable methodological finding for the write-up (few-step LCM operating
-points appear to be backbone-specific, not portable by strength/step number
-alone).
+### Both follow-ups run (2026-08-20) — mechanism identified, question narrowed but not fully closed
+
+**SDXL base-model-only ablation (job 44370 full inference, job 44425 scoring,
+COMPLETED)** — same A4 config, colour LoRA simply omitted:
+
+| | ALL Δlab | ALL SSIM |
+|---|---|---|
+| With colour LoRA (job 44282) | −5.60 | 0.527 |
+| **Base model only, no LoRA** (job 44425) | **−4.35** | **0.527** |
+
+SSIM is identical to 3 decimal places, and the negative colour drift is
+already fully present with **zero** LoRA involvement. This settles the
+mechanism question: the negative recovery is not the trained adapter doing
+something wrong — the frozen SDXL base (+ ControlNet + LCM) already drifts
+away from Hamamatsu's colour at this operating point before the LoRA ever
+touches it. The LoRA's actual measured effect is small (−4.35 → −5.60, ~1.25
+units) and, if anything, pushes slightly further in the wrong direction
+rather than correcting it — consistent with a lightly-trained (1000 steps,
+≤50 pairs) adapter being outweighed by a much larger frozen base's own
+generation tendency at this setting.
+
+**SDXL strength sweep (job 44369 inference, job 44382 scoring, COMPLETED,
+A06 only — see caveat below):**
+
+| Strength | Δlab (A06 only) | SSIM |
+|---|---|---|
+| 0.20 | −2.45 | 0.399 |
+| 0.30 | −1.33 | 0.374 |
+| 0.40 | **+1.56** | 0.348 |
+| 0.50 | +5.64 | 0.323 |
+| 0.70 | +9.64 | 0.299 |
+
+Colour recovery flips from negative to positive between strength 0.30 and
+0.40 on A06, climbing steadily after that — with SSIM falling the whole time
+(the same structure/colour tradeoff seen throughout this project). **Caveat
+that keeps this from being conclusive**: this diagnostic pass only covered
+A06 (the `LIMIT=8` diagnostic run happened to grab only A06's frames) — and
+A06 is already independently documented (SD1.5 ladder) to recover *more* at
+higher strength while typical slides recover *less*. So this result is
+consistent with either (a) SDXL's whole colour-recovery curve is genuinely
+shifted and needs a higher strength across the board, or (b) A06 is simply
+following its own already-known strength-sensitivity pattern, and this says
+nothing new about SDXL's calibration on typical slides. The original negative
+finding (−5.60) was on the **pooled 496-crop, all-5-slide** set at strength
+0.20 — this sweep hasn't touched that comparison at any strength but 0.20 yet.
+
+**Net read**: the mechanism is now identified (frozen-base behaviour at this
+nominal operating point, not an adapter bug), and there's a real,
+strength-dependent path to positive A06 recovery on SDXL. What's still open:
+whether a higher strength also helps SDXL's *typical*-slide/pooled numbers,
+or whether (mirroring SD1.5's own pattern) higher strength on SDXL trades A06
+gains for worse typical-slide performance, in which case there may be no
+single SDXL strength that beats SD1.5's pooled A4@0.20 result. **Not yet
+done**: repeat the strength sweep on a typical slide (e.g. A08) before
+concluding either way.
 
 ## P3-05 — A5 warm-start variant on SDXL (contingent)
 **Status:** TODO — UNBLOCKED (2026-08-10). P1-07 resolved: A5 shows measurable
