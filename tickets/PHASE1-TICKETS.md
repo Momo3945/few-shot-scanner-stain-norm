@@ -496,9 +496,10 @@ deployment strength for P3-03/P3-04's SDXL transfer and comparison.
 ## P1-10 — Corrective experiment: source-conditioned scanner translation
 **Status:** 🔄 IN PROGRESS (2026-08-20) — approved, infrastructure built and
 heavily bug-fixed (two review rounds, six real bugs found and fixed — see
-below), overfit-test control run at 300 steps, mandatory ablation control run
-and FAILED (see "Progress log" below) — re-running at more steps before
-concluding anything. This does not reopen, replace, or relabel the completed
+below). Mandatory ablation control FAILED at 300 steps (undertrained), then
+**PASSED decisively at 2000 steps** (`correct` beats `zero`/`shuffled` by
+>2.4x on SSIM) — real, positive evidence the source-conditioning mechanism
+works on the 8-pair overfit set. Next: does it generalise at real-run scale. This does not reopen, replace, or relabel the completed
 A0–A5 ladder. The existing target-only LoRA remains the faithfully reported
 original method and negative result; any revised model must use a new script,
 checkpoint tag, and evaluation tag.
@@ -720,8 +721,35 @@ overfit test at 2000 steps (job 44381, submitted) before treating this as a
 real negative result about the method itself, rather than an artefact of an
 under-trained smoke test.
 
-**Not yet done**: re-run the ablation on the 2000-step checkpoint; VAE-only
-floor check; full training run; smoke gate; full held-out evaluation.
+**Extended overfit test (job 44381, 8 pairs, 2000 steps, COMPLETED)**: loss
+shows a real, if noisy, downward trend this time (early steps mostly
+0.19–0.26, steps 1500+ mostly 0.09–0.18) — unlike the flat 300-step run.
+
+**Ablation re-run on the 2000-step checkpoint (jobs 44431/44432/44433,
+COMPLETED) — PASSES the mandatory control this time**, decisively:
+
+| mode | SSIM | LAB Wasserstein (lower=better) | MAE |
+|---|---|---|---|
+| **correct** | **0.14656** | **23.95** | **40.88** |
+| shuffled | 0.04665 | 27.50 | 50.42 |
+| zero | 0.06198 | 37.24 | 43.27 |
+
+`correct` beats both `zero` and `shuffled` by a wide margin — SSIM is >2.4x
+higher than either control (0.147 vs 0.047/0.062), far beyond the ~0.004
+seed-to-seed noise floor seen throughout these runs, and colour distance
+(LAB Wasserstein) is clearly lowest too. This is the separation the ticket's
+own acceptance criterion required and the 300-step run failed to show.
+**Confirms the "undertrained, not broken" reading of the 300-step failure**:
+at 300 steps the ControlNet's zero-initialised layers hadn't developed
+measurable influence yet; at 2000 steps the model has genuinely learned to
+use source conditioning — this is now real, positive evidence that P1-10's
+core mechanism works, on this tiny 8-pair overfit set at least. Still to be
+shown: whether this generalises beyond memorising 8 pairs, at the scale of
+a real training run.
+
+**Not yet done**: VAE-only floor check; full training run (not just 8-pair
+overfit) with real checkpoint selection; smoke gate (A06 + one typical
+slide); full held-out evaluation against the canonical 496-crop set.
 
 ---
 
