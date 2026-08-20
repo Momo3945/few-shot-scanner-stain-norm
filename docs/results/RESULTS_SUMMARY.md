@@ -697,12 +697,41 @@ resynthesis itself. A follow-up strength sweep on this checkpoint is in
 progress to check whether a different operating point does better on both
 axes at once. Full detail: `tickets/PHASE1-TICKETS.md` P1-10.
 
+**Update (2026-08-20): P2-10 (CAMELYON17 multi-centre generalisation) is
+complete — FAIL verdict.** Pairwise LAB Wasserstein between all 5 centres
+(2,103 patches, 3 patients/centre, 100 patches/patient), before (D_pre) and
+after (D_post) normalisation at the project's best general-purpose operating
+point (colour LoRA + ControlNet + LCM, strength 0.20). Success criterion was
+D_post < D_pre:
+
+| | D_pre | D_post |
+|---|---|---|
+| Mean across 10 centre pairs | **56.70** | **57.52** |
+
+Only 1 of 10 centre pairs improved (and only by 0.23, a small fraction of
+typical pair-to-pair variation) — 9 got slightly worse. Not a borderline/noisy
+result: a colour LoRA trained on exactly one scanner pair (Aperio/Hamamatsu),
+applied uniformly to 5 completely unseen hospital centres, does not pull them
+closer together; if anything it adds small, inconsistent per-centre drift.
+H2/RQ4's cross-hospital generalisation claim does not hold at this operating
+point — consistent with the project's broader pattern of the pipeline not
+transferring a colour-normalising effect beyond its own trained domain. Full
+detail: `tickets/PHASE2-TICKETS.md` P2-10.
+
 **In progress as of 2026-08-20 (not yet final, tracked here so this doc
 doesn't go stale — see each ticket for live status and full methodology):**
-- **P2-10 (CAMELYON17 multi-centre generalisation)**: patch extraction (2,103
-  patches, 5 centres), upload, and D_pre computed — mean pairwise LAB
-  Wasserstein **56.70** across the 5 centres (range 22.68–99.85). Normalisation
-  (D_post side) running now. Full detail: `tickets/PHASE2-TICKETS.md` P2-10.
+- **P1-10 strength sweep** (follow-up to the full held-out result above): on
+  the A06+A08 diagnostic subset, strengths 0.20/0.30 both show *worse*
+  windowed-colour recovery than strength 0.50 (SSIM improves slightly, colour
+  recovery gets worse) — the same structure/colour tradeoff seen throughout
+  this project, just now confirmed on this checkpoint too. Strengths 0.40/0.70
+  still scoring. Full detail: `tickets/PHASE1-TICKETS.md` P1-10.
+- **P3-05 (A5 histopathology warm-start transfer to SDXL)**: code built
+  (`train_hist_lora_sdxl.py`, `infer_colour_lora_sdxl.py` extended with
+  `--hist-lora`), no SDXL histopathology LoRA existed yet so this needs a new
+  training run (unlike SD1.5's A5, which only needed inference-time stacking
+  of an already-trained checkpoint). 5-step smoke test queued. Full detail:
+  `tickets/PHASE3-TICKETS.md` P3-05.
 
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
