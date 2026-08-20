@@ -497,9 +497,10 @@ deployment strength for P3-03/P3-04's SDXL transfer and comparison.
 **Status:** 🔄 IN PROGRESS (2026-08-20) — approved, infrastructure built and
 heavily bug-fixed (two review rounds, six real bugs found and fixed — see
 below). Mandatory ablation control FAILED at 300 steps (undertrained), then
-**PASSED decisively at 2000 steps** (`correct` beats `zero`/`shuffled` by
->2.4x on SSIM) — real, positive evidence the source-conditioning mechanism
-works on the 8-pair overfit set. Next: does it generalise at real-run scale. This does not reopen, replace, or relabel the completed
+**PASSED decisively at 2000 steps** on the 8-pair overfit set. **Full
+training run on all 50 pairs (4000 steps) completed with clean, monotonic
+validation-loss convergence.** Next: VAE-only floor check, then the smoke
+gate before any full held-out evaluation. This does not reopen, replace, or relabel the completed
 A0–A5 ladder. The existing target-only LoRA remains the faithfully reported
 original method and negative result; any revised model must use a new script,
 checkpoint tag, and evaluation tag.
@@ -747,9 +748,25 @@ core mechanism works, on this tiny 8-pair overfit set at least. Still to be
 shown: whether this generalises beyond memorising 8 pairs, at the scale of
 a real training run.
 
-**Not yet done**: VAE-only floor check; full training run (not just 8-pair
-overfit) with real checkpoint selection; smoke gate (A06 + one typical
-slide); full held-out evaluation against the canonical 496-crop set.
+**Full training run (job 44445, all 50 pairs, 4000 steps, `mscluster52`,
+COMPLETED 24:50)**: 39 train / 11 val pairs (5 frames held out: 00A, 01C,
+01D, 03C, 04B). **Validation loss converges cleanly and monotonically almost
+the entire run** — 0.0880 → 0.0876 → 0.0832 → 0.0741 → 0.0683 → 0.0623 →
+0.0600 → 0.0560 → 0.0546 → 0.0532 → 0.0525 → 0.0514 → 0.0496 → 0.0493 →
+**0.0482 (best, step 3750)** → 0.0486 (final step, step 4000 — worse than
+best, confirming exactly why the ticket requires checkpoint selection rather
+than trusting the final step). Far cleaner convergence than the small
+8-pair overfit set showed, consistent with the model having genuine diverse
+signal to learn from rather than memorising a handful of examples.
+`lora/a2h_cond_r8/best/` verified real (1.4GB ControlNet + 6.4MB LoRA,
+correct trainable-param counts in `training_config.json`).
+
+**Not yet done**: VAE-only floor check; smoke gate (A06 + one typical slide,
+comparing this checkpoint against the original target-only LoRA and its own
+shuffled-source ablation on windowed colour recovery, without losing
+structural fidelity — per the ticket's own go/no-go gate); full held-out
+evaluation against the canonical 496-crop set, gated on the smoke gate
+passing.
 
 ---
 
