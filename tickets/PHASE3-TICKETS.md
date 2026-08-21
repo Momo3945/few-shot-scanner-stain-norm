@@ -319,9 +319,9 @@ training on SD1.5, see `tickets/PHASE1-TICKETS.md`) than from further SDXL
 tuning.
 
 ## P3-05 — A5 warm-start variant on SDXL (contingent)
-**Status:** TODO — UNBLOCKED (2026-08-10). P1-07 resolved: A5 shows measurable
-benefit over A4 on SD1.5, well beyond the inter-run noise floor (see P3-01's
-review). Still blocked on the same SDXL model-weight prerequisites as P3-03.
+**Status:** ✅ DONE (2026-08-21) — small, real, consistent colour-recovery
+improvement over A4-SDXL, but a fundamentally different story than SD1.5's
+A5: no A06-specific win, no sign flip, doesn't change the P3-04 verdict.
 **Source:** `sec:sdxl_a5`
 **Description:** Only transfer the histopathology warm-start variant to SDXL if A5
 first shows measurable benefit over A4 on SD1.5 (beyond the inter-run noise floor).
@@ -333,6 +333,64 @@ borderline call. Note A5's benefit is slide-dependent (worse than A4 on typical
 slides A08/A16 at low strength, though that gap narrows or flips positive at higher
 strength per the Phase 1 follow-up experiments) — this nuance should carry over into
 how the SDXL transfer is scoped and reported, not just "A5 wins."
+
+**Build (2026-08-20/21):** `src/train/train_hist_lora_sdxl.py` (new — merges
+`train_hist_lora.py`'s unpaired-pool data loading, incl. its independent
+held-out-slide leak check, with `train_colour_lora_sdxl.py`'s SDXL machinery:
+dual text encoders, fp32 VAE, gradient checkpointing). `infer_colour_lora_sdxl.py`
+extended with `--hist-lora`/`--hist-scale`, generalising the existing 2-way
+(colour+lcm) multi-adapter `set_adapters` composition to 3-way
+(colour+hist+lcm) — direct port of `infer_colour_lora.py`'s proven P1-07
+pattern. New launchers `train_hist_lora_sdxl.slurm` and `infer_a5_sdxl.slurm`
+(a separate file from the A4-SDXL launcher, mirroring how `infer_a5_full.slurm`
+is separate from `infer_a4_lcm.slurm` on SD1.5, so the already-validated A4
+launcher is never touched).
+
+**Training (job 44665, rank 32, 3000 steps, COMPLETED 43:03):** 5-step smoke
+test passed first (finite loss, checkpoint saved). Full run: loss stays in
+the expected noisy 0.10–0.21 range throughout (no clean downward trend —
+consistent with this project's standing note that per-step diffusion loss
+isn't a success signal). Checkpoint `lora/hist_r32_sdxl/final/
+pytorch_lora_weights.safetensors` verified real (186MB, proportionally larger
+than SD1.5's 25.5MB `hist_r32` given ~46.4M trainable params, 1.777% of
+SDXL's UNet, vs SD1.5's smaller LoRA).
+
+**Inference smoke test (job 44676, 2 frames, COMPLETED):** log confirms
+`"LoRA + ControlNet(...) + Hist-LoRA + LCM-LoRA ..."` — the 3-way adapter
+composition loads and runs successfully, proving the `--hist-lora` extension
+works end-to-end without regressing the existing 2-way A4-SDXL path.
+
+**Full held-out evaluation (job 44682 inference + job 44699 scoring, all 496
+crops, strength 0.20, 8-step LCM — same operating point as `a4_sdxl` for a
+direct comparison, COMPLETED):**
+
+| Scope | A4-SDXL SSIM | A5-SDXL SSIM | A4-SDXL Δlab | A5-SDXL Δlab | Δ (A5 − A4) |
+|---|---|---|---|---|---|
+| ALL (pooled) | 0.5272 | 0.5263 | −5.60 | −5.30 | +0.30 |
+| A06 | 0.3856 | 0.3850 | −3.58 | −3.55 | +0.03 |
+| A08 | 0.5622 | 0.5604 | −5.92 | −5.54 | +0.39 |
+| A09 | 0.5136 | 0.5127 | −5.19 | −4.92 | +0.28 |
+| A13 | 0.5096 | 0.5093 | −4.75 | −4.19 | +0.56 |
+| A16 | 0.5746 | 0.5739 | −5.10 | −4.86 | +0.24 |
+
+**Reading**: adding the histopathology warm-start LoRA gives a small,
+*consistent* colour-recovery improvement on every slide (+0.24 to +0.56 LAB
+units) — real, not noise, since it moves the same direction everywhere. But
+it's a fundamentally different result from SD1.5's A5:
+- SD1.5's A5 win was concentrated on A06 specifically (+2.6 to +8.7 LAB
+  units, its single best result project-wide). On SDXL, **A06 barely moves
+  at all** (+0.03) — the exact slide where the hist prior helped most on
+  SD1.5 is where it helps least here.
+- **No sign flip anywhere** — colour recovery stays negative on every slide,
+  just slightly less negative. This doesn't rescue P3-04's finding: SDXL's
+  frozen-base colour drift (−3.5 to −5.9) is a much larger effect than what a
+  histopathology prior can nudge (~+0.3).
+- **Structure (SSIM) is essentially unchanged** — differences are all in the
+  4th decimal, within noise.
+- **Bottom line**: a genuine, measurable positive result on colour recovery,
+  but it does not change SDXL's overall verdict from P3-04 — still below the
+  classical baselines on structure (0.526 vs 0.628–0.681), still
+  colour-negative on every slide.
 
 ---
 

@@ -744,14 +744,27 @@ strength 0.50 doesn't need re-running at a different setting; it already
 sits on the tradeoff curve, not dominated by anything tested. Full detail:
 `tickets/PHASE1-TICKETS.md` P1-10.
 
-**In progress as of 2026-08-20 (not yet final, tracked here so this doc
-doesn't go stale — see each ticket for live status and full methodology):**
-- **P3-05 (A5 histopathology warm-start transfer to SDXL)**: code built
-  (`train_hist_lora_sdxl.py`, `infer_colour_lora_sdxl.py` extended with
-  `--hist-lora`), no SDXL histopathology LoRA existed yet so this needs a new
-  training run (unlike SD1.5's A5, which only needed inference-time stacking
-  of an already-trained checkpoint). 5-step smoke test queued. Full detail:
-  `tickets/PHASE3-TICKETS.md` P3-05.
+**Update (2026-08-21): P3-05 (A5 histopathology warm-start transfer to SDXL)
+is complete — a small, real, but fundamentally different result than SD1.5's
+A5.** Unlike SD1.5's A5 (which only needed inference-time stacking of an
+already-trained checkpoint), no SDXL histopathology LoRA existed yet, so this
+needed a new training run (`train_hist_lora_sdxl.py`, rank 32, 3000 steps).
+Full held-out result (same operating point as `a4_sdxl`, strength 0.20,
+8-step LCM):
+
+| Scope | A4-SDXL SSIM | A5-SDXL SSIM | A4-SDXL Δlab | A5-SDXL Δlab |
+|---|---|---|---|---|
+| ALL (pooled) | 0.5272 | 0.5263 | −5.60 | **−5.30** |
+| A06 | 0.3856 | 0.3850 | −3.58 | −3.55 |
+
+Adding the histopathology prior gives a small, consistent colour-recovery
+improvement on every slide (+0.24 to +0.56 LAB units — real, not noise) but
+**not** the dramatic A06-specific win SD1.5's A5 showed (+2.6 to +8.7 LAB
+units there) — on SDXL, A06 barely moves (+0.03), the opposite pattern.
+Colour recovery stays negative everywhere; SSIM is unchanged. Doesn't rescue
+P3-04's verdict — SDXL's frozen-base colour drift is a much larger effect
+than a histopathology prior can nudge. Full detail: `tickets/PHASE3-TICKETS.md`
+P3-05.
 
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
