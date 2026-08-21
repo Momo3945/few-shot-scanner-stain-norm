@@ -9,11 +9,18 @@ generality of that script -- P3-03's scope is transferring only A4, so --hist-lo
 For each held-out MITOS frame pair it: registers the Hamamatsu frame into the
 Aperio grid (real ground truth), tiles tissue crops, and for each crop runs SDXL
 img2img (optionally + trained colour LoRA, optionally + ControlNet-Canny
-conditioning, optionally + LCM-LoRA/LCMScheduler for few-step inference) at each
+conditioning, optionally + LCM-LoRA/LCMScheduler for few-step inference,
+optionally + the frozen histopathology warm-start LoRA for A5/P3-05) at each
 requested denoising strength. It saves the normalised output crop, the
 registered-Hamamatsu reference crop (once per location), and an
 eval_manifest.csv pairing them -- score_outputs.py scores this identically to
 every SD1.5 run (confirmed fully generic over resolution, zero changes needed).
+
+--hist-lora (P3-05, added after P3-03's initial transfer) stacks the frozen
+SDXL histopathology-prior LoRA (trained by train_hist_lora_sdxl.py) alongside
+--lora via the same set_adapters composition already used for --lcm -- exact
+port of infer_colour_lora.py's P1-07 extension, generalised from 2-way to
+3-way adapter composition.
 
 Differences from infer_colour_lora.py (SD1.5), all required by SDXL:
   - Pipeline classes: StableDiffusionXLControlNetImg2ImgPipeline /
@@ -69,6 +76,14 @@ def parse_args():
                          "switch to LCMScheduler for few-step inference (A4 config).")
     ap.add_argument("--lcm-scale", type=float, default=1.0,
                     help="Adapter weight for the LCM-LoRA when --lcm is set (via set_adapters).")
+    ap.add_argument("--hist-lora", default=None,
+                    help="Path to the frozen SDXL histopathology warm-start LoRA dir (A5/P3-05, "
+                         "lora/hist_r32_sdxl/final). Trained independently by "
+                         "train_hist_lora_sdxl.py -- never train jointly with the colour LoRA. "
+                         "Composed alongside --lora (if set) at inference via set_adapters, same "
+                         "mechanism as --lcm.")
+    ap.add_argument("--hist-scale", type=float, default=1.0,
+                    help="Adapter weight for the histopathology LoRA when --hist-lora is set.")
     ap.add_argument("--model", default="stabilityai/stable-diffusion-xl-base-1.0")
     ap.add_argument("--root", required=True, help="Dataset root (heldout paths are relative to this).")
     ap.add_argument("--heldout", required=True, help="heldout_frames.csv.")
@@ -121,12 +136,14 @@ def main():
     (out_dir / "reference").mkdir(parents=True, exist_ok=True)
 
     # ---- pipeline: SDXL img2img, optionally + trained colour LoRA, optionally +
-    # ControlNet, optionally + LCM-LoRA (DDIM otherwise). VAE forced to fp32 --
-    # SDXL's official VAE NaNs under fp16; do not change this back to fp16. ----
-    multi_lora = args.lcm and bool(args.lora)
+    # ControlNet, optionally + LCM-LoRA, optionally + hist-LoRA (DDIM otherwise).
+    # VAE forced to fp32 -- SDXL's official VAE NaNs under fp16; do not change
+    # this back to fp16. multi_lora condition matches infer_colour_lora.py's
+    # (SD1.5) exactly: >1 LoRA-type adapter -> named adapters + set_adapters. ----
+    multi_lora = args.lcm or bool(args.hist_lora)
     label = " + ".join(filter(None, [
         "LoRA" if args.lora else None, f"ControlNet({args.controlnet})" if args.controlnet else None,
-        "LCM-LoRA" if args.lcm else None,
+        "Hist-LoRA" if args.hist_lora else None, "LCM-LoRA" if args.lcm else None,
     ])) or "no adapters (SDXL base)"
     print(f"Loading SDXL img2img pipeline: {label} ...")
     vae = AutoencoderKL.from_pretrained(args.model, subfolder="vae", torch_dtype=torch.float32)
@@ -147,6 +164,10 @@ def main():
             lora_kwargs["adapter_name"] = "colour"
         pipe.load_lora_weights(args.lora, **lora_kwargs)
         active.append("colour"); weights.append(1.0)
+    if args.hist_lora:
+        pipe.load_lora_weights(args.hist_lora,
+                                weight_name="pytorch_lora_weights.safetensors", adapter_name="hist")
+        active.append("hist"); weights.append(args.hist_scale)
     if args.lcm:
         pipe.load_lora_weights("latent-consistency/lcm-lora-sdxl",
                                 weight_name="pytorch_lora_weights.safetensors",
