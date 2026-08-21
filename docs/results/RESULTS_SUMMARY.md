@@ -687,6 +687,15 @@ on every metric. **The full 496-crop held-out evaluation is more nuanced**:
 | SD1.5 A4/A5@0.20 (prior best) | 0.454–0.459 | 32.9–33.3 | +1.5 to +1.9 |
 | **P1-10 correct-source (full)** | **0.4485** | **31.60** | **+2.89** |
 
+**Qualitative comparison — same A08 crop across raw input, all three classical
+baselines, SD1.5's prior best, and P1-10, next to the real ground truth:**
+![P1-10 vs Phase 1 vs baselines](qualitative/comparison_a08_p1_10_vs_phase1_vs_baselines.png)
+Visually matches the quantitative story: the classical methods stay close to
+the raw input's structure (they never move a pixel), while SD1.5 A4 and
+P1-10 visibly regenerate texture — consistent with why they lose on SSIM
+regardless of colour-recovery quality. Real Hamamatsu ground truth is
+noticeably more saturated than every normalised output on this crop.
+
 P1-10 clearly beats SD1.5's own prior-best operating point on colour recovery
 but is roughly tied on structure (SSIM marginally behind by ~1%) — not the
 joint win the ticket's acceptance bar asked for. It does **not** beat the
