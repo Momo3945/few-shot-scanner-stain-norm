@@ -1,10 +1,14 @@
 # Results digest — Phase 1 ablation ladder (A0–A5, complete)
 
-Pulled from the cluster on 2026-08-09/10. Raw CSVs for each run live alongside this
-file in `docs/results/<tag>/` (`eval_manifest.csv`, `eval_per_crop.csv`,
-`eval_summary.csv` — the last is the one summarised below). This file exists so
-the final report has a stable, local, non-cluster-dependent source for numbers
-and interesting findings — regenerate it by re-pulling from
+Pulled from the cluster on 2026-08-09/10. Raw CSVs for each run live alongside
+this file, grouped under `docs/results/phase1_ablation/<tag>/` (the A0–A5
+ladder + its strength-sweep follow-ups + the raw do-nothing baseline) or
+`docs/results/classical_baselines/<tag>/` (Macenko/Reinhard/Histogram
+Matching) — see `docs/results/README.md` for the full folder guide. Each tag
+folder holds `eval_manifest.csv`, `eval_per_crop.csv`, `eval_summary.csv` —
+the last is the one summarised below. This file exists so the final report
+has a stable, local, non-cluster-dependent source for numbers and interesting
+findings — regenerate it by re-pulling from
 `/datasets/mhoosen/stain-norm/eval/<tag>/` if a run is repeated.
 
 **Status:** A0 through A5 are all complete and final — the entire Phase 1
@@ -64,7 +68,7 @@ single image. Don't oversell the picture; trust the numbers.
 
 ## Raw baseline (no model at all — do-nothing comparison)
 
-`docs/results/baseline/baseline_summary.csv` — this is the reference point every
+`docs/results/phase1_ablation/raw_baseline/baseline_summary.csv` — this is the reference point every
 `recovery_delta_lab` above is measured against.
 
 | Scope | n_crops | LAB Wasserstein | SSIM |
@@ -322,7 +326,7 @@ setting badly damages every other slide.
   cost everywhere else. Frame this as a "rescue mode" option for the hardest
   cases, not a general default.
 
-Raw data: `docs/results/{a3_ext_s02,a4_ext_s02,a5_ext_s02,a4_ext_s07,a5_ext_s07,a4_ext_s67,a5_ext_s67}/`.
+Raw data: `docs/results/phase1_ablation/{a3_ext_s02,a4_ext_s02,a5_ext_s02,a4_ext_s07,a5_ext_s07,a4_ext_s67,a5_ext_s67}/`.
 Reproducible analysis script: `docs/results/analyze.py`.
 
 ## Classical baseline comparison (P2-11) — Macenko, Reinhard, Histogram Matching
@@ -750,29 +754,37 @@ the metric that *did* provide independent evidence (windowed LAB-Wasserstein).
 
 ## Local file index
 
+Reorganized 2026-08-21 for clarity (was a flat sprawl of ~17 sibling folders
+with no grouping). See `docs/results/README.md` for a plain-language guide to
+this whole folder, including what every column in the CSVs means.
+
 ```
 docs/results/
-├── baseline/            raw do-nothing comparison (P2-01)
-├── a0/                  A0: frozen base only
-├── a1/                  A1: + ControlNet-Canny
-├── a2h_r4/               A2: + colour LoRA, rank 4
-├── a2h_r8/               A2: + colour LoRA, rank 8 (used in A3/A4)
-├── a3/                  A3: ControlNet + colour LoRA (rank 8)
-├── a4/                  A4: + LCM-LoRA (8-step)
-├── a5/                  A5: + histopathology warm-start LoRA (stacked at inference)
-├── a3_ext_s02/           P1-09 follow-up: A3 at strength 0.20 (full 5-slide)
-├── a4_ext_s02/           P1-09 follow-up: A4 at strength 0.20 = 1 real LCM step (full)
-├── a5_ext_s02/           P1-09 follow-up: A5 at strength 0.20 = 1 real LCM step (full)
-├── a4_ext_s07/           P1-09 follow-up: A4 at strength 0.70 = 5 real LCM steps (full)
-├── a5_ext_s07/           P1-09 follow-up: A5 at strength 0.70 = 5 real LCM steps (full)
-├── a4_ext_s67/           P1-09 follow-up: A4 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
-├── a5_ext_s67/           P1-09 follow-up: A5 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
-├── macenko/              P2-11: Macenko baseline (summary only pulled; full outputs on cluster)
-├── reinhard/              P2-11: Reinhard baseline (summary only pulled; full outputs on cluster)
-├── histogram_matching/    P2-11: histogram matching baseline (summary only pulled; full outputs on cluster)
-├── analyze.py             reproducible per-crop trend analysis behind the P1-09 experiment picks
-└── qualitative/          side-by-side comparison composites (A0-A5 ladder + P1-09 strength sweeps)
-    └── strength_sweep/    component crops for the strength_sweep_* composites (source material)
+├── README.md                       start here -- plain-language guide + column glossary
+├── RESULTS_SUMMARY.md              this file -- the full narrative writeup
+├── analyze.py                      reproducible per-crop trend analysis behind the P1-09 experiment picks
+├── phase1_ablation/                the A0-A5 ladder, its strength-sweep follow-ups, and the raw baseline
+│   ├── raw_baseline/                  do-nothing comparison -- the reference every recovery_delta_lab is measured against (P2-01)
+│   ├── a0/                            A0: frozen base only
+│   ├── a1/                            A1: + ControlNet-Canny
+│   ├── a2h_r4/                        A2: + colour LoRA, rank 4
+│   ├── a2h_r8/                        A2: + colour LoRA, rank 8 (used in A3/A4)
+│   ├── a3/                            A3: ControlNet + colour LoRA (rank 8)
+│   ├── a4/                            A4: + LCM-LoRA (8-step)
+│   ├── a5/                            A5: + histopathology warm-start LoRA (stacked at inference)
+│   ├── a3_ext_s02/                    P1-09 follow-up: A3 at strength 0.20 (full 5-slide)
+│   ├── a4_ext_s02/                    P1-09 follow-up: A4 at strength 0.20 = 1 real LCM step (full)
+│   ├── a5_ext_s02/                    P1-09 follow-up: A5 at strength 0.20 = 1 real LCM step (full)
+│   ├── a4_ext_s07/                    P1-09 follow-up: A4 at strength 0.70 = 5 real LCM steps (full)
+│   ├── a5_ext_s07/                    P1-09 follow-up: A5 at strength 0.70 = 5 real LCM steps (full)
+│   ├── a4_ext_s67/                    P1-09 follow-up: A4 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
+│   └── a5_ext_s67/                    P1-09 follow-up: A5 0.6/0.7 smoke test (A06-only; 0.6 duplicates 0.5)
+├── classical_baselines/            deterministic colour-transfer methods, not diffusion (P2-11)
+│   ├── macenko/                       summary only pulled; full outputs on cluster
+│   ├── reinhard/                      summary only pulled; full outputs on cluster
+│   └── histogram_matching/            summary only pulled; full outputs on cluster
+└── qualitative/                    side-by-side comparison images (A0-A5 ladder + P1-09 strength sweeps)
+    └── strength_sweep/                component crops for the strength_sweep_* composites (source material)
 ```
 
 Each folder: `eval_manifest.csv` (crop-level path bookkeeping), `eval_per_crop.csv`
