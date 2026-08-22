@@ -766,6 +766,67 @@ P3-04's verdict — SDXL's frozen-base colour drift is a much larger effect
 than a histopathology prior can nudge. Full detail: `tickets/PHASE3-TICKETS.md`
 P3-05.
 
+**Update (2026-08-22): P1-11 (DDIM-inversion inference path for P1-10) is
+complete — a clean, decisive positive result, closing the open question
+P1-10 left behind.** P1-10's own diagnosis question was: is part of the
+remaining structural-fidelity loss caused by `infer_colour_translation.py`'s
+random-noise img2img initialization (VAE-encode source → add Gaussian noise
+at a fixed strength → denoise), rather than by the trained model itself?
+DDIM inversion replaces that arbitrary corruption with a deterministic,
+source-specific noisy latent obtained by literally running the trained
+model's own noise-prediction backwards. Inference-only — `lora/a2h_cond_r8/
+best` used exactly as trained, no retraining, `infer_colour_translation.py`
+untouched (new script: `infer_colour_source_ddim_inversion.py`).
+
+Two smoke-test stages passed before committing to the full run: (1) an
+identity/self-reconstruction test (DDIM inversion beats the old pathway at
+every fraction on structural fidelity, e.g. SSIM 0.483 vs 0.334 at
+fraction=0.25); (2) the actual A→H translation test plus the mandatory
+source-conditioning ablation (`correct` beats `shuffled`/`zero` by 4x+,
+winning 80/80 crops paired) — both passed decisively on the A06+A08 smoke
+subset, with full inversion (f=1.00) emerging as the best translate-mode
+operating point (unlike identity mode, where lower fractions won — the two
+tests measure different things: self-reconstruction fidelity vs. actual
+colour recovery).
+
+**Full 496-crop x 3-seed held-out result, f=1.00, correct source
+conditioning, vs. P1-10's own existing pathway:**
+
+| Scope | SSIM: old → new | windowed LAB: old → new | recovery Δlab: old → new |
+|---|---|---|---|
+| ALL | 0.4485 → **0.4960** | 31.60 → **26.01** | +2.89 → **+8.74** |
+| ALL excl. A06 | — → **0.5142** | — → **18.92** | — → **+7.43** |
+| A06 (outlier) | 0.3067 → **0.3732** | — → 73.82 | — → **+21.72** |
+| A08 | 0.4815 → **0.5368** | — → 19.02 | — → **+7.15** |
+| A09 | 0.4175 → **0.4767** | — → 18.54 | — → **+9.68** |
+| A13 | 0.4581 → **0.4979** | — → 22.21 | — → **+5.37** |
+| A16 | 0.4968 → **0.5273** | — → 17.78 | — → **+7.11** |
+
+Every single held-out slide improves on both structure AND colour recovery
+simultaneously — notably, this does NOT replay the A06-vs-typical-slide
+divergence pattern seen with every other "more aggressive setting" tried in
+this project (SD1.5's own strength sweep, SDXL's strength sweep, P3-05's
+histopathology transfer). That was a real risk going in: the smoke-test
+subset was 80% A06 by crop count and could easily have been an A06-specific
+artefact that didn't generalise. It generalised anyway. Pooled SSIM (0.4960
+ALL / 0.5142 excl-outliers) is the second-highest ever recorded for any
+diffusion configuration in this project — only SDXL A4@0.20's 0.527 is
+higher, but that came with catastrophically negative colour recovery (Δlab
+−5.60). This is the first configuration here to combine strong structure
+retention AND strong positive colour recovery at once. Still below every
+classical baseline's SSIM (Macenko 0.628, Reinhard 0.681, Histogram Matching
+0.651) — capped by the same VAE-only floor (0.5393) P1-10 already
+established, which DDIM inversion cannot change since it never touches the
+VAE. **Bottom line: confirms the diagnosis was correct — the random-noise
+initialization was a real, fixable source of P1-10's remaining structural
+loss, and fixing it narrows the gap to classical methods substantially
+without closing it completely** (the VAE ceiling is the harder,
+architectural remainder). Full detail, smoke-test tables, and a manifest-
+recovery note worth remembering for future long jobs (job 44858 timed out
+at exactly 10:00:14 after finishing all 1488 outputs — reconstructed the
+lost manifest from output filenames, zero data lost): `tickets/
+PHASE1-TICKETS.md` P1-11.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

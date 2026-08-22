@@ -886,9 +886,12 @@ reported verdict.
 
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
-**Status:** 🔄 IN PROGRESS (2026-08-20) — implementation complete, local
-syntax/CLI checks pass. Cluster smoke test not yet run (needs `sbatch`
-confirmation, not submitted).
+**Status:** ✅ DONE (2026-08-22) — implementation, smoke test (identity +
+translate-mode fraction sweeps, source-conditioning ablation), and the full
+496-crop x 3-seed held-out run + per-slide scoring are all complete. Clean,
+decisive positive result: DDIM inversion (f=1.00, correct source
+conditioning) beats P1-10's existing img2img pathway on both SSIM and
+colour recovery, on every held-out slide (see full results below).
 
 **Source:** `tickets/"Claude Code Task_ Add DDIM-Inversion Inference for
 P1-10(2).md"` (full task spec), following directly from P1-10's own full
@@ -979,14 +982,200 @@ outside `(0,1]` is rejected, and `--pairs-dir` + `--root`/`--heldout`
 together is rejected — same level of pre-cluster checking every prior P1-10
 script got.
 
-**Not yet done:** cluster smoke test (task file §23-24: VAE-only / existing-
-img2img-baseline / full-inversion / partial-inversion identity checks, then
-translation correct/shuffled/zero at whichever inversion-fraction looks
-best) on the same A06+A08 `LIMIT=20` diagnostic subset P1-10's own smoke
-gate used. Per CLAUDE.md's Slurm permission rule, no `sbatch` job has been
-submitted — needs explicit go-ahead. The full 496-crop run remains
-explicitly gated on the smoke test passing (task file §"E"), a separate,
-later ask regardless of the smoke test's outcome.
+**Identity smoke test #1 — full inversion (2026-08-21), job 44652 (infer,
+COMPLETED 30:53) + job 44677 (score, COMPLETED 3:36), A06+A08 `LIMIT=20`
+subset (80 crops), single seed:**
+
+| Method | SSIM ↑ | LAB total ↓ | windowed LAB ↓ | PSNR ↑ | MAE ↓ |
+|---|---|---|---|---|---|
+| vae_only (ceiling — pure encode/decode) | 0.4839 | 3.29 | 4.13 | 19.34 | 20.13 |
+| img2img_baseline (existing pathway, strength=0.50) | 0.3343 | 7.16 | 8.73 | 17.74 | 24.14 |
+| **ddim_inversion (new, f=1.0)** | **0.4483** | 23.22 | 23.47 | 17.48 | 24.82 |
+
+Mechanically clean (job log: no NaN/Inf, `t_end=981` reached on inversion,
+reconstruction correctly started from the same `t=981`, `50/50` real steps
+both directions). **Core hypothesis holds at full inversion**: DDIM
+inversion recovers substantially more source structure than the old
+random-noise pathway (SSIM 0.4483 vs 0.3343, ~34% relative, much closer to
+the 0.4839 VAE-only ceiling than the old pathway ever got). **Cost**:
+colour-identity distance from the true source jumps sharply (LAB 23.22 vs
+7.16) — consistent with the documented caveat above (the LoRA's colour bias
+is baked into UNet weights, and a full 50-step round trip lets it act far
+more than a strength-0.50 partial corruption does). Paired win-rate (best
+SSIM per crop): vae_only wins 79/80 (expected — it's the floor/ceiling with
+no generative content at all), ddim_inversion wins 1/80, img2img_baseline
+wins 0/80 — the vae_only comparison is not the interesting one here; the
+img2img_baseline-vs-ddim_inversion SSIM gap above is.
+
+**Reading**: this is exactly the Pareto tradeoff the task file's own
+§27 anticipated ("full inversion gives diffusion maximum freedom... a
+shallow inversion may preserve much more source structure while still
+allowing the learned colour transformation to act"). Next: the partial-
+inversion sweep (0.25/0.50/0.75) to look for a fraction that keeps most of
+this structural gain while containing the colour-identity cost.
+
+**Partial-inversion sweep (2026-08-21), jobs 44683/44684/44685 (infer,
+COMPLETED 23-30min each) + job 44689 (score, all 4 fractions + both
+baselines together, COMPLETED 14:04) — clean, monotonic, decisive result:**
+
+| Method | SSIM ↑ | LAB total ↓ | windowed LAB ↓ | PSNR ↑ | MAE ↓ |
+|---|---|---|---|---|---|
+| vae_only (ceiling) | 0.4839 | 3.29 | 4.13 | 19.34 | 20.13 |
+| **ddim_inv f=0.25** | **0.4831** | **4.09** | **4.78** | 19.24 | 20.36 |
+| ddim_inv f=0.50 | 0.4783 | 5.62 | 6.22 | 19.01 | 20.89 |
+| ddim_inv f=0.75 | 0.4615 | 10.08 | 10.50 | 18.37 | 22.41 |
+| ddim_inv f=1.00 | 0.4483 | 23.22 | 23.47 | 17.48 | 24.82 |
+| img2img_baseline (old pathway, strength=0.50) | 0.3343 | 7.16 | 8.73 | 17.74 | 24.14 |
+
+Both SSIM and colour-identity distance from the true source move
+monotonically with `--inversion-fraction` (lower fraction = both better),
+converging toward the `vae_only` ceiling as fraction → 0. **At f=0.25,
+DDIM inversion beats the old random-noise pathway on BOTH axes at once** —
+not the usual structure/colour tradeoff: SSIM 0.4831 vs 0.3343 (+44%
+relative) AND LAB distance 4.09 vs 7.16 (also better/lower). Paired win-rate
+across all 6 methods (80 crops): `vae_only` 51/80, `ddim_inv f=0.25` 20/80,
+`ddim_inv f=0.50` 8/80, `ddim_inv f=1.0` 1/80 (`img2img_baseline` 0/80,
+`f=0.75` 0/80 — not the interesting comparison; the point is f=0.25 already
+gets most of the way to the vae_only ceiling while `img2img_baseline` wins
+zero head-to-head crops against anything).
+
+**Reading**: DDIM inversion is a strictly better identity-reconstruction
+mechanism than random-noise img2img at every fraction tested, and a fraction
+around 0.25 is the sweet spot found so far (not yet bisected finer). This
+confirms the task file's own hypothesis (§27) that a shallow/partial
+inversion, not full inversion, is the more promising operating point.
+**Caveat**: this is a self-reconstruction (identity) fidelity result only —
+it says the inversion *mechanism* preserves structure better than random
+noise, not yet whether it still delivers useful A→H colour recovery in
+`--mode translate`. That's the next test.
+
+**Translate-mode smoke test (2026-08-21), jobs 44784/44836/44837/44838
+(infer, COMPLETED) + jobs 44848/44849/44850/44851 (score, one per fraction
+-- scoring all 4 together in a single call collapsed them into one bucket
+since translate mode's `source_mode` column doesn't vary with fraction,
+caught and fixed by scoring each fraction separately) — `source-mode
+correct`, single seed, same A06+A08 `LIMIT=20` subset P1-10's own smoke
+gate used (so this is directly comparable to the numbers already in the
+P1-10 section above, not a new baseline):**
+
+| Fraction | SSIM ↑ | windowed LAB ↓ | LAB total ↓ | PSNR ↑ | MAE ↓ | dE2000 ↓ |
+|---|---|---|---|---|---|---|
+| f=0.25 | 0.4262 | 79.47 | 79.27 | 12.95 | 48.02 | 20.84 |
+| f=0.50 | 0.4232 | 77.64 | 77.42 | 12.98 | 47.70 | 20.54 |
+| f=0.75 | 0.4086 | 74.05 | 73.72 | 12.86 | 48.35 | 20.14 |
+| **f=1.00** | **0.4015** | **63.41** | 62.73 | 12.90 | 48.16 | **18.70** |
+| P1-10 original (img2img, strength=0.50, same subset, from smoke gate above) | 0.336 | 78.24 | 77.97 | 12.72 | 48.53 | 20.87 |
+
+**Clean, decisive result — DDIM inversion beats the old random-noise
+pathway at EVERY fraction on structure** (SSIM 0.40-0.43 vs 0.336, +19-27%
+relative), and **full inversion (f=1.00) additionally wins decisively on
+colour recovery** (windowed LAB 63.41 vs 78.24, ~19% closer to Hamamatsu)
+while still beating the old pathway's SSIM. Unlike identity mode (where
+full inversion was the *worst* fraction for self-reconstruction fidelity),
+translate mode shows the opposite fraction trend: SSIM falls slightly as
+fraction rises (0.4262→0.4015) but colour recovery improves substantially
+(windowed LAB 79.47→63.41) — yet even at f=1.00, the "worst" SSIM point in
+this sweep, it still clearly beats the old pathway's SSIM. **No structure/
+colour tradeoff needed against the baseline being replaced — f=1.00
+dominates it on both axes at once.** f=1.00 is the natural candidate for
+the mandatory source-conditioning ablation next.
+
+**Source-conditioning ablation at f=1.00 (2026-08-21), jobs 44852/44853
+(infer, COMPLETED) + job 44856 (score, COMPLETED) — decisive pass:**
+
+| source_mode | SSIM ↑ | windowed LAB ↓ | LAB total ↓ | PSNR ↑ | MAE ↓ |
+|---|---|---|---|---|---|
+| **correct** | **0.4015** | 63.41 | 62.73 | **12.90** | **48.16** |
+| shuffled | 0.0925 | 71.05 | 68.53 | 11.16 | 56.96 |
+| zero | 0.0482 | 51.80 | 46.38 | 10.80 | 60.36 |
+
+`correct` wins **80/80 crops** on paired SSIM against both controls — more
+than 4x higher than either (0.4015 vs 0.0925/0.0482). The model is
+genuinely using real source conditioning during DDIM-inversion translation,
+not riding the inversion mechanism alone. **Caveat, stated plainly, not
+hidden**: `zero`'s windowed LAB (51.80) is numerically *lower* than
+`correct`'s (63.41) — but this doesn't undermine the structural finding:
+with no source-structure conditioning at all, the model just hallucinates
+something colour-plausible unconstrained by the actual tissue (SSIM 0.048
+confirms it isn't preserving real structure), which can incidentally land
+closer to Hamamatsu's colour statistics without being a useful translation.
+The ticket's own acceptance bar is winning on structural/content metrics,
+which `correct` does decisively.
+
+**Go/no-go smoke gate (task file §"Go/no-go smoke gate") — PASSES on every
+required condition, same A06+A08 subset throughout:**
+1. `correct` beats `shuffled`/`zero` on the source-conditioning ablation
+   (structural, above) — ✅ decisively (80/80 paired win-rate).
+2. `correct` beats the existing img2img pathway ("target-only" initialization)
+   on windowed colour recovery: 63.41 vs 78.24 — ✅.
+3. ...without reducing structural fidelity: 0.4015 vs 0.336 — ✅, actually
+   *improves* structure too, not merely preserves it.
+
+**All mandatory gates pass. Per the task file's own explicit staging
+(§"E"), the full 496-crop held-out run is now unblocked** — DDIM inversion
+at f=1.00, `--source-mode correct`, is the candidate configuration
+(matches the best translate-mode result found; f=1.00 was also the
+configuration used for this ablation).
+
+**Full 496-crop held-out run (2026-08-21/22), job 44858, `mscluster61`, all
+5 held-out slides, 3 seeds (0,1,2), f=1.00, `--source-mode correct` --
+TIMEOUT at exactly 10:00:14, but recovered with zero data loss.** All 1488
+outputs + 496 reference crops had already been written to disk when the
+timeout fired (confirmed via direct file count) -- only the buffered, never-
+flushed `eval_manifest.csv` (Python's default full-buffering on a regular
+file, combined with SIGKILL-on-timeout giving no chance to `close()`
+cleanly) was lost. Recovered via a small one-off script
+(`reconstruct_manifest.py`, not committed -- scratch/one-time use) that
+rebuilds every needed column (seed/source_mode/crop_id/slide/frame/x/y/
+output_path/reference_path -- `aperio_path` left blank, unused by the
+scorer) directly from the filenames, which encode all of it by construction.
+Reconstructed 1488/1488 rows, zero warnings, verified per-slide/seed counts
+match the raw file counts exactly before trusting it. **Lesson for any
+future long DDIM-inversion run: the manifest CSV should be flushed
+periodically (e.g. every N rows) or reopened in append mode, not left to a
+single end-of-run `close()` -- not fixed in the script itself yet since this
+run already completed via reconstruction, but worth doing before the next
+very long run.**
+
+Scoring: job 45020 (initial attempt, `score_p1_10_ddim_inversion.slurm`'s
+default 30-minute time limit, inherited from the smaller-scale
+`score_p1_10_sweep.slurm` template) TIMEOUT at exactly 30:04 -- too short
+for 1488 rows (only tested at 320 rows/14min before). Resubmitted as job
+45024 with `--time=02:00:00`, COMPLETED 58:54. Per-slide breakdown via
+`aggregate_p1_10_full.py` (the dedicated aggregator already built for this
+exact per_crop.csv shape):
+
+| Scope | SSIM (old img2img → new DDIM-inv) | windowed LAB (old → new) | recovery Δlab (old → new) |
+|---|---|---|---|
+| **ALL** (n=1488) | 0.4485 → **0.4960** | 31.60 → **26.01** | +2.89 → **+8.74** |
+| ALL excl. A06 (n=1296) | -- → **0.5142** | -- → **18.92** | -- → **+7.43** |
+| A06 (outlier, z=25.51) | 0.3067 → **0.3732** | -- → 73.82 | -- → **+21.72** |
+| A08 | 0.4815 → **0.5368** | -- → 19.02 | -- → **+7.15** |
+| A09 | 0.4175 → **0.4767** | -- → 18.54 | -- → **+9.68** |
+| A13 | 0.4581 → **0.4979** | -- → 22.21 | -- → **+5.37** |
+| A16 | 0.4968 → **0.5273** | -- → 17.78 | -- → **+7.11** |
+
+**Clean, decisive, uniform positive result -- every slide improves on BOTH
+structure and colour recovery simultaneously, not just A06.** This is
+notable because it does NOT replay the A06-vs-typical-slide divergence
+pattern seen with every other "more aggressive setting" tried in this
+project (SD1.5's own strength sweep, SDXL's strength sweep) -- the smoke
+test's A06-heavy composition (80% A06 by crop count) had raised a real
+concern that its result might not generalise; it generalised anyway, and
+better than predicted. Context against the rest of the project: pooled SSIM
+(0.4960 ALL / 0.5142 excl-outliers) is the second-highest ever recorded for
+any diffusion configuration here (only SDXL A4@0.20's 0.527 is higher, but
+that came with catastrophically negative colour recovery, Δlab -5.60) --
+this is the first configuration in the whole project to combine strong
+structure retention AND strong positive colour recovery at the same time.
+Still below every classical baseline's SSIM (Macenko 0.628, Reinhard 0.681,
+Histogram Matching 0.651), as expected -- capped by the same VAE-only floor
+(0.5393) established under P1-10, which DDIM inversion cannot change since
+it doesn't touch the VAE. **P1-11 status: DONE** -- confirms the original
+diagnosis (task file's opening question) was correct: part of P1-10's
+remaining structural-fidelity loss WAS caused by the random-noise img2img
+initialization, and DDIM inversion recovers a real, substantial, uniform
+share of it without sacrificing colour recovery.
 
 **Acceptance criteria (task file §26, not yet evaluated — pending the smoke
 test above):** inversion runs without random `add_noise()`; inversion→
