@@ -27,6 +27,15 @@
 #   # VAE-only floor (no checkpoint needed):
 #   sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 infer_colour_translation.slurm vae_only "" 0 p1_10_vae_floor
 #
+#   # Few-step DDIM vs LCM diagnostic (P1-12 follow-up): same checkpoint,
+#   # matched low-step/strength/guidance to a p1_10_lcm_sweep run, plain DDIM
+#   # scheduler (this script never touches LCMScheduler) -- isolates whether
+#   # quality differences come from the scheduler itself vs just step count.
+#   # STEPS/STRENGTH/GUIDANCE are env-var overrides (default 50/0.50/2.0,
+#   # unchanged from every prior invocation of this script):
+#   STEPS=8 STRENGTH=0.80 GUIDANCE=2.0 \
+#     sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 infer_colour_translation.slurm correct /datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best 20 p1_10_ddim_vs_lcm_diag
+#
 # Requires the LoRA/ControlNet checkpoint to already exist
 # (train_colour_translation_lora.slurm) unless MODE=vae_only.
 #
@@ -58,6 +67,9 @@ CHECKPOINT_DIR=${2:-}
 LIMIT=${3:-4}
 OUT_TAG=${4:-p1_10_${MODE}}
 OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
+STEPS=${STEPS:-50}
+STRENGTH=${STRENGTH:-0.50}
+GUIDANCE=${GUIDANCE:-2.0}
 
 # PAIRS_DIR/OVERFIT_N (env vars, not positional -- diagnostic mode, mirrors
 # train_colour_translation_lora.slurm's OVERFIT_N convention): evaluate a
@@ -81,6 +93,7 @@ fi
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
 echo "P1-10 -- Mode=$MODE  Checkpoint=$CHECKPOINT_DIR  Limit=$LIMIT  PairsArgs='${PAIRS_ARGS}'"
+echo "Steps=$STEPS  Strength=$STRENGTH  Guidance=$GUIDANCE"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed"
@@ -108,13 +121,13 @@ else
         python infer_colour_translation.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
             --source-mode "${MODE}" ${PAIRS_ARGS} --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --steps 50
+            --limit "${LIMIT}" --steps "${STEPS}" --strength "${STRENGTH}" --guidance "${GUIDANCE}"
     else
         python infer_colour_translation.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
             --source-mode "${MODE}" \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --max-crops-per-frame 4 --steps 50
+            --limit "${LIMIT}" --max-crops-per-frame 4 --steps "${STEPS}" --strength "${STRENGTH}" --guidance "${GUIDANCE}"
     fi
 fi
 

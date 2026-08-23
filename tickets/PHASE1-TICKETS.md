@@ -1177,18 +1177,260 @@ remaining structural-fidelity loss WAS caused by the random-noise img2img
 initialization, and DDIM inversion recovers a real, substantial, uniform
 share of it without sacrificing colour recovery.
 
-**Acceptance criteria (task file §26, not yet evaluated — pending the smoke
-test above):** inversion runs without random `add_noise()`; inversion→
-reconstruction is deterministic; partial inversion works; correct P1-10
-source conditioning stays active during translation; existing checkpoint
-loads with zero retraining; outputs score with the existing scorer
-unchanged; `infer_colour_translation.py` remains untouched; no NaNs/Infs;
-inversion/forward timesteps are correctly paired; identity results are
-directly comparable to the existing img2img pathway. Scientifically
-promising if `SSIM_inversion > SSIM_current-P1-10` while
-`LAB_inversion <= LAB_current-P1-10` (current P1-10 reference: SSIM 0.4485,
-windowed LAB 31.60, PSNR 16.94, MAE 27.81, recovery Δlab +2.89) — or a
-clearly superior colour/structure Pareto point.
+## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
+
+**Status:** 🔄 IN PROGRESS (2026-08-22) -- data-driven follow-up, not from
+the proposal or the P1-11 task file; motivated by wanting a few-step
+(fast-inference) operating point for the P1-10 source-conditioned
+checkpoint, mirroring A4's LCM acceleration of the original target-only
+pipeline (`tickets/PHASE1-TICKETS.md` P1-05). Separate from P1-11 (DDIM
+inversion) -- this thread never touches DDIM inversion, it's plain
+img2img + LCM-LoRA on top of P1-10's checkpoint.
+
+**Code (2026-08-22):** `src/eval/infer_colour_translation_lcm.py` (new --
+per `infer_colour_translation.py`'s own docstring, LCM was deliberately
+deferred to "a later, separate script/run, not this one", so this is a new
+script, not an edit). Mirrors `infer_colour_lora.py`'s already-validated
+multi-adapter LCM pattern (named adapters + `set_adapters` + `LCMScheduler`)
+composed with P1-10's custom 6-channel-conditioned ControlNet + colour LoRA.
+Manifest schema matches `infer_colour_lora.py`'s strength-shaped output
+exactly, so the existing `score_outputs.py`/`score_outputs.slurm` score it
+unchanged -- no new scorer needed. Launcher: `slurm/infer_p1_10_lcm_sweep.slurm`
+(comma-separated `--strengths`/seeds throughout this project's scripts now,
+not space-separated -- see the note in that file's header: a space-
+containing argument does not survive an `ssh host sbatch ... "0.2 0.3"`
+round trip intact, the identical bug already hit and fixed for P1-11's
+`--seeds`).
+
+**Strength sweep (2026-08-22), job 45026 (infer, COMPLETED 23:14) + job
+45027 (score via existing `score_outputs.slurm`, COMPLETED 16:12) -- 8-step
+LCM, guidance 1.5, A06+A08 `LIMIT=20` subset:**
+
+| Strength | A06 LAB | A06 SSIM | A06 Δlab | A08 LAB | A08 SSIM | A08 Δlab |
+|---|---|---|---|---|---|---|
+| 0.20 | 93.62 | 0.350 | +1.22 | 28.82 | 0.527 | -3.55 |
+| 0.30 | 92.98 | 0.352 | +1.86 | 29.24 | 0.523 | -3.96 |
+| 0.40 | 91.46 | 0.364 | +3.38 | 28.26 | 0.528 | -2.98 |
+| 0.50 | 91.13 | 0.366 | +3.71 | 26.54 | 0.534 | -1.27 |
+| 0.70 | 91.17 | 0.363 | +3.67 | 24.17 | 0.540 | **+1.10** |
+
+**Data-quality note**: `score_outputs.py`'s pooled `ALL` `recovery_delta_lab`
+column is bogus for this run (-28 to -31, despite the log's own "[baseline
+restricted to A06,A08]" annotation) -- a 2-slide-only scope evidently still
+mishandles the pooled baseline lookup. Per-slide deltas are correct (hand-
+verified against each slide's own true raw baseline, e.g. A06: 94.84-93.62 =
+1.22, matches exactly) and are what's reported above; do not trust the
+pooled figure from this particular run without investigating the mismatch
+first.
+
+**Reading**: colour recovery here is much weaker than either P1-10's own
+50-step DDIM pathway or P1-11's DDIM inversion (max A06 gain +3.7 vs P1-11's
++21.7) -- mirrors the established pattern that LCM acceleration trades away
+colour-recovery quality (A4 vs A3 showed the same thing in Phase 1). A08
+(typical slide) is actually *negative* (worse than doing nothing) at every
+strength except 0.70 -- the only point where both slides show positive
+recovery simultaneously, so it's the anchor strength for the grid below.
+SSIM is nearly flat across the whole sweep (0.35→0.36 A06, 0.52→0.54 A08) --
+notably different from the monotonic-SSIM-falls-with-strength pattern seen
+in every DDIM-based sweep elsewhere in this project.
+
+**Steps x guidance grid (2026-08-22), strength fixed at 0.70, steps ∈
+{4,6,8} x guidance ∈ {0,1,2} (9 configs), same A06+A08 subset -- IN
+PROGRESS, jobs 45028-45033/45039-45041 (see job-management note below).**
+Reuses `infer_p1_10_lcm_sweep.slurm` directly, no new code -- each grid
+point is one job with `STRENGTHS_CSV=0.70` and the given steps/guidance.
+**Known collision expected, not yet a surprise when it shows up**:
+diffusers' `do_classifier_free_guidance = guidance_scale > 1`, so
+guidance=0 and guidance=1 will produce byte-identical output within this
+pipeline (both skip CFG entirely, single forward pass, the guidance_scale
+value itself unused in that branch) -- same class of quantisation collision
+as the LCM step-count issue P1-05 already documented, just a different
+mechanism. Results pending.
+
+**Extended strength sweep (2026-08-22), strengths 0.80/0.90/1.00, job
+45037, IN PROGRESS.** Same 8-step/guidance-1.5 config as the original
+5-point sweep, checking whether colour recovery keeps improving past 0.70
+(as A06's own trend within the original sweep suggested it might plateau,
+not clearly still climbing) or whether it's already past the useful range.
+Results pending.
+
+**Final combination -- results (2026-08-23), job 45650 (infer) + job 45692
+(score, `score_outputs.slurm`), steps=8/guidance=2.0/strength=0.80:**
+
+| Slide | SSIM | Δlab |
+|---|---|---|
+| A06 | 0.307 | +9.56 |
+| A08 | 0.512 | **-0.46** |
+
+Worse than the grid's best (steps=6/guidance=2.0/strength=0.70: A06
+SSIM 0.334/Δlab +9.73, A08 SSIM 0.515/Δlab +2.98) on every axis except A08
+SSIM -- A08 flips negative here, meaning colour recovery is worse than doing
+nothing. Pushing both strength and guidance up simultaneously does not
+combine the two individual wins; it overcorrects the typical slide (A08)
+while barely helping the outlier (A06) beyond what the grid already found.
+**This is not a new best point.**
+
+**Few-step DDIM vs LCM diagnostic -- results (2026-08-23), job 45654 (infer)
++ job 45700 (score, `score_p1_10_ablation.py`), same checkpoint/strength=
+0.80/guidance=2.0/steps=8, plain DDIM scheduler (no LCM-LoRA), 3 seeds:**
+
+| Slide | SSIM | wlab (mean) | Δlab (vs baseline_summary.csv) |
+|---|---|---|---|
+| A06 | 0.331 | 90.47 | +4.45 |
+| A08 | 0.470 | 26.88 | **-1.45** |
+
+At this same aggressive operating point, **plain DDIM also goes negative on
+A08** (-1.45, comparable in sign and rough magnitude to LCM's -0.46) --
+LCM's colour-recovery weakness at this specific corner is not a
+scheduler-specific artefact; forcing *any* scheduler this far into
+few-step/high-strength/high-guidance territory destabilises the typical-
+slide result. Where the two runs do differ: LCM actually recovers *more*
+colour on A06 than matched-DDIM here (+9.56 vs +4.45) at a modest SSIM cost
+(0.307 vs 0.331) -- suggesting LCM's consistency-distillation prior
+compresses toward stronger, blunter corrections in fewer steps, for better
+or worse depending on how far the source already is from target. Neither
+scheduler makes this operating point (strength=0.80/guidance=2.0) usable.
+
+**P1-12 acceptance criterion, evaluated:** the best LCM configuration found
+across every experiment in this ticket (grid, extended sweep, final
+combination) remains **steps=6/guidance=2.0/strength=0.70** (A06 SSIM
+0.334/Δlab +9.73, A08 SSIM 0.515/Δlab +2.98) -- less than half of P1-11's
+colour recovery on both slides (A06 SSIM 0.373/Δlab +21.72, A08 SSIM
+0.537/Δlab +7.15), despite broadly comparable SSIM. No tested generic
+LCM-LoRA configuration approaches P1-11's colour recovery without a
+material quality gap. **Conclusion: the generic LCM-LoRA adapter is not
+fidelity-equivalent for the specialised source-conditioned translator.
+P1-11 (50-step DDIM inversion) remains the quality operating point;** LCM's
+role here is a speed/quality tradeoff only, not a substitute, and should be
+framed that way in any writeup (fast preview / iteration mode, not a
+replacement for the reported result).
+
+**Status: P1-12 CLOSED (2026-08-23).**
+
+**Job-management note (2026-08-22), for reproducibility:** the cluster
+enforces a hard cap of 6 concurrently *running* jobs per user
+(`QOSMaxJobsPerUserLimit`) -- pending jobs queue FIFO by submission order
+regardless of how many are cancelled, so cancelling a job that hasn't
+started yet does NOT let a later-submitted job jump the queue; only
+cancelling a *running* job (or a pending job that's actually ahead in FIFO
+order) frees a slot for a specific later job to grab. To get the extended
+strength sweep (job 45037) running immediately alongside the in-progress
+grid without losing any of the grid's 9 configs: cancelled 3 jobs that had
+done the least/no work (45036 pending steps=8/g=2 -- zero waste; 45035
+pending steps=8/g=1 -- zero waste; 45034 running steps=8/g=0 at 6 seconds
+elapsed -- negligible waste) and one already-progressed running job (45033,
+steps=6/g=2, ~10 min in, the least-elapsed of the six running jobs at the
+time) once cancelling only the zero-waste ones didn't free a slot fast
+enough for 45037 to grab ahead of the FIFO queue. All 4 cancelled configs
+were resubmitted immediately after (45038, 45039, 45040, 45041) -- no grid
+point was permanently lost, only delayed, and the ~10 minutes of partial
+compute on 45033 is the only real cost.
+
+**Steps x guidance grid -- results (2026-08-22), jobs 45028-45032/45038-
+45041 (infer, all COMPLETED) + jobs 45042-45050 (score, all COMPLETED),
+strength fixed at 0.70, same A06+A08 subset:**
+
+| Steps | Guidance | A06 SSIM | A06 Δlab | A08 SSIM | A08 Δlab |
+|---|---|---|---|---|---|
+| 4 | 0 | 0.368 | +1.25 | 0.532 | -3.28 |
+| 4 | 1 | 0.368 | +1.25 | 0.532 | -3.28 |
+| 4 | 2 | 0.342 | +7.82 | 0.506 | -0.20 |
+| 6 | 0 | 0.371 | +0.78 | 0.547 | -0.08 |
+| 6 | 1 | 0.371 | +0.78 | 0.547 | -0.08 |
+| **6** | **2** | **0.334** | **+9.73** | **0.515** | **+2.98** |
+| 8 | 0 | 0.374 | -1.02 | 0.549 | -0.90 |
+| 8 | 1 | 0.374 | -1.02 | 0.549 | -0.90 |
+| 8 | 2 | 0.342 | +8.48 | 0.520 | +2.43 |
+
+**Guidance=0 and guidance=1 produced byte-identical per-crop output at every
+step count** -- confirms the predicted collision exactly (diffusers'
+`do_classifier_free_guidance = guidance_scale > 1`, so both fall into the
+same no-CFG code path). Not a bug, and now empirically verified rather than
+just asserted.
+
+**Real signal: guidance=2.0 dominates 0/1 on colour recovery at every step
+count**, at a modest, not catastrophic, SSIM cost (e.g. steps=6: SSIM
+0.371→0.334, Δlab +0.78→+9.73 on A06) -- the classic CFG structure/colour
+tradeoff, but clearly worth paying here. **Best point in the entire grid:
+steps=6, guidance=2.0** -- the only grid cell with BOTH slides positive at
+once (A06 +9.73, A08 +2.98), beating the original fixed-guidance-1.5 sweep's
+best point (steps=8, strength=0.70, guidance=1.5: A06 +3.67, A08 +1.10) by a
+wide margin on both axes. steps=8/guidance=2 is close behind (+8.48/+2.43)
+but steps=6 edges it out on A08 while using fewer steps (faster).
+
+**Extended strength sweep -- results (2026-08-22), job 45037 (infer,
+COMPLETED) + job 45051 (score, COMPLETED), steps=8/guidance=1.5 (the
+original sweep's fixed settings, NOT the grid's guidance=2.0 finding above
+-- these two experiments varied different axes and haven't yet been
+combined):**
+
+| Strength | A06 SSIM | A06 Δlab | A08 SSIM | A08 Δlab |
+|---|---|---|---|---|
+| 0.80 | 0.320 | +4.42 | 0.537 | +1.91 |
+| 0.90 | 0.161 | +9.96 | 0.436 | -1.26 |
+| 1.00 | 0.076 | +11.07 | 0.170 | -4.19 |
+
+0.80 is a genuine further improvement over 0.70's +3.67/+1.10 (both slides
+still positive, higher on both). **0.90 and 1.00 break down badly** --
+despite the raw Δlab number continuing to climb (misleadingly, at first
+glance), SSIM collapses (0.076 at strength 1.00 -- structure is essentially
+destroyed) and A08 flips sharply negative. Not usable operating points
+despite the impressive-looking colour-recovery number; a case where trusting
+Δlab alone without checking SSIM in the same breath would have been a real
+mistake.
+
+**Where this leaves P1-12**: the two experiments varied different axes
+(strength 0.70-1.00 at guidance=1.5; steps/guidance at strength 0.70) and
+hadn't been combined yet. The natural next test, combining both wins found so
+far, is guidance=2.0 at strength=0.80 -- to see whether it beats
+steps=6/guidance=2.0/strength=0.70's +9.73/+2.98.
+
+**Final combination run (2026-08-23):** user requested LCM steps=8 (not 6),
+strength=0.80, guidance=2.0 as the closing test -- steps=8 rather than the
+grid's best steps=6, to also double-check the steps axis wasn't left on a
+locally-good-but-not-best value. Submitted as job **45650**
+(`eval/p1_10_lcm_final`, `infer_p1_10_lcm_sweep.slurm 0.80 20 8 2.0
+p1_10_lcm_final`, same A06+A08 limit=20 smoke subset as every other P1-12
+run, so directly comparable to the grid/sweep tables above). Scored with the
+unmodified `score_outputs.slurm p1_10_lcm_final`. Results: see "Final
+combination -- results" table further up.
+
+**Few-step DDIM vs LCM diagnostic (2026-08-23), run in parallel with job
+45650.** Question: at matched low step count/strength/guidance, is LCM's
+weaker colour recovery (max A06 Δlab ~+11 vs P1-11's +21.7) caused by the
+LCM scheduler/adapter itself, or would plain DDIM show the same drop-off if
+forced down to the same few-step regime? Isolates the scheduler as the
+variable, holding checkpoint/strength/guidance/step-count fixed.
+
+Reused `infer_colour_translation.py` completely unmodified (it never
+imports `LCMScheduler` -- this is a genuine plain-DDIM run, not a relabelled
+LCM one) via `slurm/infer_colour_translation.slurm`, which previously
+hardcoded `--steps 50` in both python invocations. Added `STEPS`/
+`STRENGTH`/`GUIDANCE` env-var overrides (default 50/0.50/2.0, so every prior
+invocation of this script is unaffected) to make the matched comparison
+possible without a new script. Submitted via `sbatch --export=ALL,STEPS=8,
+STRENGTH=0.80,GUIDANCE=2.0 ... infer_colour_translation.slurm correct
+/datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best 20
+p1_10_ddim_vs_lcm_diag` -- `--export` (not a bare env-var prefix) so the
+command still starts literally with `ssh ... sbatch`, matching this
+project's settings.local.json `ask` pattern. Job **45654**, confirmed live
+in the job log (`Steps=8  Strength=0.80  Guidance=2.0`). Same checkpoint,
+same A06+A08 `LIMIT=20` subset, same strength/guidance as job 45650
+(LCM steps=8/strength=0.80/guidance=2.0) -- directly comparable once both
+score. Scoring: `score_p1_10_ablation.py` (this script's manifest is
+seed/source_mode-shaped, NOT `score_outputs.slurm`'s strength-shaped
+schema). Results: see "Few-step DDIM vs LCM diagnostic -- results" table
+further up.
+
+**Acceptance criterion (2026-08-23, replaces an earlier misplaced P1-11
+criterion that had been left under this heading):** identify whether a
+few-step LCM configuration can retain positive A→H colour recovery on both
+A06 and a typical slide while providing substantial acceleration over the
+50-step DDIM/P1-11 quality path. If no tested generic LCM-LoRA configuration
+approaches P1-11's colour recovery without unacceptable structural loss,
+conclude that the generic LCM adapter is not fidelity-equivalent for the
+specialised source-conditioned translator and treat P1-11 as the quality
+operating point.
 
 ---
 
