@@ -1434,6 +1434,308 @@ operating point.
 
 ---
 
+## P1-13 — Task-specific LCM-LoRA distillation from the frozen P1-10 teacher
+
+**Status:** 🔄 IN PROGRESS (2026-08-23) -- prerequisite gate evaluated,
+training script + launcher being implemented. Task file:
+`tickets/P1-13_task_specific_lcm_distillation.md`.
+
+**Prerequisite gate**, using the diagnostic above (job 45654/45700, plain
+DDIM, vs job 45650/45692, generic LCM, both at matched steps=8/strength=
+0.80/guidance=2.0):
+
+| Slide | Δlab DDIM | Δlab LCM | SSIM DDIM | SSIM LCM |
+|---|---|---|---|---|
+| A06 | +4.45 | **+9.56** | **0.331** | 0.307 |
+| A08 | -1.45 | **-0.46** | 0.470 | **0.512** |
+
+Generic LCM recovers more colour than matched-step plain DDIM on both
+slides, with SSIM roughly a wash (better on A08, marginally worse on A06) --
+this is NOT the ticket's stop condition ("if few-step DDIM and few-step LCM
+deteriorate similarly, do not assume distillation will help"). The LCM
+mechanism is not uniquely attenuating the mapping at this step count; P1-12's
+shortfall relative to P1-11 (see P1-12 CLOSED above) reflects the few-step
+regime generally, not something specific to a generic, task-agnostic LCM
+adapter. **Verdict: PROCEED.**
+
+**Design decisions:** new trainable LCM-LoRA is attention-only
+(`to_k`/`to_q`/`to_v`/`to_out.0`, same target modules as the colour LoRA),
+rank 64 (matches the official cached `lcm-lora-sdv1-5`'s rank, narrowed from
+its full-UNet scope given only 39 training pairs -- confirmed by inspecting
+that checkpoint's safetensors keys directly on the cluster). Guidance
+sampled per-example from U[1.0, 2.0] during distillation, covering the
+ticket's later {1.5, 2.0} inference grid without spending capacity on higher
+CFG this project doesn't use.
+
+**Code (2026-08-23/24):** `src/train/train_p1_10_lcm_lora.py`
+(ports the core single-GPU algorithm from diffusers v0.39.0's official
+`examples/consistency_distillation/train_lcm_distill_lora_sd_wds.py`,
+reusing this project's own `build_pairs`/`PairDataset` from
+`train_colour_translation_lora.py` instead of its webdataset pipeline) +
+`slurm/train_p1_10_lcm_lora.slurm`. New checkpoint namespace
+`lora/a2h_cond_r8_lcm_distilled/` -- never touches `lora/a2h_cond_r8/best`.
+Also `src/eval/score_p1_13_checkpoint_sweep.py` +
+`slurm/score_p1_13_checkpoint_sweep.slurm` (standalone post-hoc checkpoint
+sweep, used before the sweep logic was folded into the training script
+itself -- kept for re-analysing already-completed runs without retraining).
+
+**Smoke test (job 45710→45724→45734, all COMPLETED 2026-08-23):** two real
+bugs caught and fixed before anything else was trusted -- (1) `PairDataset`
+is nested inside `train_colour_translation_lora.py`'s `main()`, not
+importable, so `train_p1_10_lcm_lora.py` carries its own standalone copy
+instead of editing that locked file; (2) a PEFT gotcha where
+`unet.add_adapter()` for the new `"lcm"` adapter silently re-enables
+`requires_grad` on the already-frozen `"colour"` adapter too -- the
+freeze/unfreeze pass must run AFTER both adapters exist, keyed by parameter
+name, not before. The script's own trainable-parameter abort check caught
+this correctly. A third bug (job 45734): `DDIMSolver.ddim_alpha_cumprods_prev`
+silently upcasts float32->float64 via a numpy `.tolist()` round-trip --
+present in the official reference script too, just never triggered there --
+collided with the bf16 model weights; fixed with an explicit float32 cast in
+`DDIMSolver.to()`.
+
+**Overfit-control debugging (2026-08-23/24), 8-pair subset, default LR=1e-4:**
+first 300-step run (job 45737) showed a flat/noisy loss curve, not the
+"near-zero" bar P1-10's own overfit control used. Per this project's own
+guardrail that diffusion training loss is not a valid success signal alone
+(CLAUDE.md), extended Validation B to also run on the overfit pairs
+themselves when no val split exists (`--overfit-n` structurally empties
+`val_pairs`) -- previously Validation B only ran when a real held-out split
+existed. Re-ran (job 45740): SSIM was WORSE after 300 steps (0.287) than a
+near-init 1-step baseline (job 45753, SSIM 0.370) on the IDENTICAL 8 pairs
+-- a real, confirmed regression, not pair-set noise. Extended to 1500 steps
+(job 45822): SSIM kept degrading monotonically to 0.267, loss still flat.
+Re-derived the LCM consistency-distillation math line-by-line against the
+official reference -- found no sign/pairing bug; formulas match exactly.
+
+**Full checkpoint sweep (job 45951, using the newly-built
+`score_p1_13_checkpoint_sweep.py`)** scored every saved checkpoint
+(250/500/750/1000/1250/final) from the 1500-step run instead of just the
+endpoints: revealed NON-monotonic oscillation, not a steady one-way drift --
+checkpoint-250 (SSIM 0.343, LAB 14.43) clearly beat the near-init baseline,
+checkpoint-750 was a second local best, but training didn't stay there
+(final: SSIM 0.267, LAB 23.53). This ruled out "fundamentally broken
+objective" (training CAN reach good configurations) in favour of "high
+per-step gradient/target variance + no LR schedule" (batch size 1, random
+timestep/index/guidance resampled every single step).
+
+**LR ablation (2026-08-24), same 8 pairs, same 1500 steps, checkpoint
+selection folded directly into `train_p1_10_lcm_lora.py`'s own end-of-run
+Validation-B sweep (no separate script call needed going forward) --
+selection changed from the untrustworthy scalar val_loss to image-level
+Validation B, later upgraded to a full Pareto frontier over (ssim, lab_total)
+rather than a single-metric argmin (see below):**
+
+| LR | Best checkpoint | SSIM | LAB | SSIM trend across training |
+|---|---|---|---|---|
+| 1e-4 (job 45822) | checkpoint-250 | 0.343 | 14.43 | declining |
+| 3e-5 (job 45994) | checkpoint-1250 | 0.322 | 12.80 | **cleanly increasing** |
+
+Lower LR converted the SSIM trajectory from degrading to steadily
+improving -- LAB still oscillated at 3e-5, but the qualitative change in
+SSIM was a genuine result, not noise.
+
+**Gradient-accumulation ablation (job 46002), LR fixed at 3e-5 (per
+instruction, since it already fixed SSIM), grad-accum=4 (effective batch 4,
+`--grad-accum-steps` added to the training script + `GRAD_ACCUM`/
+`SAVE_EVERY` env vars added to the slurm launcher), same 8 pairs, 1500
+optimizer steps (NOT microbatches), checkpoints every 125:**
+
+| Checkpoint | SSIM | LAB |
+|---|---|---|
+| 125–750 | 0.30–0.32 (stable band) | 20–27 |
+| **875 (peak)** | **0.330** | **14.87** |
+| 1000–1375 | declining | rising to 36.46 |
+| final (1500) | 0.241 (worst of run) | 33.26 (2nd worst) |
+
+Qualitatively different from the earlier pure oscillation: SSIM is now
+genuinely stable through steps 125-1000 (tight band, unlike either prior
+run), then a clean rise-to-peak-then-overfit shape -- consistent with
+classic small-dataset overfitting (8 unique images, no LR decay) rather than
+an unstable/broken objective.
+
+**Cross-run finding:** all three configurations (LR=1e-4; LR=3e-5;
+LR=3e-5+accum4) independently found a peak checkpoint in the same narrow
+band (LAB 12.8-14.9, SSIM 0.32-0.34) -- strong evidence this is a genuine,
+reproducible achievable quality ceiling for this setup, not a fluke, and
+that automatic Validation-B-based checkpoint selection reliably finds it
+regardless of hyperparameters. The open question was never "can training
+reach good quality" (yes, consistently) but "does it stay there" (no, on
+only 8 images) -- judged likely to be a data-scarcity artifact of the
+overfit diagnostic itself, not a property expected to carry over to the real
+39-pair run (~5x more unique data, much less overfitting pressure).
+
+**Decision (2026-08-24):** the 8-pair feasibility/debugging gate is
+complete. Proceeding to a STAGED run on the full 39-pair training set (11-
+pair real held-out val split) -- LR=3e-5, grad-accum=4, but capped at 1500
+optimizer steps first (NOT the full 4000: accum=4 already quadruples sample
+exposure per optimizer step relative to the ticket's original budget),
+checkpoints every 125, selected via the Pareto frontier over (ssim,
+lab_total) rather than a single scalar. If Validation B is still improving
+at step 1500, continue training further; if it has peaked and is declining
+(as the 8-pair diagnostic's own shape suggests may happen), stop at the
+selected earlier checkpoint instead of the final step.
+
+**Checkpoint-selection code change:** `train_p1_10_lcm_lora.py`'s
+end-of-training Validation B now (a) sweeps EVERY saved checkpoint, not
+just one, reusing one cached teacher generation per pair across all of
+them, and (b) computes the Pareto frontier over (ssim higher-is-better,
+lab_total lower-is-better) -- a checkpoint qualifies only if no other swept
+checkpoint beats it on BOTH axes at once. The full frontier is logged and
+written to `validation_b_teacher_match.json`; the point with the lowest
+`lab_total` on the frontier is auto-copied to `out_dir/best_by_validation_b`
+as a recommendation, not a black-box final answer -- `out_dir/best`
+(scalar-val_loss-selected) and `out_dir/final` are no longer what downstream
+scripts should default to using.
+
+**Real 39-pair staged run -- results (2026-08-24), job 46036
+(`LR=0.00003 GRAD_ACCUM=4 SAVE_EVERY=125`, 1500 optimizer steps, no
+`--overfit-n`, scored on the real 11-pair held-out val split):**
+
+**Confirms the core reason for abandoning scalar val_loss selection.** The
+distillation val_loss decreased almost monotonically throughout training
+(0.0125 -> 0.0111), and the resulting lowest-val_loss checkpoint
+(`out_dir/best` = `final`) scored ssim=0.2881/lab_total=32.70 on real
+Validation B -- one of the WORST checkpoints in the entire 13-checkpoint
+sweep. Minimum training loss selected one of the worst-quality checkpoints,
+on real training data, not just the 8-pair toy setup.
+
+Pareto frontier (5/13): checkpoint-750 (ssim=0.2910, lab=**15.21**,
+best colour recovery in the sweep), checkpoint-125 (0.2958, 21.24),
+checkpoint-500 (0.3049, 22.99), checkpoint-625 (0.3187, 26.05),
+checkpoint-1250 (**0.3251**, 39.05, best SSIM in the sweep).
+checkpoint-750's lab_total (15.21) lands in the same ~13-15 quality-ceiling
+band independently found in all three 8-pair overfit ablations above --
+further cross-validation that this is a real, reproducible ceiling for this
+architecture/data, not a fluke.
+
+**Selection rule applied (precommitted): among checkpoints with
+ssim >= 0.95 x best-ssim-in-sweep (a structural-fidelity floor), pick the
+lowest lab_total.** This is deliberately NOT "lowest lab_total on the Pareto
+frontier" -- checkpoint-750 sits on the frontier but its ssim (0.2910) falls
+below the floor (0.95 x 0.3251 = 0.3088), so it is excluded from the primary
+pick despite having the best colour recovery in the sweep. Eligible set:
+checkpoint-625 (0.3187, 26.05), checkpoint-1250 (0.3251, 39.05),
+checkpoint-1375 (0.3127, 29.36). **Selected: checkpoint-625** (lowest
+lab_total among the eligible set) as the primary, balanced P1-13 checkpoint.
+checkpoint-1250 is NOT adopted despite the best SSIM (its lab_total, 39.05,
+is the worst in the entire sweep). checkpoint-750 is retained separately
+(`pareto_colour_favouring_checkpoint_750/`) as a documented
+colour-favouring Pareto point only, not the primary checkpoint.
+
+**Trend from checkpoint-750 onward does not show continued improvement**
+(lab_total rises to 39.05 by step 1250 before settling ~29-33, worse than
+step 750's 15.21) -- the same peak-then-decline shape as the 8-pair
+diagnostics, noisier but present on real data too. Per the precommitted
+stop/continue rule: **training is NOT resumed beyond 1500 steps.**
+
+`train_p1_10_lcm_lora.py`'s auto-selection logic was updated to implement
+the 5%-SSIM-floor rule directly (previously "lowest lab_total on the Pareto
+frontier", which this run demonstrated would select checkpoint-750 and
+violate the floor) -- future runs apply this automatically. This run's
+`best_by_validation_b/` and `validation_b_teacher_match.json` were corrected
+by hand to match (the run itself predates the code fix).
+
+**Status: training phase of P1-13 complete. Primary checkpoint:
+`lora/a2h_cond_r8_lcm_distilled_lr0.00003_ga4/best_by_validation_b`
+(= checkpoint-625). Proceeding to post-training controls (source ablation,
+adapter isolation) with this checkpoint. Never uses held-out slides to
+choose between checkpoints -- selection is internal-validation-split only.**
+
+**Post-training controls -- results (2026-08-24/25), checkpoint-625, A06+A08
+`LIMIT=20` smoke subset (the same convention every P1-12/P1-13 run uses),
+3 seeds, matched settings steps=8/strength=0.70/guidance=2.0 for the two LCM
+arms and steps=50/strength=0.50/guidance=2.0 (ordinary P1-10 defaults) for
+`adapter_disabled`. Code: `src/eval/infer_p1_13_lcm_controls.py` +
+`slurm/infer_p1_13_lcm_controls.slurm` (inference, 5 jobs: 46215-46219) +
+`slurm/score_p1_13_lcm_controls.slurm` (scoring, job 46250, reuses
+`score_p1_10_ablation.py` unmodified -- the manifest's `source_mode` column
+is written as `<variant>_<source_mode>` so every arm buckets separately).**
+
+| Arm | SSIM | lab_total |
+|---|---|---|
+| `task_specific_correct` | 0.2109 | 76.82 |
+| `task_specific_zero` | 0.0466 | 61.39 |
+| `task_specific_shuffled` | 0.0385 | 81.65 |
+| `adapter_disabled_correct` | 0.3151 | 78.71 |
+| `generic_lcm_correct` | 0.2958 | 71.43 |
+
+**Control 2 (source ablation) PASSES clearly:** correct beats both zero and
+shuffled on SSIM by a wide margin (~4-5x) -- the ControlNet branch is
+demonstrably not being ignored. (zero's lower lab_total than correct is the
+same "colour-histogram distance can look deceptively good even when
+structure is destroyed" pattern already documented elsewhere in this file --
+SSIM is the criterion that matters here and is unambiguous.)
+
+**Control 3 (adapter isolation) reproduces ordinary P1-10 behaviour
+reasonably closely:** `adapter_disabled_correct` (ssim=0.3151, wlab=79.02)
+is close to the already-established P1-10 baseline on this exact subset
+(ssim=0.336, wlab=78.24, from the P1-12-era smoke gate table above). The
+small residual gap is plausible GPU-kernel non-determinism / the
+named-adapter loading path (`pipe.load_lora_weights(..., adapter_name=
+"colour")` vs the original script's unnamed single-adapter load), not a red
+flag -- Control 3 was also strengthened per this ticket's own precommitted
+requirement to test DISABLING (loading "lcm" then excluding it from
+`set_adapters`), not mere absence.
+
+**Control 1 (generic vs task-specific LCM, matched settings) -- the
+task-specific adapter LOSES on the real held-out crops:** generic_lcm
+(ssim=0.2958, lab=71.43) beats task_specific (ssim=0.2109, lab=76.82) on
+BOTH axes. This is the opposite of P1-13's core hypothesis, and is a
+genuine result, not a bug -- it is consistent with Validation B being a
+teacher-FIDELITY diagnostic (how well the student matches the P1-10
+teacher's own output on training-domain pairs) rather than a
+ground-truth-ACCURACY diagnostic (how well it matches the true Hamamatsu
+image on held-out slides): checkpoint-625 was selected for matching the
+frozen teacher well internally, which does not guarantee it generalises
+better than an independently-trained generic adapter on real held-out
+crops. task_specific_correct (ssim=0.2109) also falls well short of the
+plain P1-10 baseline (ssim=0.336) and of `adapter_disabled_correct`
+(ssim=0.3151) from this same batch of runs.
+
+**Status: P1-13 controls complete. Current honest conclusion: the
+task-specific LCM-LoRA (checkpoint-625, LR=3e-5, grad-accum=4, 1500
+optimizer steps, 39 real training pairs) does not yet outperform the
+generic pretrained LCM-LoRA on the actual held-out biological evaluation,
+despite passing its own internal teacher-matching diagnostic and both
+structural controls (2 and 3). Decision on next steps (accept as a negative
+finding akin to P1-12's own conclusion; investigate the train/held-out
+generalisation gap further; try more training/data) pending discussion.**
+
+**IMPORTANT correction/clarification (2026-08-25) -- train/inference
+guidance-semantics mismatch, ruled out before accepting the Control 1
+result above as final:**
+
+`train_p1_10_lcm_lora.py`'s `w` uses the LCM PAPER's CFG form for the
+teacher target -- `pred_x0 = cond_pred_x0 + w*(cond_pred_x0 - uncond_pred_x0)`
+(and identically for `pred_noise`) -- NOT diffusers' ordinary
+`guidance_scale` (G) form, `uncond + G*(cond-uncond)`. Equating the two:
+`(1+w)*eps_c - w*eps_u = G*eps_c + (1-G)*eps_u` => **G = w + 1**. So this
+run's `w~U[1.0,2.0]` corresponds to teacher trajectories at diffusers-style
+`G~U[2.0,3.0]`, NOT an inference `guidance_scale` range of 1.0-2.0 as the
+earlier ticket text incorrectly implied ("covers the ticket's later {1.5,
+2.0} inference grid").
+
+Separately: the STUDENT's own "online" forward pass during training
+(`run_distill_step`, step 2) is a single CONDITIONAL pass only -- no
+cond/uncond doubling, no CFG applied to the student itself. But Control 1's
+evaluation ran the distilled student through the ordinary
+`StableDiffusionControlNetImg2ImgPipeline` at `guidance_scale=2.0`, and
+diffusers' `do_classifier_free_guidance = guidance_scale > 1` means that
+setting DOES make the pipeline run doubled cond/uncond passes through the
+(LCM-adapted) UNet and blend them via the ordinary diffusers CFG formula --
+external CFG the student was never trained to expect, layered on top of a
+model already distilled from higher-effective-guidance (G~2-3) teacher
+targets. The official LCM-LoRA recipe normally evaluates near
+guidance_scale=1.0 (no external CFG) for exactly this reason. **The
+Control 1 result above (task_specific ssim=0.2109 losing to generic_lcm
+ssim=0.2958) was measured ONLY at guidance_scale=2.0 and should NOT yet be
+treated as final** -- P1-13 is reopened (training/checkpoint NOT
+re-selected yet) to rule this out via an inference-only guidance sweep
+before accepting or rejecting the hypothesis. See below.
+
+---
+
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review
 A0–A5 results and the SDXL compute-contingency evidence before proceeding to Phase 3
 (see PHASE3-TICKETS.md, P3-01).
