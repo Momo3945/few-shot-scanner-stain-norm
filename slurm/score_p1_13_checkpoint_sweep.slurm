@@ -41,7 +41,7 @@ source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
 conda activate stainnorm
 if ! python -c "import transformers, peft, accelerate, safetensors, diffusers, cv2, skimage" 2>/dev/null; then
     echo "Installing missing Python deps..."
-    pip install --quiet transformers peft accelerate safetensors diffusers opencv-python-headless scikit-image
+    pip install --quiet diffusers==0.39.0 transformers==5.14.1 peft==0.19.1 accelerate==1.14.0 safetensors==0.8.0 opencv-python-headless scikit-image
 fi
 
 echo "=================================================================="

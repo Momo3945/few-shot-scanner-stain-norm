@@ -24,12 +24,17 @@ weights): at N inference steps, img2img strength s selects
 floor(N*s) real denoising steps -- at N=4 this collided (0.30 and 0.40 both
 resolved to 1 real step), so N=8 is the default here too, not 4.
 
-Manifest schema matches infer_colour_lora.py's strength-shaped output
-EXACTLY (strength, slide, frame, x, y, output_path, reference_path,
-aperio_path) -- NOT the source_mode-shaped schema infer_colour_translation.py/
-infer_colour_source_ddim_inversion.py use. This means the existing,
-unmodified score_outputs.py (via score_outputs.slurm) scores this directly;
-no new scorer needed.
+Manifest schema matches infer_colour_lora.py's strength-shaped output, plus
+one added "seed" column (strength, seed, slide, frame, x, y, output_path,
+reference_path, aperio_path) -- NOT the source_mode-shaped schema
+infer_colour_translation.py/infer_colour_source_ddim_inversion.py use. This
+means the existing, unmodified score_outputs.py (via score_outputs.slurm)
+still scores this directly (it reads the manifest by column name via
+csv.DictReader, so the extra column is inert there); no new scorer needed.
+Each nominal --seeds value is combined with the per-crop tag via a SHA-256
+hash (seed_for(), matching infer_p1_13_lcm_controls.py's convention) before
+use, so even the single default seed gets an independent noise draw per
+crop instead of repeating one fixed noise realization across every crop.
 
 Usage
 -----
@@ -46,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import os
 from pathlib import Path
 
@@ -79,7 +85,11 @@ def parse_args():
     ap.add_argument("--ecc-min", type=float, default=0.30)
     ap.add_argument("--limit", type=int, default=0, help="Max held-out frames (0 = all).")
     ap.add_argument("--max-crops-per-frame", type=int, default=4, help="0 = all tissue crops.")
-    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--seeds", type=int, nargs="+", default=[0],
+                    help="Each nominal seed value is combined with the per-crop tag via a "
+                         "SHA-256 hash (seed_for()) before use, so even a single default seed "
+                         "gets an independent noise draw per crop instead of literally "
+                         "repeating one fixed noise realization across every crop.")
     ap.add_argument("--online", action="store_true")
     return ap.parse_args()
 
@@ -147,6 +157,10 @@ def main():
         canny_t = torch.from_numpy(canny.astype(np.float32) / 255.0).permute(2, 0, 1)
         return torch.cat([rgb_t, canny_t], dim=0).unsqueeze(0)  # 1x6xHxW, [0,1]
 
+    def seed_for(pair_key: str, seed: int) -> int:
+        h = hashlib.sha256(f"{pair_key}|{seed}".encode()).hexdigest()
+        return int(h[:8], 16)
+
     with open(args.heldout, newline="") as fh:
         rows = list(csv.DictReader(fh))
     if args.limit:
@@ -158,7 +172,7 @@ def main():
     man_path = out_dir / "eval_manifest.csv"
     man = open(man_path, "w", newline="")
     mw = csv.writer(man)
-    mw.writerow(["strength", "slide", "frame", "x", "y",
+    mw.writerow(["strength", "seed", "slide", "frame", "x", "y",
                 "output_path", "reference_path", "aperio_path"])
 
     n_out = 0
@@ -188,23 +202,25 @@ def main():
                 control_tensor = build_control_tensor(src_c)
 
                 for s in args.strengths:
-                    gen = torch.Generator(device=device).manual_seed(args.seed)
-                    out = pipe(prompt=args.prompt, image=Image.fromarray(src_c), strength=float(s),
-                              num_inference_steps=args.steps, guidance_scale=args.guidance,
-                              control_image=control_tensor, controlnet_conditioning_scale=args.controlnet_scale,
-                              generator=gen).images[0]
-                    out_path = out_dir / "outputs" / f"{tag}_s{s:.2f}.png"
-                    out.save(out_path)
-                    mw.writerow([f"{s:.2f}", r["aperio_slide"], r["frame_id"], x, y,
-                                os.path.relpath(out_path, out_dir),
-                                os.path.relpath(ref_path, out_dir),
-                                r["aperio_path"]])
-                    n_out += 1
+                    for seed in args.seeds:
+                        seed_val = seed_for(tag, seed)
+                        gen = torch.Generator(device=device).manual_seed(seed_val)
+                        out = pipe(prompt=args.prompt, image=Image.fromarray(src_c), strength=float(s),
+                                  num_inference_steps=args.steps, guidance_scale=args.guidance,
+                                  control_image=control_tensor, controlnet_conditioning_scale=args.controlnet_scale,
+                                  generator=gen).images[0]
+                        out_path = out_dir / "outputs" / f"{tag}_s{s:.2f}_seed{seed}.png"
+                        out.save(out_path)
+                        mw.writerow([f"{s:.2f}", seed, r["aperio_slide"], r["frame_id"], x, y,
+                                    os.path.relpath(out_path, out_dir),
+                                    os.path.relpath(ref_path, out_dir),
+                                    r["aperio_path"]])
+                        n_out += 1
                 crops_done += 1
-        print(f"  {r['aperio_slide']}_{r['frame_id']}: {crops_done} crops x {len(args.strengths)} strengths")
+        print(f"  {r['aperio_slide']}_{r['frame_id']}: {crops_done} crops x {len(args.strengths)} strengths x {len(args.seeds)} seed(s)")
 
     man.close()
-    print(f"\nWrote {n_out} output crops across strengths {args.strengths}.")
+    print(f"\nWrote {n_out} output crops across strengths {args.strengths}, seeds {args.seeds}.")
     print(f"Manifest: {man_path}")
     print("Next: score with score_outputs.py (unmodified) -- schema matches infer_colour_lora.py exactly.")
 

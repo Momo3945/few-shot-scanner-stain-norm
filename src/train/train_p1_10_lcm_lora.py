@@ -777,8 +777,13 @@ def main():
         # Teacher: P1-10's own quality defaults (infer_colour_translation.py's
         # --steps 50/--strength 0.50/--guidance 2.0), generated ONCE per pair
         # and reused across every checkpoint (the teacher never changes).
-        # Student op point matches job 45650 (P1-12's closing test), so
-        # results are directly comparable to that already-recorded run.
+        # Student op point: guidance=1.0 (no external CFG) -- the student is
+        # trained with a single conditional forward pass only (see
+        # run_distill_step: no w-embedding fed to the UNet), so any
+        # guidance_scale > 1.0 here would trigger diffusers' internal
+        # cond/uncond doubling on a model never trained to expect it. See
+        # tickets/PHASE1-TICKETS.md P1-13 "train/inference guidance-semantics
+        # mismatch" note. NOT job 45650's op point (that predates this fix).
         teacher_outputs, control_tensors = [], []
         for p in diag_pairs:
             src_rgb = np.asarray(Image.open(p["aperio_path"]).convert("RGB"))
@@ -805,7 +810,7 @@ def main():
                 gen = torch.Generator(device=device).manual_seed(0)
                 student_out = np.asarray(eval_pipe(
                     prompt=args.prompt, image=Image.fromarray(src_rgb), strength=0.70,
-                    num_inference_steps=8, guidance_scale=2.0,
+                    num_inference_steps=8, guidance_scale=1.0,
                     control_image=control_tensor, generator=gen).images[0])
                 diag_scores.append(score_aligned_pair(student_out, teacher_out))
             keys = diag_scores[0].keys()

@@ -111,7 +111,12 @@ def parse_args():
     ap.add_argument("--strength", type=float, default=None,
                     help="Defaults: 0.70 for task_specific/generic_lcm, 0.50 for "
                          "adapter_disabled (matches infer_colour_translation.py's own default).")
-    ap.add_argument("--guidance", type=float, default=2.0)
+    ap.add_argument("--guidance", type=float, default=None,
+                    help="Defaults: 2.0 for adapter_disabled (ordinary DDIM-quality CFG), "
+                         "1.0 for task_specific/generic_lcm (no external CFG -- the LCM "
+                         "student/adapter is never trained to expect diffusers' internal "
+                         "cond/uncond doubling that guidance_scale > 1.0 triggers; see "
+                         "tickets/PHASE1-TICKETS.md P1-13 guidance-semantics mismatch note).")
     ap.add_argument("--prompt", default="H&E stained histopathology tissue")
     ap.add_argument("--crop", type=int, default=512)
     ap.add_argument("--tissue-thresh", type=float, default=0.30)
@@ -137,6 +142,8 @@ def main():
         args.steps = 50 if args.variant == "adapter_disabled" else 8
     if args.strength is None:
         args.strength = 0.50 if args.variant == "adapter_disabled" else 0.70
+    if args.guidance is None:
+        args.guidance = 2.0 if args.variant == "adapter_disabled" else 1.0
     controlnet_dir = args.controlnet or str(Path(args.lora) / "controlnet")
 
     using_pairs_dir = bool(args.pairs_dir)

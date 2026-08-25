@@ -88,7 +88,7 @@ python infer_colour_translation_lcm.py \
     --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
     --strengths ${STRENGTHS} \
     --steps "${STEPS}" --guidance "${GUIDANCE}" \
-    --limit "${LIMIT}" --max-crops-per-frame 4 --seed 0
+    --limit "${LIMIT}" --max-crops-per-frame 4 --seeds 0
 
 echo "------------------------------------------------------------------"
 echo "Inference done. Outputs + eval_manifest.csv in ${OUT_DIR}"
