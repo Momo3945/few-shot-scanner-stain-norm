@@ -392,6 +392,254 @@ it's a fundamentally different result from SD1.5's A5:
   classical baselines on structure (0.526 vs 0.628–0.681), still
   colour-negative on every slide.
 
+## P3-06 — Transfer P1-10 (source-conditioned colour LoRA + fresh ControlNet) to SDXL
+**Status:** 🔄 IN PROGRESS (2026-08-23).
+**Source:** `sec:phase3_sdxl`'s "transfer the best-performing SD1.5 configuration"
+principle — P3-03/P3-05 transferred A4/A5 because those were the best SD1.5
+configs *when Phase 3 started*. Since then, `tickets/PHASE1-TICKETS.md` P1-10
+(colour LoRA trained jointly with a fresh, trainable 6-channel
+source-conditioning ControlNet, so the source image genuinely participates in
+training, not just the img2img starting latent) + P1-11 (DDIM-inversion
+inference on top of P1-10) have become the actual best SD1.5 result in the
+project (SSIM 0.4960/0.4485, positive colour recovery on every held-out
+slide) — clearly ahead of A4-SD1.5 and of A4/A5-SDXL's negative-colour-drift
+finding (P3-04). This ticket transfers that architecture, not A4/A5 again.
+
+**Scope: P1-10 only** (colour LoRA + fresh source-conditioned ControlNet,
+plain 50-step DDIM, A2H direction only — H2A stays out of scope, matching
+P3-03/P3-05's own descope). P1-11's DDIM-inversion-on-SDXL is a separate,
+later ticket (P3-07, not started), once this base transfer is validated.
+
+**Design (forks and merges this project's own already-validated SDXL-port and
+source-conditioning patterns — no novel SDXL plumbing):**
+- SDXL adaptation recipe from `src/train/train_colour_lora_sdxl.py` (P3-03):
+  dual tokenizers/text encoders concatenated for `encoder_hidden_states`,
+  `text_encoder_2` pooled output + `add_time_ids` for `added_cond_kwargs`,
+  VAE forced fp32 kept outside the autocast region (SDXL's official VAE NaNs
+  under fp16 — never "fix" this back), `unet.enable_gradient_checkpointing()`,
+  `StableDiffusionXLPipeline.save_lora_weights` for checkpointing.
+- Source-conditioning recipe from `src/train/train_colour_translation_lora.py`
+  (P1-10, SD1.5): `ControlNetModel.from_unet(unet, conditioning_channels=6)`
+  (fresh, zero-initialised conditioning encoder + zero-conv output layers;
+  only these + the LoRA are trainable, the cloned backbone stays frozen),
+  6-channel source-RGB+Canny conditioning tensor (`canny.
+  extract_canny_control_image`), conditioning-only spatial jitter, leak-checked
+  `build_pairs()` (A03/H03 only), leave-one-frame-out val split with
+  best-val-loss checkpoint selection.
+- SDXL inference-side recipe from `src/eval/infer_colour_lora_sdxl.py`
+  (P3-03): fp32 `AutoencoderKL` passed into
+  `StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(...,
+  vae=vae_fp32, torch_dtype=torch.float16)` — the pipeline call handles
+  dual-encoder prompt embedding internally at inference (unlike training).
+- Ablation controls from `src/eval/infer_colour_translation.py` (P1-10,
+  SD1.5): `--source-mode {correct,zero,shuffled}`, `--vae-only` floor
+  control, the exact 6-channel control-tensor construction (must match
+  training bit-for-bit), hash-derived per-crop seed protocol.
+
+**New files:**
+- `src/train/train_colour_translation_lora_sdxl.py` -- merge point requiring
+  genuinely new wiring (not copy-paste from either parent): `run_step()`'s
+  `controlnet(...)` AND `unet(...)` calls both need
+  `added_cond_kwargs={"text_embeds": pooled, "time_ids": time_ids}` (P1-10's
+  SD1.5 script passes neither; P3-03's SDXL script passes it to `unet()` only,
+  no ControlNet to also thread it through). Checkpoints ->
+  `lora/a2h_cond_r8_sdxl/` (new, isolated namespace).
+- `src/eval/infer_colour_translation_sdxl.py` -- manifest schema unchanged
+  (`seed, source_mode, crop_id, slide, frame, x, y, output_path,
+  reference_path, aperio_path`), so `score_p1_10_ablation.py` scores it with
+  zero changes. Output -> `eval/a2h_cond_r8_sdxl/`.
+- `slurm/train_colour_translation_lora_sdxl.slurm`,
+  `slurm/infer_colour_translation_sdxl.slurm` -- mirror the existing SD1.5
+  launchers' conventions (bigbatch, fail-fast CUDA guard, bad-node
+  `--exclude` reminder, mandatory smoke -> overfit-8 -> ablation staging
+  before any real run).
+
+**Not touched:** `train_colour_translation_lora.py`, `infer_colour_translation.py`,
+`train_colour_lora_sdxl.py`, `infer_colour_lora_sdxl.py` (all four stay exactly
+as validated), `score_outputs.py`/`score_p1_10_ablation.py` (already confirmed
+resolution/backbone-agnostic), every existing checkpoint/eval directory.
+
+**Implementation (2026-08-23):** `src/train/train_colour_translation_lora_sdxl.py`,
+`src/eval/infer_colour_translation_sdxl.py`,
+`slurm/train_colour_translation_lora_sdxl.slurm`,
+`slurm/infer_colour_translation_sdxl.slurm` written per the design above.
+Local verification passed: `python -m py_compile` clean on both new scripts,
+`--help` on both confirms every intended flag/default present, `bash -n` clean
+on both new launchers. Synced to the cluster (2026-08-23/24).
+
+**Smoke test (2026-08-24), job 45773, `mscluster50`, COMPLETED 01:34.**
+Confirms the one genuinely new wiring point: SDXL's `ControlNetModel.forward`
+accepts `added_cond_kwargs={"text_embeds", "time_ids"}` on this diffusers
+version (0.39.0) exactly like `UNet2DConditionModel.forward` does -- no
+error, 5 steps ran cleanly, finite loss throughout (0.0699/0.3450/0.4711/
+0.0061/0.2327, no NaNs), val_loss 0.0882, checkpoint (LoRA + ControlNet)
+saved to `lora/a2h_cond_r8_sdxl/final` and `/best`. Params: LoRA (rank 8)
+11,612,160 trainable; ControlNet 7,647,552 trainable (conditioning encoder +
+zero-conv output layers) / 1,243,367,040 frozen (cloned SDXL UNet backbone) --
+proportionally similar split to P1-10's SD1.5 ControlNet, scaled to SDXL's
+larger UNet. Only stderr output: a harmless `torch.cuda.amp.GradScaler`
+deprecation warning (scaler is disabled anyway under the bf16 default).
+5-step smoke ran in ~14s -- SDXL+ControlNet step time is not yet
+representative of the real training-run pace; will re-check from the
+overfit-8 control's timing before setting the full run's `--time`.
+
+**Overfit-8 control, 300 steps (2026-08-24), job 45845, `mscluster82`,
+COMPLETED 5:18.** Mechanics correct, no NaN, checkpoint saved. Loss did not
+show a clear downward trend (0.15-0.22 range throughout) -- **this exact
+pattern already has precedent**: P1-10's own SD1.5 overfit-8 control at 300
+steps (job 44309) showed the identical flat 0.15-0.26 range and was
+diagnosed as under-training, not a broken mechanism (ControlNet's
+zero-initialised layers start at literally zero output and need more than
+300 steps on 8 pairs to develop measurable influence -- see
+`tickets/PHASE1-TICKETS.md` P1-10). Extending to 2000 steps (SD1.5's job
+44381) resolved it there: a real downward trend appeared and the
+source-conditioning ablation then passed decisively. Applying the same fix
+here before running the ablation control at 300 steps, which would likely
+fail for the same under-training reason rather than a genuine SDXL-specific
+problem.
+
+**Extended overfit-8 control, 2000 steps (2026-08-24), job 45952,
+`mscluster53`, COMPLETED 36:24.** No NaNs, checkpoints saved at 250-step
+intervals plus final. Loss trend (first-20% mean 0.1792 vs last-20% mean
+0.1507, ~16% reduction) is real but noticeably **milder** than SD1.5's own
+extended overfit test (job 44381: roughly halved, 0.19-0.26 -> 0.09-0.18) --
+plausibly slower ControlNet learning nested inside SDXL's much larger
+(~3x) UNet at the same LR/step count, or just noisier on 8 pairs. Per this
+project's own standing guardrail, per-step diffusion loss is not a success
+signal either way -- the actual mandatory control is the source-conditioning
+ablation (`correct` must beat `zero`/`shuffled` on structural/content
+metrics), same as SD1.5's resolution. Proceeding to that ablation on this
+2000-step checkpoint next, rather than reading the milder loss trend as a
+verdict on its own.
+
+**Source-conditioning ablation -- PASSES (2026-08-24), jobs 46004/46005/46006
+(infer, `correct`/`zero`/`shuffled`, all COMPLETED, 24 crops each) + job
+46018 (score, `score_p3_06_ablation.slurm` -- new one-off scorer, output
+dirs sit directly under `eval/`, not the `eval/p1_10_ddim_inversion/<tag>`
+convention `score_p1_10_ddim_inversion.slurm` assumes; first attempt, job
+46015, reused that script and correctly found 0 rows against the wrong
+path):**
+
+| mode | SSIM (mean ± spread across 3 seeds) | LAB total |
+|---|---|---|
+| **correct** | **0.1554 ± 0.0039** | **25.04** |
+| zero | 0.0658 ± 0.0010 | 38.22 |
+| shuffled | 0.0543 ± 0.0017 | 33.93 |
+
+Paired win-rate: `correct` wins 6/8 crops vs `zero`. `correct` beats both
+controls by >2x on SSIM, far past the ~0.004 seed-to-seed noise floor, and
+LAB is clearly lowest too -- decisive separation, the ControlNet branch is
+genuinely being used, not ignored. **Remarkably close to SD1.5's own P1-10
+2000-step ablation result** (`tickets/PHASE1-TICKETS.md` P1-10: correct SSIM
+0.1466/LAB 23.95, zero SSIM 0.0620/LAB 37.24, shuffled SSIM 0.0467/LAB
+27.50) -- SDXL's `correct` SSIM (0.1554) is even marginally higher. The
+milder loss-curve trend noted above did not translate into a weaker
+mechanism; confirms the "loss curve is not a success signal, ablation
+separation is" reading. **P3-06's core mechanism is validated on the
+overfit-8 set.**
+
+**Full training run submitted (2026-08-24), job 46025.** All 50 A03/H03
+pairs (39 train / 11 val, matching P1-10's SD1.5 split exactly), rank 8,
+4000 steps -- same step count as P1-10's real run (job 44445) for direct
+comparability. `--time=03:00:00`, extrapolated from the extended overfit
+run's measured ~1.07s/step (job 45952: 2000 steps in 2170.8s) plus periodic
+checkpoint-save overhead -- ~85min central estimate, doubled for margin
+after job 44858's earlier TIMEOUT lesson (see `tickets/PHASE1-TICKETS.md`
+P1-11) that estimates can run optimistic.
+
+**COMPLETED (2026-08-24), `mscluster43`, ~80:20 wall time.** Val loss
+converges cleanly and near-monotonically: 0.0853 -> 0.0852 -> 0.0814 ->
+0.0802 -> 0.0757 -> 0.0736 -> 0.0756 -> 0.0713 -> 0.0705 -> 0.0701 -> 0.0694
+-> 0.0696 -> 0.0689 -> **0.0676 -> 0.0676 -> 0.0671 (best, final step)** --
+same clean-convergence pattern P1-10's SD1.5 full run showed (vs. the
+noisier overfit-8 plateau), consistent with the model having genuine
+diverse signal to learn from rather than memorising 8 pairs. Plateaus
+somewhat higher than SD1.5's equivalent (0.0671 vs 0.0482) -- not
+comparable in absolute terms across backbones/resolutions, noted for the
+record only. `lora/a2h_cond_r8_sdxl/best` saved (== `final` here, best
+val_loss landed on the last step).
+
+**Held-out inference smoke test (2026-08-24), job 46190 (infer, `mscluster`,
+COMPLETED, 96 crops = 32 locations x 3 seeds) + job 46214 (score, new
+generic `score_p3_06.slurm`, COMPLETED)**, on `lora/a2h_cond_r8_sdxl/best`,
+strength 0.50, 50-step DDIM (script defaults, matching P1-10's own mandated
+staged-rollout operating point). `LIMIT=8` grabbed only A06 frames (first in
+`heldout_frames.csv`) -- **A06-only, the confirmed colour-gap outlier, small
+sample** -- read with that caveat, not a real multi-slide result:
+
+| | SD1.5 P1-10, A06 (full 179-crop, job 44542) | SDXL P3-06, A06 (smoke, 96-crop) |
+|---|---|---|
+| SSIM | 0.3067 | **0.2661** (lower) |
+| LAB recovery Δlab | not isolated per-slide in the SD1.5 write-up | wlab_mean 91.44 vs baseline_summary.csv's A06 raw 94.92 -> **+3.48** (positive) |
+
+SDXL's structural fidelity on A06 trails SD1.5's at the same operating
+point; colour recovery looks genuinely positive but isn't directly
+comparable (no equivalent SD1.5 A06-only figure on record). Single small
+sample on the one known outlier slide -- not yet a verdict.
+
+**Full held-out inference submitted (2026-08-24), job 46226.** All 5 slides,
+496 crops x 3 seeds = 1488 outputs, `correct` source-mode, strength 0.50,
+50-step DDIM, on `lora/a2h_cond_r8_sdxl/best`. User opted to proceed
+straight to the full run rather than an intermediate A08-only smoke check
+(A06 vs typical-slide divergence risk noted and accepted, not investigated
+further first). `--time=06:00:00`, extrapolated from job 46190's measured
+~9.4s/crop (00:17:58 for 96 crops, minus ~2-3min load/registration overhead)
+-> ~4hr central estimate for 1488 crops, extra margin given job 44858's
+earlier SD1.5 TIMEOUT lesson. **COMPLETED (2026-08-24/25), `mscluster`, 02:33:51.** Scored via job 46360
+(`score_p3_06.slurm full_heldout p3_06_full_heldout`, `score_p1_10_ablation.py`)
++ job 46370 (`aggregate_p3_06_full.slurm`, the existing unmodified
+`aggregate_p1_10_full.py` -- confirmed fully generic over backbone,
+zero changes needed, same as it already was for SD1.5).
+
+**Final SDXL-vs-SD1.5 comparison, same operating point (strength 0.50,
+50-step DDIM, `correct` source-mode, 496 crops x 3 seeds both sides):**
+
+| | SD1.5 P1-10 (job 44542) | SDXL P3-06 (job 46226) |
+|---|---|---|
+| ALL SSIM | **0.4485** | 0.3920 |
+| ALL wLAB | 31.60 | 33.04 |
+| ALL_excl_outliers SSIM | **0.4695** | 0.4120 |
+| ALL_excl_outliers wLAB | 22.81 | 24.24 |
+| Recovery Δlab (pooled) | **+2.89** | +1.22 |
+| Recovery Δlab (excl outliers) | -- | +1.61 |
+| A06 SSIM (outlier) | 0.3067 | 0.2567 |
+| A08 SSIM | 0.4815 | 0.4101 |
+| A09 SSIM | 0.4175 | 0.3718 |
+| A13 SSIM | 0.4581 | 0.4041 |
+| A16 SSIM | 0.4968 | 0.4406 |
+
+**Verdict: SDXL underperforms SD1.5 on this exact same P1-10 architecture.**
+Every single slide's SSIM is lower on SDXL, not just the pooled figure --
+this is a real, consistent structural-fidelity gap, not an artefact of one
+outlier slide. Colour recovery is positive on every slide on SDXL too
+(A06 +2.70, A08 +1.74, A09 +1.03, A13 +2.31, A16 +1.58 -- no sign flips),
+confirming the source-conditioning mechanism genuinely transferred and
+works, consistent with the ablation pass above -- but the magnitude is
+meaningfully weaker than SD1.5's (+1.22 pooled vs +2.89, roughly 60% lower).
+
+**Reading, in context of this project's other SDXL findings:** this is a
+different, more nuanced result than A4-SDXL's (P3-04: colour recovery
+negative on every slide, a sign flip). P1-10's fresh, jointly-trained
+source-conditioning branch is more robust on SDXL than A4's pretrained-
+ControlNet-plus-LoRA approach was -- it does not break in the same way. But
+it is still not an improvement over SD1.5 at this operating point: bigger
+backbone does not mean better result here, consistent with SDXL's general
+underperformance pattern throughout this project (P3-04's A4 finding, and
+now this). **Open question, not yet checked**: SD1.5's own SSIM ceiling was
+shown to be capped by its VAE-only floor (0.5393, no denoising at all) --
+SDXL's equivalent VAE-only floor has not been measured for this ticket, so
+it's unknown whether SDXL's own VAE imposes a lower structural ceiling
+(which would partly explain the SSIM gap architecturally) or whether the
+gap is purely about how well the conditioning is learned. Not run without
+checking in first.
+
+**Status: P3-06 core transfer + comparison complete.** No untested
+strength/step sweep run yet (P1-10's own strength=0.50 was the mandated
+staged-rollout point, not a tuned optimum -- unclear whether SDXL has more
+headroom at another operating point, mirroring the open question left after
+P3-04's A4-SDXL strength sweep). P1-11-on-SDXL (DDIM inversion) remains
+out of scope for this ticket, per the original scope decision above.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or

@@ -827,6 +827,49 @@ at exactly 10:00:14 after finishing all 1488 outputs — reconstructed the
 lost manifest from output filenames, zero data lost): `tickets/
 PHASE1-TICKETS.md` P1-11.
 
+**Update (2026-08-25): P3-06 (transfer of P1-10's source-conditioned colour
+LoRA + fresh ControlNet to SDXL) is complete — the mechanism transfers
+cleanly, but SDXL underperforms SD1.5 on the actual held-out result.**
+P3-03/P3-05 had already transferred A4/A5 to SDXL, but P1-10 has since
+become the best SD1.5 result in this project (see the P1-10/P1-11 updates
+above), so this ticket transfers that architecture instead — a fresh,
+jointly-trained 6-channel (source RGB + Canny) ControlNet, not a pretrained
+one. New scripts (`train_colour_translation_lora_sdxl.py`,
+`infer_colour_translation_sdxl.py`) fork P1-10's source-conditioning recipe
+onto P3-03's SDXL machinery (dual text encoders, fp32 VAE, gradient
+checkpointing); the one genuinely new piece of wiring — SDXL's
+`ControlNetModel` needs `added_cond_kwargs` (pooled text embeds + micro-
+conditioning time ids) just like the UNet does — worked on the first smoke
+test with no errors.
+
+The mandatory source-conditioning ablation passed decisively on an
+overfit-8 checkpoint (`correct` SSIM 0.1554 vs `zero` 0.0658 / `shuffled`
+0.0543 — remarkably close to SD1.5's own equivalent ablation, correct SSIM
+0.1466), confirming the ControlNet branch is genuinely being used, not
+ignored. But the full 496-crop x 3-seed held-out result, at the same
+operating point both sides (strength 0.50, 50-step DDIM):
+
+| | SD1.5 P1-10 | SDXL P3-06 |
+|---|---|---|
+| ALL SSIM | **0.4485** | 0.3920 |
+| ALL_excl_outliers SSIM | **0.4695** | 0.4120 |
+| Recovery Δlab (pooled) | **+2.89** | +1.22 |
+| A06 / A08 / A09 / A13 / A16 SSIM | 0.307 / 0.482 / 0.418 / 0.458 / 0.497 | 0.257 / 0.410 / 0.372 / 0.404 / 0.441 |
+
+Every single slide's SSIM is lower on SDXL, and colour recovery — while
+positive on every slide, with no sign flip — is about 60% weaker than
+SD1.5's. This is a more encouraging result than A4-SDXL's (P3-04: colour
+recovery negative on every slide) — P1-10's fresh, jointly-trained
+conditioning branch doesn't break the way A4's pretrained-ControlNet
+approach did — but it's still not an improvement over SD1.5 at this
+operating point. Consistent with this project's broader SDXL pattern: bigger
+backbone has not yet beaten SD1.5 on this task at any tested configuration.
+Two open questions, not yet pursued: whether a different strength gives SDXL
+more headroom (0.50 was the mandated staged-rollout point, not tuned), and
+whether SDXL's own VAE-only floor is lower than SD1.5's 0.5393 (which would
+partly explain the SSIM gap architecturally rather than it being purely
+about conditioning quality). Full detail: `tickets/PHASE3-TICKETS.md` P3-06.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it
