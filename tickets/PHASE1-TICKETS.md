@@ -1980,6 +1980,88 @@ tight bootstrap CIs entirely above zero, and PSNR/MAE improving alongside
 SSIM rather than trading off against it. **Gate: OPEN -- proceeding to
 Stage B** (job 47232, submitted, results pending).
 
+*(Note, added while documenting P1-15: P1-14 subsequently ran to full
+closure -- Stage B held-out confirmation across all 5 held-out slides,
+qualitative panel, and a CLOSED/POSITIVE final status -- recorded in
+`tickets/P1-14_vae_reconstruction_benchmark.md`'s own status header. That
+narrative did not make it into this file's P1-14 section, most likely lost
+to the concurrent-session branch collisions logged elsewhere in this
+project's history; the per-slide Stage B table has not been reconstructed
+here to avoid fabricating numbers from memory. The ticket file itself is
+the authoritative record of that result until this section is backfilled.)*
+
+---
+
+## P1-15 — P1-11 with the Winning Alternate Decoder
+
+**Status:** 🔄 IN PROGRESS (2026-08-27). Task file:
+`tickets/P1-15_p1_11_alternate_decoder.md`.
+
+**Motivation:** P1-14 closed positive (`stabilityai/sd-vae-ft-mse` gives a
+consistent ~+0.04 absolute SSIM reconstruction-fidelity gain over the
+stock SD1.5 VAE, confirmed on 496 held-out crops, no obvious artifacts),
+opening this ticket's gate. Question: does decoding P1-11's existing
+DDIM-inversion translation with this reconstruction-superior VAE improve
+structural fidelity without sacrificing P1-11's colour recovery? P1-11 is
+the project's current best joint colour/structure result (ALL: SSIM
+0.4960, wLAB 26.01; ALL excl. A06: SSIM 0.5142, wLAB 18.92 -- job
+44858/45024).
+
+**Design constraint (Stage 1 = decoder-only swap):** stock SD1.5
+**encoder**, P1-10 frozen weights, P1-11's exact DDIM-inversion trajectory
+(`f=1.00`, correct source, same guidance/steps/seeds) all held fixed --
+only the final VAE decode call changes. The mandatory exact-latent A/B is
+built into every run: the reconstruction trajectory (invert -> reconstruct)
+runs exactly once per crop/seed, and the single resulting latent is decoded
+through BOTH decoders (never two separate denoising trajectories).
+
+**Code:** `src/eval/infer_colour_source_ddim_inversion_alt_decoder.py`
+(new, standalone -- does not edit `infer_colour_source_ddim_inversion.py`,
+P1-11's validated script), `slurm/infer_p1_11_alt_decoder.slurm`,
+`slurm/score_p1_15_alt_decoder.slurm` (reuses `score_p1_10_ablation.py`
+unmodified -- the manifest's `source_mode` column carries
+`"<source_mode>_<method>"`, e.g. `correct_stock_decoder` /
+`correct_alt_decoder`, so the scorer's existing per-mode aggregation and
+paired-win-rate logic directly answers the go/no-go gate).
+
+**Compatibility verification + exact-latent A/B sanity check (job 47308,
+COMPLETED, 4 crops x 1 seed):** both VAEs report identical
+`latent_channels=4`, `scaling_factor=0.18215`, `param_count=83653863` from
+the loaded configs (re-verified at this ticket's own startup, not trusted
+from P1-14 alone) -- confirmed a true drop-in swap. No NaN/Inf; both
+decoded outputs valid, non-trivial images (different file sizes between
+stock/alt confirm genuine divergence, not a no-op).
+
+**Stage 1 smoke test, `--source-mode correct`, A06+A08, seeds 0/1/2 (job
+47310, COMPLETED 00:43:21; scored by job 47331, COMPLETED 00:18:29 --
+80 crops x 3 seeds, 240 paired trajectories):**
+
+| Metric | stock_decoder | alt_decoder | Δ |
+|---|---|---|---|
+| SSIM | 0.4015 | **0.4658** | +0.0643 |
+| PSNR | 12.90 | **13.27** | +0.37 |
+| MAE | 48.16 | **46.81** | -1.35 |
+| LAB total | **62.73** | 65.29 | +2.56 (worse) |
+| windowed LAB | **63.41** | 65.74 | +2.33 (worse) |
+| dE2000 | 18.70 | **18.40** | -0.30 (slightly better) |
+
+Paired win-rate: **alt_decoder wins 80/80 crops on SSIM** -- a completely
+consistent structural improvement, corroborated by PSNR/MAE moving the
+same direction (not an artifact of one metric). Colour cost is real but
+modest (LAB total/windowed up ~2.5, dE2000 essentially flat/slightly
+better) -- the same "real but non-disqualifying" pattern P1-14 found for
+this decoder generally. **Gate: PASSES** (`SSIM_alt > SSIM_stock`, colour
+not materially degraded).
+
+**Source-conditioning sanity check, `--source-mode shuffled` (job 47337):**
+submitted, running as of this writing -- confirms the SSIM gain reflects
+genuine source-conditioned structure recovery, not the alt decoder simply
+smoothing over noise independent of the source signal. Not yet scored.
+
+**Not yet started:** full 496-crop x 3-seed evaluation (blocked on the
+shuffled sanity check + user go-ahead), per-slide reporting, qualitative
+panel, final closure.
+
 ---
 
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review
