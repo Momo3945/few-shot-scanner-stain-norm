@@ -830,6 +830,81 @@ unresolved finding. Next step (not yet started, needs explicit go-ahead) is
 either a strength sweep at 1024 to search for a colour-recovery-positive
 operating point, or accepting the trade-off and closing this ticket as-is.
 
+**Reopened (2026-08-27): -5.60 recovery is too systematic to close on.** Not
+treated as a broken implementation -- the source-conditioning ablation above
+already confirms the ControlNet branch is genuinely used at 1024 (correct
+24.32 / shuffled 34.39 / zero 62.13 LAB). The open question is *why* structure
+improves on every slide while colour recovery flips negative on every slide
+at the same time. Revised: the "smaller effective per-pixel change at
+strength=0.50 at higher resolution" idea in the working hypothesis above is
+NOT established -- the scheduler still uses the same nominal fraction of the
+denoising trajectory regardless of resolution -- and should not be assumed
+before D2/D3 below test it mechanistically.
+
+Diagnostic plan, in strict order, before any retraining, strength sweep,
+rank change, or pair-count change:
+
+- **D1 -- baseline/metric-artefact check.** `aggregate_p3_07_full.slurm` and
+  `aggregate_p3_06_full.slurm` both diff their model output against the SAME
+  `pairs/baseline_metrics/baseline_summary.csv`, which `score_baseline.slurm`
+  generates with a hardcoded `--crop 512` (metrics.py `run_baseline()`). So
+  P3-07's reported recovery is raw-Aperio-@512-vs-real-Hamamatsu-@512 MINUS
+  model-output-@1024-vs-real-Hamamatsu-@1024 -- a resolution-mismatched
+  baseline (this ticket's H5), not yet ruled out before the -5.60 figure was
+  first reported. New dedicated diagnostic script `src/eval/d1_verify_p3_07.py`
+  (+ `slurm/d1_verify_p3_07.slurm`, stampede, read-only) re-registers every
+  unique held-out frame P3-07's own `eval_manifest.csv` used and recomputes
+  the raw baseline at native 1024 crop size (same `register_h_to_a` +
+  `score_aligned_pair` calls `run_baseline()` uses, just crop=1024), then
+  reports recovery recomputed against that 1024-native baseline vs the
+  originally-reported 512-baseline recovery, per-slide and ALL, plus an
+  independent spot check on 10 random crops. **Submitted 2026-08-27, job
+  47277 (stampede, no positional args) -- COMPLETED.**
+
+  **D1 RESULT: H5 ruled out.** The 1024-native raw baseline is essentially
+  identical to the old 512 baseline, per-slide and pooled (ALL 34.18 @1024
+  vs 33.84 @512; A06 94.40 vs 94.84; A08 25.34 vs 25.28; A09 27.36 vs 27.49;
+  A13 26.70 vs 26.64; A16 23.75 vs 23.78 -- resolution has no material effect
+  on the raw-Aperio-vs-real-Hamamatsu LAB distance). Recovery recomputed
+  against the resolution-matched 1024 baseline is **-5.25 ALL** (vs -5.60
+  originally reported against the 512 baseline) -- same sign, same order of
+  magnitude, every slide still negative (A06 -3.91, A08 -5.47, A09 -6.76,
+  A13 -4.74, A16 -4.92). Reproducibility check passed exactly (495/495
+  recomputed registered-Hamamatsu crops matched the saved `reference/` PNGs,
+  MAE ≤ 1.0), so the independent recomputation is trustworthy. The 10-crop
+  manual spot check independently confirms the same sign on every single
+  sampled crop (raw always beats model, by 2.6 to 8.0 LAB). **Verdict: the
+  negative colour recovery is a real model effect, not a baseline/metric
+  artefact -- proceed to D2.**
+- **D2 -- colour-LoRA-disabled comparison** (highest-priority mechanistic
+  test, not yet started): same trained 1024 ControlNet + source conditioning
+  + SDXL base + 50-step DDIM + strength 0.50 + guidance 2.0, colour LoRA
+  DISABLED, on a balanced A06+A08 internal diagnostic (not A06 alone).
+  Distinguishes "frozen SDXL + source-conditioning path already drifts colour
+  negative and the LoRA is too weak to overcome it" from "the 1024 LoRA
+  itself learned the wrong mapping."
+- **D3 -- RGB vs Canny conditioning split** (inference-only, no retraining):
+  `rgb_canny` (existing) / `rgb_only` (zero Canny channels) / `canny_only`
+  (zero RGB channels), same balanced diagnostic set, same seeds. Tests
+  whether source-RGB conditioning is what's preserving Aperio scanner
+  appearance alongside morphology at native resolution.
+- **D4 -- small conditioning-balance sweep** (only after D1-D3, on internal
+  validation only, not the full held-out set): `controlnet_conditioning_scale`
+  in {0.25, 0.50, 0.75, 1.00} at fixed strength=0.50/steps=50/guidance=2.0;
+  optionally colour-LoRA scale in {1.0, 1.5} afterward.
+
+Working hypotheses (in priority order, none yet confirmed):
+H1 source-RGB conditioning too dominant at 1024, preserving Aperio colour as
+well as morphology. H2 colour LoRA too weak relative to SDXL+ControlNet at
+1024, exposing SDXL's already-observed negative colour bias (cf. A4-SDXL).
+H3 the 1024 crops are a harder/more heterogeneous colour-learning problem
+under the same ≤50-pair budget. H4 inference conditioning balance doesn't
+transfer from 512 to 1024. H5 recovery aggregation uses a resolution-
+mismatched (512) baseline -- see D1 above.
+
+Explicitly NOT started: a new 4000-step training run, rank change, expanding
+beyond 50 pairs, or adding new slides.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or

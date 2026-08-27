@@ -101,6 +101,14 @@ def parse_args():
     ap.add_argument("--vae-only", action="store_true",
                     help="VAE-only floor control: skip UNet/ControlNet/LoRA entirely, just VAE "
                          "encode+decode. Ignores --lora/--controlnet/--source-mode.")
+    ap.add_argument("--no-lora", action="store_true",
+                    help="Diagnostic-only (P3-07 D2): keep the trained ControlNet + frozen SDXL "
+                         "base + source conditioning, but skip pipe.load_lora_weights() so the "
+                         "colour LoRA is never applied. Isolates whether the base+ControlNet path "
+                         "or the colour LoRA itself is responsible for a negative recovery delta. "
+                         "--lora is still required (used only to locate --controlnet's sibling "
+                         "dir in existing call sites) but its weights are never loaded. Ignored "
+                         "with --vae-only (which already skips the LoRA).")
     ap.add_argument("--controlnet-scale", type=float, default=1.0)
     ap.add_argument("--steps", type=int, default=50,
                     help="DDIM steps. Matches P1-10's SD1.5 default -- 50-step DDIM first, "
@@ -275,14 +283,15 @@ def main():
     else:
         from diffusers import (AutoencoderKL, ControlNetModel, DDIMScheduler,
                                StableDiffusionXLControlNetImg2ImgPipeline)
-        print(f"Loading P3-06 SDXL pipeline: LoRA={args.lora}  ControlNet={args.controlnet}  "
-              f"source_mode={args.source_mode} ...")
+        print(f"Loading P3-06 SDXL pipeline: LoRA={'DISABLED (--no-lora)' if args.no_lora else args.lora}  "
+              f"ControlNet={args.controlnet}  source_mode={args.source_mode} ...")
         vae = AutoencoderKL.from_pretrained(args.model, subfolder="vae", torch_dtype=torch.float32)
         controlnet = ControlNetModel.from_pretrained(args.controlnet, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
             args.model, controlnet=controlnet, vae=vae, torch_dtype=torch.float16)
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
-        pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
+        if not args.no_lora:
+            pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
         pipe.to(device)
         pipe.set_progress_bar_config(disable=True)
 
