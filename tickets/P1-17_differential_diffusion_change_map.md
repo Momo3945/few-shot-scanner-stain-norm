@@ -1,7 +1,12 @@
 # P1-17 — Differential Diffusion Change-Map Inference (Spatially-Varying Strength)
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — first smoke signal recorded (below),
-mandatory internal-validation parameter grid not yet run.
+**Status:** ✅ CLOSED (2026-08-27) — negative result. Internal-validation
+parameter grid (radius × c_max, sigma=2/c_min=0.0 fixed) showed no real
+improvement over the plain P1-10 baseline; see full results and
+interpretation below. No held-out run performed (never justified — this
+project's own guardrail is to freeze parameters on internal validation
+*only after* they show a real effect there, not to escalate a null result
+to held-out).
 
 **Smoke comparison (2026-08-27), 4 training pairs (A03), config
 r4_s2_cmin0.00_cmax0.70:**
@@ -13,21 +18,64 @@ r4_s2_cmin0.00_cmax0.70:**
 
 SSIM improved (+0.030, outside the baseline's own seed-noise band) at a small
 colour-recovery cost (LAB +1.25, i.e. slightly worse) — directionally
-consistent with the ticket's hypothesis (protecting structurally-dense
-regions trades a little colour recovery for structure), but this is a
-4-crop, effectively single-seed sample on ONE slide (A03) — nowhere near
-enough to draw a conclusion. Visual inspection of the change map on this
-slide's densely-cellular crops showed it classifying most of the image as
-"structure-dense" (protected) with only sparse flat/free regions, which may
-be making r4/s2 more conservative than intended on this particular tissue
-density. **Status update, not a result: this only justifies running the
-actual parameter grid next, not adopting this config.**
+consistent with the ticket's hypothesis, but a 4-crop, effectively
+single-seed sample on ONE slide (A03) — not remotely enough to draw a
+conclusion, and (per the parameter grid below) turned out to be noise.
+
+**Internal-validation parameter grid (2026-08-27), 20 training crops each,
+1 seed, radius × c_max varied with sigma=2/c_min=0.0 fixed (the reduced
+grid — see Parameter Selection):**
+
+| radius | c_max | Job (infer/score) | SSIM | LAB total |
+|---|---|---|---|---|
+| — (P1-10 baseline, 3 seeds) | — | 47235 / 47237 | 0.1616 ± 0.0057 | 22.44 ± 2.61 |
+| 2 | 0.50 | 47246 / 47247 | 0.164 | 22.12 |
+| 2 | 0.70 | 47240 / 47248 | 0.162 | 22.30 |
+| 4 | 0.50 | 47241 / 47249 | 0.166 | 22.04 |
+| 4 | 0.70 | 47242 / 47250 | 0.165 | 22.10 |
+| 8 | 0.50 | 47243 / 47251 | 0.167 | 21.91 |
+| 8 | 0.70 | 47244 / 47252 | 0.167 | 21.91 |
+
+All six configs land within roughly one baseline-seed-stdev of the plain
+P1-10 baseline (0.162–0.167 vs 0.1616 ± 0.0057 SSIM) — no real
+differentiation across this radius/c_max range. The 4-crop smoke result
+(SSIM 0.192) was noise from too small a sample, exactly the risk this
+ticket's own Parameter Selection section was written to guard against.
+There is a faint, directionally-consistent trend (larger radius → slightly
+higher SSIM, slightly better LAB), but at ~0.003 SSIM across the whole
+tested radius range it is not distinguishable from single-seed noise.
+
+**Mechanistic interpretation (the "if it fails" case this ticket
+anticipated):** a single-crop visual check of the change map (densely
+cellular A03 tissue) showed mostly "protected" (black) with only sparse
+"free" (white) regions — the Canny-derived structural-density field reads
+almost the entire image as structure-dense on this kind of tissue, unlike
+the reference technique's own published examples (mosque vs. sky, NYC
+skyline vs. fantastical castle) where the protected/free split is one or
+two large contiguous regions. With protected and free pixels finely
+interleaved at radius 2–8px, the UNet's shared conv/attention receptive
+field plausibly lets the freely-changing regions' generative influence
+bleed into nominally "protected" pixels over 50 steps, washing out any
+measurable difference from applying the same strength everywhere. This
+matches the observed result exactly: SSIM/LAB track the uniform-strength
+baseline almost pixel-for-pixel in aggregate, rather than showing the
+"more structure protected → higher SSIM" signature the hypothesis
+predicted.
+
+**Decision (2026-08-27):** closing P1-17 as negative rather than chasing a
+much larger radius (16–32px, enough to form genuinely large contiguous
+blocks) — that remains a real, untested possibility, but per this
+project's own precedent (P1-12/P1-13's precommitted stop rules), a clean
+null result across the originally-scoped grid is treated as a stopping
+point, not a prompt to keep expanding the search. Proceeding to P1-16
+(source-detail/colour-residual fusion), which sidesteps this exact
+failure mode by never letting the "protected" region pass through the
+shared diffusion computation at all — the fusion happens entirely outside
+the UNet, post hoc, on already-generated outputs.
 
 **Script implemented** (`src/eval/infer_p1_10_differential_diffusion.py` +
-`slurm/infer_p1_10_differential_diffusion.slurm`), smoke-tested on the
-cluster (above). Next step: the mandatory internal-validation parameter
-search (see Parameter Selection below) across more crops/slides than this
-smoke test, never the held-out set first.
+`slurm/infer_p1_10_differential_diffusion.slurm`), fully exercised on the
+cluster above. Retained for any future revisit at a much larger radius.
 
 Inference-only refinement of P1-10/P1-11. No new training. Can run
 independently of P1-14/P1-15/P1-16 (different mechanism — spatially-varying

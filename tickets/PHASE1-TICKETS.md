@@ -1736,34 +1736,21 @@ before accepting or rejecting the hypothesis. See below.
 
 ## P1-17 — Differential Diffusion change-map inference (spatially-varying strength)
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — script implemented and smoke-tested
-(job 47229 infer / 47231 score vs. a same-crops P1-10 baseline, job 47235 /
-47237): SSIM +0.030 over plain global-strength P1-10 at a small LAB cost
-(+1.25), on only 4 training crops — a promising direction, not a result.
-Internal-validation parameter search not yet run. Task file:
-`tickets/P1-17_differential_diffusion_change_map.md` (see there for an
-algorithm-critical sign-convention note: the underlying technique's `map`
-argument is inverted relative to this ticket's own change-strength naming —
-verified against the official reference implementation before coding).
-
-**Source:** 2026-08-26 literature review (in support of the "can SD1.5/SDXL
-beat the classical baselines at all" question) surfaced *Differential
-Diffusion* (Levin & Fried 2023, arXiv:2306.00950) as an inference-only
-technique for exactly this project's remaining gap — P1-11's global-strength
-tradeoff (SSIM 0.4960 pooled, still below classical 0.628–0.681) forces one
-uniform structure/colour tradeoff across the whole crop. Differential
-Diffusion replaces the single scalar strength with a per-pixel change map;
-this project already computes a Canny edge map per crop for ControlNet
-conditioning, which is a direct, already-available input for that map.
-
-**Scope:** reuses `lora/a2h_cond_r8/best` exactly as-is (no retraining, no
-new adapters); new script `infer_p1_10_differential_diffusion.py`; frozen
-change-map parameters selected on internal validation only, never on
-A06/A08/A09/A13/A16. Independent of P1-14/P1-15/P1-16 — different mechanism,
-does not block or get blocked by them, and is the cheapest of the four to
-test since it needs zero new training. See the task file for the full
-design (change-map construction, parameter grid, smoke gate, acceptance
-criteria, required comparison table).
+**Status:** ✅ CLOSED (2026-08-27) — negative result. Internal-validation
+parameter grid (radius ∈ {2,4,8} × c_max ∈ {0.50,0.70}, sigma=2/c_min=0.0
+fixed, 20 training crops each) landed within roughly one baseline-seed-stdev
+of the plain P1-10 global-strength baseline on every config (SSIM
+0.162–0.167 vs baseline 0.1616±0.0057) — no real improvement. The earlier
+4-crop smoke result (SSIM 0.192) was noise from too small a sample. Likely
+mechanism: on densely cellular H&E tissue the Canny-derived "protected"
+region is finely interleaved with "free" regions rather than one or two
+large contiguous blocks (unlike the reference technique's own published
+examples), so the UNet's shared receptive field plausibly lets free-region
+generative influence bleed into nominally protected pixels, washing out any
+effect. Full grid table and interpretation in the task file:
+`tickets/P1-17_differential_diffusion_change_map.md`. Proceeding to P1-16,
+which sidesteps this failure mode entirely (fusion happens outside the UNet,
+post hoc, never re-entering the shared diffusion computation).
 
 ---
 
