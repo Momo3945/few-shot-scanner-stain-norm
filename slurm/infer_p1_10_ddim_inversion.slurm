@@ -75,8 +75,20 @@ CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
 MITOS_ROOT=${DATA_ROOT}/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
+TRAIN_PAIRS_DIR=${DATA_ROOT}/pairs/train
 CHECKPOINT_DIR=${DATA_ROOT}/lora/a2h_cond_r8/best
 export HF_HOME=/datasets/mhoosen/hf_cache
+
+# PAIRS_DIR=1 (env var, not positional -- mirrors infer_p1_10_differential_
+# diffusion.slurm's own convention): evaluate against P1-10's internal
+# training-domain validation pairs instead of held-out frames -- needed for
+# P1-16's mandatory internal-validation parameter search (upstream P1-11
+# outputs on those same crops), since every prior P1-11 invocation of this
+# launcher only ever targeted the held-out set.
+DATA_FLAGS="--root ${MITOS_ROOT} --heldout ${HELDOUT}"
+if [[ "${PAIRS_DIR:-0}" == "1" ]]; then
+    DATA_FLAGS="--pairs-dir ${TRAIN_PAIRS_DIR}"
+fi
 
 MODE=${1:?"Usage: sbatch infer_p1_10_ddim_inversion.slurm MODE [INVERSION_FRACTION] [SOURCE_MODE] [LIMIT] [OUT_TAG] [SEEDS]  (MODE = identity|translate)"}
 FRACTION=${2:-1.0}
@@ -126,7 +138,7 @@ echo "------------------------------------------------------------------"
 cd "${CODE_DIR}/src/eval"
 python infer_colour_source_ddim_inversion.py \
     --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
-    --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
+    ${DATA_FLAGS} --out "${OUT_DIR}" \
     --mode "${MODE}" --source-mode "${SOURCE_MODE}" \
     --inversion-fraction "${FRACTION}" \
     --limit "${LIMIT}" --max-crops-per-frame 4 \
