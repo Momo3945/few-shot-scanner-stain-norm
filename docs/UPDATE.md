@@ -62,6 +62,37 @@ anything. That's the real ceiling, and it points at a specific next fix
 (swap the decoder — see "in progress" below), not at continuing to tune
 strength/steps.
 
+## Breaking, as of today — one config just crossed the line entirely (flag as preliminary)
+
+This landed after everything above, is the most exciting number in this
+update, and needs to be presented carefully — it is real but not yet fully
+confirmed. Direct continuation of the "look at the images" fix: instead of
+asking the VAE to resynthesise the whole image, fuse the raw untouched
+Aperio source's fine detail back into P1-11's output *after* generation —
+let diffusion supply only the colour transformation, let the source supply
+the structure.
+
+On an 80-crop held-out check (slides A06 + A08):
+
+| | SSIM | Recovery Δlab |
+|---|---|---|
+| Classical baselines (range) | 0.628–0.681 | +3.2 to +9.0 |
+| **This fusion config** | **0.6505 pooled (0.784 on A08)** | **+9.34** |
+
+On A08 specifically, this clears *every* classical baseline outright —
+the first time any diffusion configuration anywhere in this project (36+
+tested so far) has beaten a classical method on SSIM at all.
+
+**The honest caveat, say it before he asks:** this is only an 80-crop
+subset (A06+A08), not yet the full 496-crop, 5-slide held-out set. A first
+attempt to scale it up cheaply hit a real bug — it accidentally leaked the
+real target image into the input via a mislabelled reference file, producing
+an obviously-too-good SSIM≈0.998 that had to be thrown out once caught. That
+number is invalid and was never going to be presented. A corrected full run
+is submitted and pending. **Frame this as "the most promising lead right
+now, first result of its kind, confirmation in progress" — not as a closed
+result.**
+
 ## What you told him you were doing — the ResNet classifier — has a result, and it's the one clean win
 
 Trained on real MITOS-ATYPIA-14 atypia-severity labels, 94.68% validation
@@ -115,7 +146,6 @@ more predictable about not making things worse on an unseen slide.
 | P1-13 / P1-13b | Task-specific LCM distilled from the frozen fixed pipeline | ❌ closed negative — loses to the generic adapter |
 | P1-17 | Spatially-varying denoising strength (protect edges more) | ❌ closed negative — no improvement over flat strength |
 | P1-14 | Drop-in VAE decoder swap, isolated self-reconstruction test | 🟢 in progress, positive — +0.045–0.048 SSIM, full-pipeline stage running now |
-| P1-16 | Fusing raw source detail back in post-hoc, outside the diffusion model | 🟢 in progress, positive — +12–14% relative SSIM, no held-out run yet |
 | P2-07 | Round-trip reconstruction (no real target image involved at all) | ❌ confirms the structural-drift pattern independently |
 | P2-08 | Downstream nucleus-detection agreement (HoVer-Net) vs. a 0.95 bar | ❌ 0.8745, fails the pre-committed threshold |
 | P2-10 | Cross-hospital generalisation (CAMELYON17, 5 centres never trained on) | ❌ makes centres slightly less alike, not more |
@@ -134,9 +164,13 @@ hospital domain).
 > roughly tripled colour recovery with the same data and the same small
 > model, and traced the remaining gap to a specific, fixable bottleneck — the
 > frozen decoder, which caps structural fidelity before generation even
-> starts. Separately, the ResNet classifier test I mentioned last time is
-> done, and it's the one place this pipeline actually beats every classical
-> baseline outright.
+> starts. As of today, one config built on that fix — fusing raw source
+> detail back in post-generation — cleared a classical baseline on SSIM
+> outright for the first time in this project, on an 80-crop check; full
+> confirmation is still running, so I'm calling it promising, not proven.
+> Separately, the ResNet classifier test I mentioned last time is done, and
+> it's the one place this pipeline already beats every classical baseline
+> outright, fully confirmed.
 
 ## Questions worth putting to him
 
@@ -154,6 +188,9 @@ hospital domain).
   "which method would you actually deploy" — average recovery vs. worst-case
   reliability are different questions, and this is evidence they don't point
   the same way.
+- Given the post-hoc fusion result is this close to closing the gap
+  entirely, is it worth prioritising its full held-out confirmation above
+  everything else currently running (P1-14's decoder swap, SDXL)?
 
 ## If he asks for a specific number and you blank
 
@@ -176,5 +213,12 @@ to come up; the full detail lives in `docs/results/RESULTS_SUMMARY.md` and
   into a diagnosed, specific, addressable bottleneck with a fix already in
   progress. Lead the technical explanation with it if he pushes on why SDXL
   didn't just fix things.
+- **Do not oversell the fusion result.** It's genuinely the best number in
+  the whole project so far, but it's an 80-crop subset, not the full
+  held-out set, and you already had to throw out one invalid version of it
+  (the leaked-target 0.998). Say "first result of its kind, confirmation in
+  progress" every time it comes up, not "diffusion beats classical now." If
+  he asks for the full number and you don't have it, that's a completely
+  fine "still running, I'll send it once it's in."
 - **It's fine to not know something on the spot.** "Let me check and follow
   up" remains a completely normal thing to say.
