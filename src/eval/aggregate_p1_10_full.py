@@ -86,7 +86,8 @@ def main():
 
         if outliers:
             cleanm, cleann = pool(exclude=outliers)
-            base_clean = baseline_all_for_slides(baseline, [s for s in slides if s not in outliers]) if baseline else None
+            base_clean = baseline_all_for_slides(
+                baseline, {s: slides[s] for s in slides if s not in outliers}) if baseline else None
             cdelta = (round(base_clean - cleanm["lab_total"], 4)
                       if base_clean is not None and cleanm["lab_total"] is not None else "")
             print(f"ALL_excl_outliers ({','.join(sorted(outliers))} excluded, n={cleann}): "

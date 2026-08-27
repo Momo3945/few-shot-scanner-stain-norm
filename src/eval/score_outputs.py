@@ -60,22 +60,43 @@ def read_baseline_lab(path):
     return out
 
 
-def baseline_all_for_slides(baseline, present_slides):
-    """Crop-weighted baseline ALL restricted to the slides actually present in this
-    run. Comparing a partial run's pooled ALL against the full-baseline ALL (which
-    may include slides this run never touched) is an apples-to-oranges scope
-    mismatch -- this is what recovery_delta_lab must be computed against instead.
-    Falls back to the full baseline["ALL"] only when it can't be restricted (missing
-    n_crops) or when the run's slide set already matches the full baseline exactly.
+def baseline_all_for_slides(baseline, slides_with_crops):
+    """Crop-weighted baseline ALL, weighted by THIS RUN's own per-slide crop
+    counts (len(slides_with_crops[s])) -- restricted to the slides actually
+    present in this run. Comparing a partial run's pooled ALL against the
+    full-baseline ALL (which may include slides this run never touched) is an
+    apples-to-oranges scope mismatch -- this is what recovery_delta_lab must be
+    computed against instead.
+
+    Bug fixed 2026-08-27 (found via P1-16's held-out A06+A08 fusion run,
+    80 crops -- a small LIMIT=20-frame subset, not the full 496-crop set the
+    baseline file itself was computed from): this used to weight by the
+    BASELINE FILE's own recorded n_crops per slide (e.g. A06=64, A08=112 from
+    the full 496-crop baseline run), not this run's actual crop counts. Since
+    A06 (the colour-gap outlier) has a much higher baseline lab_total than A08,
+    any run whose own A06:A08 crop ratio differs from the baseline file's
+    ratio got a baseline reference pooled at the WRONG weighting -- producing
+    a bogus large recovery_delta_lab even when every per-slide delta was
+    correct (e.g. both per-slide deltas positive, but pooled delta strongly
+    negative). Weighting by this run's own crop counts instead makes the
+    baseline reference and this run's own ALL comparable on the same basis
+    regardless of subset size.
+
+    Falls back to the full baseline["ALL"] only when the run's slide set
+    already matches the full baseline's slide set exactly (the one case where
+    re-weighting isn't needed -- assumes the crop counts also match, as they
+    will for a genuine full run).
     """
     per_slide = baseline["per_slide"]
-    if set(present_slides) >= set(per_slide):
+    present_slides = set(slides_with_crops)
+    if present_slides >= set(per_slide):
         return baseline["ALL"]
     weighted, total_n = 0.0, 0
-    for s in present_slides:
-        if s not in per_slide or per_slide[s][1] is None:
+    for s, crops in slides_with_crops.items():
+        if s not in per_slide:
             return None
-        lab, n = per_slide[s]
+        lab = per_slide[s][0]
+        n = len(crops)
         weighted += lab * n
         total_n += n
     return weighted / total_n if total_n else None
