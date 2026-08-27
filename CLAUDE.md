@@ -55,6 +55,54 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Never run `scancel -u` (cancels ALL my jobs) without explicit confirmation of
   which jobs and why.
 
+## Job submission workflow (how Claude actually does this, for future sessions)
+- **The confirmation is conversational, not just the tool-permission gate.** The
+  `"ask"` rule in `.claude/settings.local.json` matches literal-prefix patterns
+  like `Bash(ssh mhoosen@146.141.21.100 sbatch*)`. In practice, real submissions
+  are shaped `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm
+  && VAR=val sbatch ...'` — the literal command starts with `ssh ... 'cd`, not
+  `ssh ... sbatch`, so it can fall through to the broader `Bash(ssh *)` allow
+  rule instead of the intended `sbatch` ask-gate. **Do not rely on the settings
+  gate catching this.** Always state the exact script + arguments in chat and
+  get an explicit go-ahead (a direct answer or `AskUserQuestion`) before
+  invoking Bash with any `sbatch`/`scancel`, regardless of what the permission
+  system does — this is CLAUDE.md's actual enforcement mechanism, the settings
+  gate is a backstop, not the whole rule.
+- **Standard submit shape:**
+  `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm && \`
+  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 \`
+  `[-J job_name] [--time=HH:MM:SS] slurm/<script>.slurm <positional args>'`
+  — always pass the bad-node `--exclude` list on `bigbatch` GPU jobs (see
+  Cluster facts below); `-J` gives the job a readable name for log-matching;
+  override `--time` when the script's built-in `#SBATCH --time=` default doesn't
+  fit the run (e.g. a longer resolution/step-count combination) rather than
+  editing the script.
+- **Env-var overrides are this project's established non-breaking-change
+  pattern**, not positional args, so a script keeps working unmodified for every
+  prior caller: `SMOKE=1` (5-step sanity run), `OVERFIT_N=N` (restrict to N
+  training pairs, mandatory control before trusting any new architecture),
+  `PAIRS_DIR=`/`RESOLUTION=`/`CROP=` (alternate data dir / training / held-out
+  inference resolution — added for P3-07's 1024-native variant), each read as
+  `${VAR:-default}` in the `.slurm` file so the default behaviour for every
+  existing invocation is unchanged.
+- **Standard check shape** (no confirmation needed — read-only):
+  `ssh mhoosen@146.141.21.100 'squeue --me -j <jobid>; tail -n 40
+  /home-mscluster/mhoosen/stain-norm/logs/<job_name>.<jobid>.out; tail -n 20
+  .../<job_name>.<jobid>.err'` — a job leaving the queue is not proof of
+  success; always read the actual log tail, not just queue absence.
+- **Never run real work — even lightweight, CPU-only scoring scripts — directly
+  over bare `ssh` without `sbatch`/`srun`.** This executes on the login node and
+  has happened twice in this project's history (a measurement script, and a
+  scoring script): both times the user caught it directly by the job "taking
+  long" with no queue entry. If it's worth running, it's worth a tiny
+  `stampede`-partition `.slurm` file (see `score_p3_06.slurm`/`score_p3_07.slurm`
+  for the minimal CPU-scoring template) — even for a one-off, even for
+  something that "should only take a few seconds."
+- SSH to the login node occasionally drops mid-session (connection reset, not a
+  job failure) — retry the same command after a short pause; it does not mean
+  any submitted/running job was affected, since jobs run on compute nodes via
+  Slurm, independent of the login-node SSH session that submitted them.
+
 ## Cluster facts (hard-won — DO NOT re-derive or assume otherwise)
 - Login: `146.141.21.100`, user `mhoosen`. Home `/home-mscluster/mhoosen` ≈ 50 GB, CODE ONLY.
 - Large data, model cache, and all job OUTPUTS live in `/datasets/mhoosen/...` (201 TB).

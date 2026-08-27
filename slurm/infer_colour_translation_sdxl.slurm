@@ -69,6 +69,14 @@ if [[ -n "${PAIRS_DIR:-}" ]]; then
     fi
 fi
 
+# CROP (env var, not positional): held-out grid crop size, e.g. P3-07's 1024
+# checkpoints need --crop 1024 to match training resolution (default 512
+# unchanged for P3-06). Ignored in PAIRS_ARGS mode (native image size used).
+CROP_ARGS=""
+if [[ -n "${CROP:-}" ]]; then
+    CROP_ARGS="--crop ${CROP}"
+fi
+
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
@@ -95,7 +103,7 @@ if [[ "$MODE" == "vae_only" ]]; then
         python infer_colour_translation_sdxl.py \
             --vae-only \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --max-crops-per-frame 4
+            --limit "${LIMIT}" --max-crops-per-frame 4 ${CROP_ARGS}
     fi
 else
     if [[ -z "$CHECKPOINT_DIR" || ! -f "${CHECKPOINT_DIR}/pytorch_lora_weights.safetensors" ]]; then
@@ -113,7 +121,7 @@ else
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
             --source-mode "${MODE}" \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --max-crops-per-frame 4 --steps 50
+            --limit "${LIMIT}" --max-crops-per-frame 4 --steps 50 ${CROP_ARGS}
     fi
 fi
 

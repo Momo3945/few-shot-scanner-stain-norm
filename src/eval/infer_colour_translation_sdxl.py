@@ -287,7 +287,8 @@ def main():
         pipe.set_progress_bar_config(disable=True)
 
         def run_crop(target_src_rgb, control_src_rgb, seed):
-            control_tensor = (torch.zeros(1, 6, args.crop, args.crop, dtype=torch.float32)
+            h, w = target_src_rgb.shape[:2]
+            control_tensor = (torch.zeros(1, 6, h, w, dtype=torch.float32)
                               if control_src_rgb is None else build_control_tensor(control_src_rgb))
             gen = torch.Generator(device=device).manual_seed(seed)
             out = pipe(prompt=args.prompt, image=Image.fromarray(target_src_rgb), strength=args.strength,

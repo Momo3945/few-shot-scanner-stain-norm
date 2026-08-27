@@ -870,6 +870,46 @@ whether SDXL's own VAE-only floor is lower than SD1.5's 0.5393 (which would
 partly explain the SSIM gap architecturally rather than it being purely
 about conditioning quality). Full detail: `tickets/PHASE3-TICKETS.md` P3-06.
 
+**Update (2026-08-27): P3-07 (P3-06 retrained at native 1024×1024, testing
+whether P3-06's SSIM deficit vs SD1.5 was an under-resolution-training
+artefact) is complete — the answer is a genuine trade-off, not a clean win.**
+Same architecture as P3-06 (source-conditioned colour LoRA + fresh 6-channel
+ControlNet), same ≤50 A03/H03 pairs (re-extracted at 1024×1024, still within
+H1's few-shot cap — one slide pair, not multi-slide expansion), same 4000
+training steps, only the resolution changed. The mandatory source-conditioning
+ablation passed decisively (`correct` beats `zero`/`shuffled` by 2-2.5x on
+SSIM, 7/8 win-rate), confirming the ControlNet branch works correctly at this
+resolution — a genuine bug surfaced and was fixed during this ablation
+(the `zero`-mode control tensor was hardcoded to the `--crop` CLI default
+(512) instead of the actual crop shape, silently correct only because 512
+always matched before this ticket).
+
+Full 496-crop × 3-seed held-out result, same strength=0.50/50-step DDIM
+operating point as P3-06:
+
+| | SD1.5 P1-10 | SDXL P3-06 (512) | SDXL P3-07 (1024) |
+|---|---|---|---|
+| ALL SSIM | 0.4485 | 0.3920 | **0.4313** |
+| ALL_excl_outliers SSIM | 0.4695 | 0.4120 | **0.4485** |
+| A06 SSIM (outlier) | 0.3067 | 0.2567 | **0.3128** |
+| ALL recovery Δlab | +2.89 | +1.22 | **−5.60** |
+| Every-slide Δlab sign | all positive | all positive | **all negative** |
+
+Native resolution confirms the motivating hypothesis on structure — every
+slide's SSIM improves substantially over P3-06, and A06 now exceeds even
+SD1.5's own SSIM. But colour recovery, positive on every slide for both
+P1-10 and P3-06, flips to **negative on every single slide** at 1024 — not
+a pooled-outlier artefact, consistent across all five slides (−3.48 to
+−6.64). This is the same failure signature as A4-SDXL (P3-04): the frozen
+backbone's own behaviour at this operating point moves colour away from the
+target scanner, even though the LoRA/ControlNet mechanism is confirmed
+working by the ablation. Working hypothesis, not yet tested: the same
+nominal strength=0.50 may correspond to a smaller effective per-pixel edit
+at higher resolution, leaving less room for the colour LoRA's effect —
+mirroring why A4-SDXL's low-strength point was colour-negative. A strength
+sweep at 1024 (mirroring A4/A4-SDXL's own sweeps) is the natural next step,
+not yet started. Full detail: `tickets/PHASE3-TICKETS.md` P3-07.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

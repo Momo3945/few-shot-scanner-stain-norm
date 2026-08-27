@@ -23,6 +23,11 @@
 # through the frozen clone every step, on top of SDXL's already-larger UNet.
 # Starting estimate only -- re-tune from the smoke test's measured step
 # timing before submitting the full run, same discipline as P3-03/P1-10.
+#
+# P3-07 (native 1024 resolution, tickets/PHASE3-TICKETS.md P3-07): override
+# PAIRS_DIR/RESOLUTION env vars (defaults unchanged: pairs/train, 512):
+#   SMOKE=1 PAIRS_DIR=/datasets/mhoosen/stain-norm/pairs/train_1024 RESOLUTION=1024 \
+#     sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 --time=00:30:00 -J p3_07_smoke train_colour_translation_lora_sdxl.slurm A2H 8
 # =====================================================================
 
 #SBATCH --job-name=colour_translation_lora_sdxl
@@ -38,7 +43,8 @@
 set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
-DATA_DIR=/datasets/mhoosen/stain-norm/pairs/train
+DATA_DIR=${PAIRS_DIR:-/datasets/mhoosen/stain-norm/pairs/train}
+RESOLUTION=${RESOLUTION:-512}
 OUT_ROOT=/datasets/mhoosen/stain-norm/lora
 export HF_HOME=/datasets/mhoosen/hf_cache
 
@@ -51,9 +57,12 @@ if [[ "${SMOKE:-0}" == "1" ]]; then
 fi
 OVERFIT_FLAG=""
 OUT_SUFFIX="cond_r${RANK}_sdxl"
+if [[ "${RESOLUTION}" != "512" ]]; then
+    OUT_SUFFIX="${OUT_SUFFIX}_${RESOLUTION}"
+fi
 if [[ -n "${OVERFIT_N:-}" ]]; then
     OVERFIT_FLAG="--overfit-n ${OVERFIT_N}"
-    OUT_SUFFIX="cond_r${RANK}_sdxl_overfit${OVERFIT_N}"
+    OUT_SUFFIX="${OUT_SUFFIX}_overfit${OVERFIT_N}"
 fi
 
 OUT_DIR="${OUT_ROOT}/${DIRECTION,,}_${OUT_SUFFIX}"
@@ -71,7 +80,8 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P3-06 (P1-10 on SDXL) -- Direction=$DIRECTION  Rank=$RANK  Steps=$STEPS  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}'"
+echo "P3-06/P3-07 (P1-10 on SDXL) -- Direction=$DIRECTION  Rank=$RANK  Steps=$STEPS  Resolution=$RESOLUTION  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}'"
+echo "PairsDir=$DATA_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
@@ -86,6 +96,7 @@ python src/train/train_colour_translation_lora_sdxl.py \
     --direction   "${DIRECTION}" \
     --rank        "${RANK}" \
     --train-steps "${STEPS}" \
+    --resolution  "${RESOLUTION}" \
     --output-dir  "${OUT_DIR}" \
     --seed 0 \
     ${SMOKE_FLAG} ${OVERFIT_FLAG}

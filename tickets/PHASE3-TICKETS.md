@@ -640,6 +640,196 @@ headroom at another operating point, mirroring the open question left after
 P3-04's A4-SDXL strength sweep). P1-11-on-SDXL (DDIM inversion) remains
 out of scope for this ticket, per the original scope decision above.
 
+## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
+**Status:** 🔄 IN PROGRESS (2026-08-25).
+**Source:** `sec:phase3_sdxl`; retargets the already-drafted-but-never-started
+**P3-03b** contingency (native-1024 SDXL training) onto P1-10/P3-06's
+architecture instead of A4 -- P3-03b was written when A4 was the transfer
+target; P1-10/P3-06 has since become the relevant SD1.5 baseline. Also
+motivated by P3-06's own open question: whether SDXL's SSIM/colour-recovery
+gap vs SD1.5 (ALL SSIM 0.3920 vs 0.4485, Δlab +1.22 vs +2.89) is partly
+because P3-06 trained at 512×512 with *honest* micro-conditioning (not
+spoofed 1024) on a backbone predominantly pretrained at ≥1024px -- i.e. an
+under-resolution-training artefact, not a ceiling on the architecture itself.
+
+**Hard scope constraint (methodology guardrail, corrected 2026-08-25 after
+an initial mis-scoped draft -- see below):** H1/RQ1 in `docs/proposal_draft(6).tex`
+is a literal, capped hypothesis, not just an informal "small dataset"
+description: *"≤50 coordinate-corresponding A03/H03 crop pairs are
+sufficient to train the scanner-colour LoRA... trained on ≤50 examples from
+**one slide pair** and applied to five different slide pairs without
+retraining."* The contingency table's only sanctioned fallback if ≤50 proves
+insufficient is *"expand overlapping crops from the same A03/H03 pair while
+reporting the minimum viable pair count"* -- still one slide pair, not new
+slides. **This ticket stays within that scope: A03/H03 only, ≤50 pairs,**
+matching P1-10/P3-06's existing training budget exactly so resolution is the
+only variable that changes.
+
+**Correction note:** an earlier draft of this plan proposed ~90-96 pairs
+(all non-overlapping 1024 candidates available from A03 alone) and floated
+an 11-slide multi-slide expansion (up to 1195 candidates, using the other
+10 training slides already reserved in the proposal's own data table for
+"A5 hist LoRA pool only" -- a different, unpaired purpose) as a "Phase B."
+Both would have exceeded H1's literal ≤50/one-slide-pair cap. Caught before
+any extraction ran. If a ≤50-pair 1024 result underperforms, the next step
+is the proposal's own sanctioned fallback (`--overlap` > 0 on A03/H03 only,
+reporting the minimum viable pair count) -- not multi-slide expansion, which
+would need to be explicitly flagged as a deliberate departure from H1, not
+a default escalation.
+
+**Candidate crop counts, measured (2026-08-25, job 46384 on `stampede`,
+read-only, via `extract_pairs.py`'s own `candidate_boxes()`/
+`tissue_fraction()`, no files written/modified):** A03 alone has 96
+tissue-passing non-overlapping 1024×1024 candidates (24 x20 frames x ~4
+avg) -- comfortably above the 50-pair budget, so no overlap or extra data
+is needed to hit ≤50 at 1024. (Raw MITOS-ATYPIA frames are only
+~1539x1376 (Aperio) -- ~1.5x a 1024 crop, vs ~3x at 512, hence the lower
+per-frame yield: ~4 candidates/frame at 1024 vs ~9 at 512, matching
+P3-03b's original note.) A process lesson from this measurement: the first
+attempt was run directly over `ssh` instead of `sbatch`, landing on the
+**login node** -- caught mid-run by a direct question, killed, and
+resubmitted correctly on `stampede` (`slurm/measure_1024_candidates.slurm`).
+
+**Plan:**
+1. `extract_pairs.py --root data/mitos --crop 1024 --max-pairs 50 --out pairs/train_1024`
+   -- run locally (matches how `pairs/train` at 512 was originally produced;
+   the paired training-side raw data, both Aperio and Hamamatsu, exists only
+   locally in `data/mitos/`, not on the cluster -- the cluster's
+   `mitos_atypia_train_aperio/` is Aperio-only, fetched for P2-09). New
+   sibling folder, `pairs/train` never touched.
+2. Upload `pairs/train_1024` to the cluster (`/datasets/mhoosen/stain-norm/pairs/train_1024/`).
+3. Reuse `train_colour_translation_lora_sdxl.py`/`infer_colour_translation_sdxl.py`
+   completely unchanged (already generic over `--resolution`/`--crop`) --
+   only the launcher's `DATA_DIR`/`--resolution 1024` need overriding, no
+   new Python code. Main open risk: GPU memory at 1024 (4x the latent
+   tokens vs 512) on a 24GB 3090 -- `ControlNetModel.enable_gradient_checkpointing()`
+   is confirmed available in the installed diffusers if the plain smoke
+   test OOMs with only `unet.enable_gradient_checkpointing()` (P3-06's
+   existing setup).
+4. Same staged discipline as P3-06: smoke test -> overfit-8 control
+   (escalate 300->2000 steps if it plateaus flat, per precedent) ->
+   source-conditioning ablation -> full training run -> held-out inference
+   at `--crop 1024` -> score -> compare against P3-06's 512 result (SSIM
+   0.3920 pooled, Δlab +1.22) and SD1.5's P1-10 (SSIM 0.4485, Δlab +2.89).
+
+**Extraction complete (2026-08-25).** `extract_pairs.py --root data/mitos
+--crop 1024 --max-pairs 50 --seed 0 --skip-heldout` run locally (Python
+3.10, Pillow 12.3.0, numpy 2.2.6 -- the paired A03/H03 raw data exists only
+locally, matching the extraction of the original 512 set). Matched exactly
+the read-only measurement: 96 candidates found, 50 selected (capped),
+written to `pairs/train_1024/` (100 files = 50 pairs x 2 sides) +
+`pairs/train_1024_manifest.csv` + `pairs/train_1024_extract_config.json` --
+new siblings, `pairs/train`/`pairs/train_manifest.csv` untouched.
+Spot-verified: `A03_00A_c000_{aperio,hamamatsu}.png` both exactly
+1024x1024 RGB. Uploaded to
+`/datasets/mhoosen/stain-norm/pairs/train_1024/` (verified: 100 files
+present on the cluster). `--skip-heldout` used since `heldout_frames.csv`
+is crop-size-independent (raw frame paths, not crops) -- the existing one
+in `pairs/` is reused unchanged.
+
+**Smoke test (job 46409, COMPLETED).** 5 steps, `RESOLUTION=1024
+PAIRS_DIR=pairs/train_1024`, A2H, rank 8 -- no OOM on the 24GB 3090 (the
+flagged main risk did not materialise; `unet.enable_gradient_checkpointing()`
+alone was sufficient, `ControlNetModel.enable_gradient_checkpointing()`
+fallback not needed), no NaNs, val_loss 0.0855 computed, checkpoint saved.
+
+**Overfit-8 control, 300 steps (job 46471, COMPLETED) then extended to 2000
+steps (job 46512, COMPLETED).** Same flat-loss-plateau pattern already seen
+in both P1-10 (SD1.5) and P3-06 (SDXL@512) at 300 steps -- loss oscillates
+0.11-0.21 with no visible downward trend even at 2000 steps. Per this
+project's standing guardrail, per-step MSE is not a success signal; proceeded
+to the mandatory ablation rather than reading anything into the flat curve.
+
+**Source-conditioning ablation (jobs 46529/46530/46531 correct/zero/shuffled,
+COMPLETED; scored job 46543) -- passed decisively:**
+
+| Mode | LAB total | ΔE2000 | SSIM | Win-rate |
+|---|---|---|---|---|
+| **correct** | **24.32** | **15.93** | **0.129** | **7/8 crops** |
+| shuffled | 34.39 | 18.57 | 0.046 | 1/8 |
+| zero | 62.13 | 19.98 | 0.062 | 0/8 |
+
+`correct` beats both controls by a wide margin on every metric, confirming
+the ControlNet branch is genuinely used at 1024 resolution, not ignored --
+same conclusion as P1-10 and P3-06's own equivalent ablations.
+
+**Bug found and fixed during this ablation:** `zero` mode initially crashed
+(`RuntimeError: size of tensor a (128) must match size of tensor b (64) at
+non-singleton dimension 3` inside `ControlNetModel.forward`). Root cause:
+`infer_colour_translation_sdxl.py`'s zero-conditioning branch built
+`torch.zeros(1, 6, args.crop, args.crop, ...)` using the `--crop` CLI default
+(512) instead of the actual target crop's shape -- silently correct at every
+prior resolution only because 512 (the default) always matched the real data
+before P3-07. Fixed to derive the zero tensor's shape from
+`target_src_rgb.shape[:2]` directly; re-synced and the `zero` ablation job
+(46534) then completed cleanly. Generic fix, not resolution-specific --
+applies to `zero` mode at any resolution mismatch, not just 1024.
+
+**Full training run, 4000 steps (job 46552, COMPLETED).** Same step count as
+P3-06 for direct comparability. val_loss trended down over the run (0.0654 ->
+0.0663 -> 0.0638), no NaNs/crashes. Checkpoint: `lora/a2h_cond_r8_sdxl_1024/final`.
+
+**Held-out smoke (job 46635, COMPLETED, A06-only -- `LIMIT=8` grabs A06's
+frames first in `heldout_frames.csv`, same caveat as P3-06's own smoke) --
+scored job 47011:**
+
+| | P1-10 (SD1.5) A06, full | P3-06 (SDXL@512) A06, smoke | P3-07 (SDXL@1024) A06, smoke |
+|---|---|---|---|
+| SSIM | 0.3067 | 0.2661 | **0.3077** |
+| Recovery Δlab | -- | +3.48 | **-2.50** |
+
+SSIM already close to SD1.5's own A06 number; colour recovery flipped
+slightly negative on this small (93-crop) sample -- opposite sign from
+P3-06's A06-only smoke. Per this project's standing caveat that A06-only
+smoke samples are unreliable predictors of the full-slide result, went
+straight to the full run rather than reading too much into 8 frames.
+
+**Full 496-crop x 3-seed held-out result (job 47029 inference, COMPLETED;
+scored job 47236 after the first scoring attempt (47226) timed out at its
+30-minute default -- 1024x1024 crops take ~4x the metric-computation time of
+512x512, resubmitted with `--time=02:00:00`; aggregated job 47260):**
+
+| | SD1.5 P1-10 | SDXL P3-06 (512) | **SDXL P3-07 (1024)** |
+|---|---|---|---|
+| ALL SSIM | 0.4485 | 0.3920 | **0.4313** |
+| ALL_excl_outliers SSIM | 0.4695 | 0.4120 | **0.4485** |
+| A06 SSIM (outlier) | 0.3067 | 0.2567 | **0.3128** |
+| A08 SSIM | 0.4815 | 0.4101 | 0.4572 |
+| A09 SSIM | 0.4175 | 0.3718 | 0.3964 |
+| A13 SSIM | 0.4581 | 0.4041 | 0.4311 |
+| A16 SSIM | 0.4968 | 0.4406 | 0.4807 |
+| ALL recovery Δlab | **+2.89** | **+1.22** | **-5.60** |
+| A06 / A08 / A09 / A13 / A16 Δlab | +2.70/+1.74/+1.03/+2.31/+1.58 | (all positive, P3-06 ticket) | **-3.48/-5.54/-6.64/-4.81/-4.89** |
+
+**Verdict -- a genuine trade-off, not a wash.** Native 1024 resolution
+closes most of SDXL's structural-fidelity gap versus SD1.5 (every slide's
+SSIM improves meaningfully over P3-06's 512 result; A06 SSIM now *exceeds*
+SD1.5's own P1-10 number, 0.3128 vs 0.3067) -- confirming this ticket's
+motivating hypothesis that part of P3-06's SSIM deficit was an
+under-resolution-training artefact. But colour recovery, positive on every
+slide for both P1-10 and P3-06, **reverses to negative on every single
+slide** at 1024 -- not a pooled-outlier artefact, consistent in direction and
+magnitude across all five slides (-3.48 to -6.64). This is the same failure
+signature as A4-SDXL (model actively moves colour away from the target
+scanner, worse than doing nothing), even though the ablation confirms the
+source-conditioning mechanism itself works correctly at this resolution.
+
+**Working hypothesis (untested, open question):** at the same nominal
+strength=0.50 operating point, a higher-resolution encoding may correspond to
+a smaller *effective* per-pixel change for the same nominal strength --
+structurally conservative in a way that parallels why A4-SDXL's low-strength
+point was colour-negative -- leaving less room for the colour LoRA's effect
+to manifest even though it is genuinely being applied. Not yet investigated:
+whether a strength sweep at 1024 (mirroring A4/A4-SDXL's own strength
+investigations) finds an operating point that keeps 1024's structural gain
+while restoring positive colour recovery.
+
+**Status: P3-07 held-out evaluation COMPLETE (2026-08-27).** Structural
+hypothesis confirmed; colour-recovery regression is a new, decisive, and
+unresolved finding. Next step (not yet started, needs explicit go-ahead) is
+either a strength sweep at 1024 to search for a colour-recovery-positive
+operating point, or accepting the trade-off and closing this ticket as-is.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or
