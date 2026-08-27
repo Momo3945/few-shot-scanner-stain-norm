@@ -487,6 +487,69 @@ agreement.
 found in this repo; would need new inference wrappers and pretrained weights
 before they could be added to this table (`tab:baselines` scope).
 
+## Addendum (2026-08-27): per-slide consistency — classical swings far more than diffusion, slide to slide
+
+Motivated by reading the raw per-slide `eval_summary.csv` rows directly rather
+than only the pooled/rounded tables above. Restricting to the four typical
+(non-outlier) held-out slides — A08, A09, A13, A16 — and looking at the spread
+of `recovery_delta_lab` and `ssim` across just those four numbers, per method:
+
+**Recovery Δlab, per-slide, typical slides only:**
+
+| Method | A08 | A09 | A13 | A16 | Std. dev. across slides |
+|---|---|---|---|---|---|
+| Macenko | +6.86 | +6.28 | **−8.59** | +6.72 | 6.6 |
+| Reinhard | +5.64 | +1.00 | **−6.56** | **−5.65** | 5.0 |
+| Histogram Matching | +0.33 | **−4.51** | +3.59 | **−14.96** | 7.0 |
+| A3 (diffusion, @0.30) | +1.90 | +1.81 | +4.97 | +1.16 | 1.5 |
+| A4 (diffusion, @0.30) | −0.04 | +0.76 | +3.24 | −0.39 | 1.6 |
+| A5 (diffusion, @0.30) | −1.27 | +2.38 | +3.26 | −1.51 | 2.2 |
+| A3/A4/A5 @ strength 0.20 (best diffusion operating point) | +2.20 to +2.45 | +1.76 to +2.89 | +5.07 to +5.60 | +1.46 to +1.64 | ~1.5, zero negatives |
+
+**SSIM, same four slides:**
+
+| Method | A08 | A09 | A13 | A16 | Std. dev. |
+|---|---|---|---|---|---|
+| Macenko | 0.705 | 0.587 | 0.572 | 0.679 | 0.057 |
+| Reinhard | 0.772 | 0.629 | 0.645 | 0.718 | 0.062 |
+| Histogram Matching | 0.731 | 0.619 | 0.645 | 0.652 | 0.049 |
+| A3 (diffusion, @0.30) | 0.408 | 0.372 | 0.363 | 0.438 | 0.030 |
+| A5 @ 0.20 (diffusion, best point) | 0.486 | 0.437 | 0.437 | 0.503 | 0.031 |
+
+**Finding:** classical methods carry roughly 3–4× the per-slide standard
+deviation of diffusion on colour recovery (5.0–7.0 vs. 1.5–2.2 LAB units) and
+roughly 2× on SSIM (0.049–0.062 vs. 0.030–0.031), computed on exactly the same
+four non-outlier slides. Each classical method also has its own distinct weak
+slide, not a shared one — Macenko underperforms specifically on A13, Reinhard
+on A13+A16, histogram matching on A09+A16 — so this isn't one intrinsically
+hard slide skewing all three, it's genuine per-method instability. At the best
+diffusion operating point (A3/A4/A5 @ strength 0.20), every one of the eight
+typical-slide/method combinations is positive; none of the three classical
+methods manage that anywhere in this table.
+
+**Mechanism:** consistent with how each family actually works. Macenko/
+Reinhard fit a colour transform from *this specific slide's own* stain-vector
+or LAB summary statistics to the fixed reference crop's statistics — a slide
+whose own statistics already sit close to the reference gets a small, safe
+correction; a slide that diverges more gets pushed harder, and can overshoot.
+Histogram matching is the most exposed version of this (already documented
+above as the largest source of the P2-11 metric confound): it forces the
+*entire* output histogram onto one fixed target image's histogram regardless
+of source content, so its behaviour is essentially however different that one
+slide happens to be from the fixed reference. Diffusion is sampling from a
+learned target-domain manifold rather than performing a literal per-slide
+statistical fit — it regresses toward a broadly similar correction regardless
+of which slide it's given, at the cost of a smaller average shift.
+
+**Reads as:** a genuine, quantified secondary finding, not a restatement of
+"classical wins by more on average" — classical's larger aggregate
+colour-recovery lead (P2-11 above) comes bundled with real per-slide
+unpredictability that the pooled `ALL`/`ALL_excl_outliers` numbers used
+throughout this document hide. State both: classical still recovers more
+colour than diffusion on most individual slides, but it is far less reliable
+about which slide it will lose on, while diffusion's smaller gains hold up
+consistently everywhere tested.
+
 ## P2-06: ground-truth direct comparison (SSIM / PSNR / MAE)
 
 Proposal's `sec:experiments` "Ground Truth Direct Comparison" experiment: normalised
@@ -827,6 +890,28 @@ at exactly 10:00:14 after finishing all 1488 outputs — reconstructed the
 lost manifest from output filenames, zero data lost): `tickets/
 PHASE1-TICKETS.md` P1-11.
 
+**Update (2026-08-23): P1-12 (P1-10 + generic LCM-LoRA acceleration) is
+closed — a real speed/quality tradeoff, not a substitute for P1-11.** Same
+source-conditioned checkpoint as P1-10/P1-11, plain img2img + the generic
+pretrained LCM-LoRA instead of DDIM inversion — a genuinely faster path
+(4-8 steps vs. 50), tested across a strength/step/guidance grid on the
+A06+A08 diagnostic subset. Best configuration found (6-step, guidance 2.0,
+strength 0.70):
+
+| | A06 SSIM | A06 Δlab | A08 SSIM | A08 Δlab |
+|---|---|---|---|---|
+| P1-11 (50-step DDIM inversion, quality reference) | 0.373 | +21.72 | 0.537 | +7.15 |
+| P1-12 best LCM config | 0.334 | +9.73 | 0.515 | +2.98 |
+
+Retains under half of P1-11's colour recovery at broadly comparable SSIM —
+pushing strength/guidance further (0.80-1.00) breaks down badly (SSIM
+collapses to 0.076 at strength 1.00). A matched-step plain-DDIM control
+confirmed the shortfall is a general few-step-regime effect, not something
+specific to the LCM adapter (both degrade similarly at very few steps).
+**Conclusion: LCM acceleration remains a fast-preview/iteration mode, not a
+substitute for the 50-step DDIM-inversion quality path.** Full grid and job
+list: `tickets/PHASE1-TICKETS.md` P1-12.
+
 **Update (2026-08-25): P3-06 (transfer of P1-10's source-conditioned colour
 LoRA + fresh ControlNet to SDXL) is complete — the mechanism transfers
 cleanly, but SDXL underperforms SD1.5 on the actual held-out result.**
@@ -870,6 +955,37 @@ whether SDXL's own VAE-only floor is lower than SD1.5's 0.5393 (which would
 partly explain the SSIM gap architecturally rather than it being purely
 about conditioning quality). Full detail: `tickets/PHASE3-TICKETS.md` P3-06.
 
+**Update (2026-08-26): P1-13/P1-13b (task-specific LCM-LoRA distilled from
+the frozen P1-10 teacher) is closed — negative, under a precommitted
+hard-stop rule.** Motivated by P1-12's shortfall: is generic LCM specifically
+ill-suited to this task, or is the distillation idea itself wrong? A
+prerequisite gate (matched-step DDIM vs. generic LCM) ruled out the ticket's
+stop condition and gave a green light to proceed. An attention-only LoRA
+(rank 64, matching the generic adapter's rank) distilled from the frozen
+P1-10 checkpoint on the real 39-pair training set lost to generic LCM on the
+held-out A06+A08 diagnostic even after a real bug was found and fixed (a
+train/inference guidance-semantics mismatch, `G = w + 1`, that materially
+changed the result once corrected — SSIM 0.211 -> 0.269). A full-UNet
+scope-matched replication (P1-13b, matching the generic adapter's broader
+module coverage) closed most of the remaining LAB gap (71.98 vs. 71.43,
+within seed variance) but still lost on SSIM (0.284 vs. 0.296) and paired
+win-rate (30/80 vs. 50/80):
+
+| Arm | SSIM | LAB total |
+|---|---|---|
+| Generic pretrained LCM-LoRA | **0.2958 ± 0.0019** | 71.43 ± 0.38 |
+| P1-13 task-specific, attention-only | 0.2690 | 76.61 |
+| P1-13b task-specific, full-UNet | 0.2841 ± 0.0013 | **71.98 ± 0.63** |
+
+**Conclusion: at this data scale (39 pairs), distilling a task-specific LCM
+adapter from the frozen P1-10 teacher does not outperform the generic
+pretrained adapter, at either LoRA scope.** Closed per the ticket's own
+precommitted rule — no further rank sweeps, LR zoos, w-range sweeps,
+additional training slides, new losses, or held-out tuning. Full detail, the
+overfit-debugging trail (LR/gradient-accumulation ablations, checkpoint-
+selection methodology), and the guidance-semantics correction: `tickets/
+PHASE1-TICKETS.md` P1-13 / P1-13b.
+
 **Update (2026-08-27): P3-07 (P3-06 retrained at native 1024×1024, testing
 whether P3-06's SSIM deficit vs SD1.5 was an under-resolution-training
 artefact) is complete — the answer is a genuine trade-off, not a clean win.**
@@ -909,6 +1025,84 @@ at higher resolution, leaving less room for the colour LoRA's effect —
 mirroring why A4-SDXL's low-strength point was colour-negative. A strength
 sweep at 1024 (mirroring A4/A4-SDXL's own sweeps) is the natural next step,
 not yet started. Full detail: `tickets/PHASE3-TICKETS.md` P3-07.
+
+**Reopened same day (2026-08-27):** the -5.60 recovery figure is confirmed
+not to be a broken adapter — the source-conditioning ablation still passes
+decisively at 1024px (correct 24.32 / shuffled 34.39 / zero 62.13 LAB) — so
+before any retraining, strength sweep, rank change, or pair-count change, a
+dedicated re-verification of the aggregation baseline itself is running
+(`d1_verify_p3_07.py`, job 47277, **not yet scored**), on the hypothesis that
+the reported recovery compares a native-1024 model output against a
+512-cropped baseline. The -5.60 figure above should be treated as
+provisional until that lands.
+
+**Update (2026-08-27): P1-17 (Differential Diffusion change-map inference)
+is closed — negative.** Tests whether spatially-varying denoising strength —
+keyed to a Canny-derived change map, protecting structurally busy regions
+more than flat ones — beats P1-10/P1-11's flat, uniform strength. An
+internal-validation parameter grid (radius ∈ {2,4,8} × strength-cap ∈
+{0.50,0.70}) landed within roughly one baseline-seed-stdev of the plain
+global-strength baseline on every configuration tested (SSIM 0.162-0.167 vs.
+baseline 0.1616 ± 0.0057) — no real improvement; an earlier 4-crop smoke
+result that looked promising (SSIM 0.192) turned out to be noise from too
+small a sample. Likely mechanism: on densely cellular H&E tissue, the
+"protected" Canny-derived region is finely interleaved with "free" regions
+rather than forming the large contiguous blocks the technique was originally
+demonstrated on, so the UNet's shared receptive field lets free-region
+generative influence bleed into nominally protected pixels. Full grid and
+interpretation: `tickets/P1-17_differential_diffusion_change_map.md`.
+
+**Update (2026-08-27): P1-14 (VAE reconstruction benchmark, stock SD1.5 vs.
+`sd-vae-ft-mse`) — Stage A complete and positive, Stage B (full pipeline)
+running.** Motivated directly by the VAE-only floor P1-10/P1-11 already
+identified (SSIM capped at 0.5393 with zero denoising involved): does a
+reconstruction-focused drop-in VAE close any of that gap as a pure
+encode->decode swap, no retraining? Both VAEs confirmed architecturally
+identical (same param count, same `scaling_factor`) — a true drop-in. Stage
+A (50 internal-validation pairs, both scanner domains, deterministic
+self-reconstruction, no diffusion involved at all):
+
+| Domain | Stock SSIM | `ft_mse` SSIM | ΔSSIM | 95% bootstrap CI |
+|---|---|---|---|---|
+| Aperio | 0.5477 | 0.5957 | **+0.0480** | [+0.0470, +0.0490] |
+| Hamamatsu | 0.5862 | 0.6312 | **+0.0450** | [+0.0443, +0.0457] |
+
+Clears the ticket's own meaningful-gain gate (≥+0.01 absolute SSIM) by
+nearly 5×, in both scanner domains almost equally, with PSNR/MAE improving
+alongside SSIM rather than trading off against it. Gate open; Stage B
+(swapping the VAE into the actual P1-11 pipeline, not just isolated
+reconstruction) is running now — not yet a result on the real translation
+task, only on the decoder's own reconstruction fidelity. Full detail:
+`tickets/PHASE1-TICKETS.md` P1-14.
+
+**Update (2026-08-27): P1-16 (raw-source-detail / learned colour-residual
+fusion) — in progress, early results positive.** Fuses raw source-image
+detail back into P1-11's output *after* generation, entirely outside the
+UNet — deliberately sidesteps P1-17's failure mode, since the fusion never
+re-enters the shared diffusion computation. A parameter grid over blur scale
+(σ) and residual-injection weight (β), on 20 internal-validation crops,
+against the upstream P1-11 reference (SSIM 0.1644, LAB 21.46):
+
+| σ | β | SSIM | LAB total |
+|---|---|---|---|
+| 4 | 0.75 | 0.185 | 21.74 |
+| 8 | 0.75 | 0.187 | 21.75 |
+| 16 | 0.75 | 0.187 | 21.75 |
+| **8** | **0.50** | **0.1866** | **21.44** |
+| 8 | 1.00 | 0.1865 | 22.50 |
+
+SSIM improves +0.020 to +0.023 (12-14% relative) over upstream at every
+tested configuration — a real, consistent effect, flat across σ and only
+degrading LAB as β increases. Best so far: σ=8, β=0.50 (same SSIM gain, LAB
+essentially tied with upstream, not traded off). Not yet a result on the
+full pipeline: one slide, one seed, no artifact check, no held-out run —
+correctly not yet claimed as final. Full detail: `tickets/PHASE1-TICKETS.md`
+P1-16.
+
+**P1-15 (re-decoding P1-11's translated latents with P1-14's winning VAE) —
+blocked, not started.** Gated on P1-14 finding a meaningful reconstruction
+improvement (it has, in Stage A); queued behind P1-14's own Stage B result
+before starting. Task file: `tickets/P1-15_p1_11_alternate_decoder.md`.
 
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than

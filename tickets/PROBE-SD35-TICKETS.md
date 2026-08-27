@@ -37,11 +37,46 @@ T5-XXL-bearing variant — expect a genuinely large download (~20–30 GB).
 — both likely gated too, same manual-approval requirement.
 
 ## PR-01 — LoRA training time + peak VRAM measurement
-**Status:** TODO — blocked on PR-00
+**Status:** 🟡 IN PROGRESS — smoke test passed (job 45158, 2026-08-22), full
+1000-step run not yet submitted
 **Source:** `sec:sd35_probe`, first of the four restricted measurements
 **Description:** Train an A→H LoRA on the same ≤50 A03/H03 crop pairs used for the
 SD1.5 colour LoRA. Record wall-clock training time and peak VRAM. Attempt first on
 `bigbatch` RTX3090 24GB nodes; `biggpu` only for mature, debugged code.
+
+**Smoke test result (5 steps, rank 8, `src/train/train_colour_lora_sd35.py`):**
+two real bugs found and fixed first —
+1. Sharded-checkpoint loading (`SD3Transformer2DModel`'s 2-shard checkpoint)
+   calls the HF Hub API for shard metadata regardless of `HF_HUB_OFFLINE`/
+   `TRANSFORMERS_OFFLINE`, raising `OfflineModeIsEnabled` unless
+   `local_files_only=True` is passed explicitly to every `from_pretrained`
+   call (job 45087, FAILED).
+2. The 8.06B-param transformer was loading in default fp32 (~32GB) — genuine
+   CUDA OOM on `bigbatch`'s 24GB card (job 45136, FAILED). Fixed by storing
+   the frozen transformer directly in the mixed-precision dtype (bf16),
+   matching HuggingFace's own official SD3 LoRA training script's practice
+   at this model size — the small LoRA A/B matrices still get fp32.
+
+After both fixes, job 45158 COMPLETED in 2m8s: 5 finite non-NaN losses
+(0.4752 → 0.2392 → 0.2790 → 0.2470 → 0.1930), sigmas spread across (0,1)
+confirming non-degenerate flow-matching sampling (0.44, 0.88, 0.62, 0.70,
+0.86), LoRA rank 8 → 5,914,624 trainable params (0.0734% of transformer),
+checkpoint saved to `lora/a2h_r8_sd35/final`.
+
+**Peak VRAM: 17.77 GB** — comfortably fits `bigbatch`'s 24GB RTX 3090.
+**This corrects the plan's original VRAM justification for `biggpu`**: the
+plan assumed ~27GB of simultaneous frozen-fp16-weight residency (text
+encoders + transformer all resident together), but the actual script frees
+the text encoders before the transformer loads, and with the transformer
+correctly stored in bf16 the two are never resident at once. `biggpu` was
+never actually required once both bugs were fixed — `bigbatch` is the
+correct default going forward (see `slurm/train_colour_lora_sd35.slurm`,
+updated to match). Per-step timing ≈0.6–0.7s steady-state, implying the
+full 1000-step run should take roughly 10–15 minutes wall-clock.
+
+**Next:** submit the full 1000-step run (same hyperparameters as the SD1.5
+A2 baseline — rank 8, batch 1, lr 1e-4 — for an apples-to-apples comparison),
+gated on explicit sbatch confirmation per CLAUDE.md.
 
 ## PR-02 — Colour-fidelity test on held-out MITOS patches
 **Status:** TODO — blocked on PR-01
