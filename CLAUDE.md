@@ -242,6 +242,13 @@ do not create new top-level folders without updating this list.
 ## Workflow expectations
 - Use **plan mode** for anything multi-file; I review the plan before you apply it.
 - Commit to git before large changes (see Identity section for commit authorship rules).
+- **Always push directly to `master` on origin, not to feature/topic branches
+  (e.g. `claude-work`).** `master` is the working branch for this repo, not
+  just a PR-merge target. If a feature branch already exists with commits
+  ahead of `master` (from this session or another), push/fast-forward it onto
+  `master` and delete the feature branch from origin afterward rather than
+  leaving history split across branches. (`claude-work` was retired this way
+  on 2026-08-27 — fast-forwarded onto `master`, then deleted from origin.)
 - Never `git push`/force without asking.
 - Never run destructive cluster commands (`scancel -u`, `rm -rf` on /datasets) without confirming.
 - After any architecture decision or newly discovered cluster gotcha, UPDATE THIS FILE.
