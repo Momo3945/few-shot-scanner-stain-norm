@@ -37,8 +37,7 @@ T5-XXL-bearing variant — expect a genuinely large download (~20–30 GB).
 — both likely gated too, same manual-approval requirement.
 
 ## PR-01 — LoRA training time + peak VRAM measurement
-**Status:** 🟡 IN PROGRESS — smoke test passed (job 45158, 2026-08-22), full
-1000-step run not yet submitted
+**Status:** ✅ DONE (2026-08-27) — full 1000-step run completed, job 47363
 **Source:** `sec:sd35_probe`, first of the four restricted measurements
 **Description:** Train an A→H LoRA on the same ≤50 A03/H03 crop pairs used for the
 SD1.5 colour LoRA. Record wall-clock training time and peak VRAM. Attempt first on
@@ -74,9 +73,39 @@ correct default going forward (see `slurm/train_colour_lora_sd35.slurm`,
 updated to match). Per-step timing ≈0.6–0.7s steady-state, implying the
 full 1000-step run should take roughly 10–15 minutes wall-clock.
 
-**Next:** submit the full 1000-step run (same hyperparameters as the SD1.5
-A2 baseline — rank 8, batch 1, lr 1e-4 — for an apples-to-apples comparison),
-gated on explicit sbatch confirmation per CLAUDE.md.
+**Full run result (job 47363, `bigbatch`, rank 8, 1000 steps, A2H, same
+hyperparameters as the SD1.5 A2 baseline — batch 1, lr 1e-4):** COMPLETED,
+19m18s cluster elapsed (queue-start to finish, including model load/deps
+check). Pure training-loop wall-clock (`Total time` in the script's own
+log): **798.8s (13.3 min)**. Loss stayed in a noisy 0.23–0.34 band with no
+NaN/divergence across all 1000 steps (per this project's standing guardrail,
+training loss is not itself the success signal — held-out LAB Wasserstein
+via PR-02 will be); sigmas stayed spread across (0,1) throughout (0.64–0.79
+per-25-step average), confirming flow-matching sampling stayed non-degenerate
+for the full run, not just the 5-step smoke test. **Peak VRAM: 17.77 GB**,
+identical to the smoke test's number, comfortably under `bigbatch`'s 24GB.
+Checkpoints saved at steps 250/500/750/1000 to `lora/a2h_r8_sd35/{checkpoint-
+N,final}`.
+
+**Apples-to-apples comparison vs. the SD1.5 A2 baseline** (`lora/a2h_r8/`,
+same 50-crop A2H set, same rank/steps/batch/lr):
+
+| | SD1.5 A2 (`lora/a2h_r8`) | SD3.5 (`lora/a2h_r8_sd35`) |
+|---|---|---|
+| Training wall-clock, 1000 steps | 160.5s (2.7 min) | 798.8s (13.3 min) |
+| Per-step time | ~0.16s | ~0.66–0.80s |
+| Peak VRAM | not tracked (script predates VRAM logging; UNet is ~860M params, known to fit comfortably) | 17.77 GB / 24 GB |
+| Trainable LoRA params | 1,594,368 | 5,914,624 (0.0734% of transformer) |
+
+SD3.5 is **~5× slower per step** than SD1.5, consistent with its ~8.06B-param
+MMDiT transformer vs. SD1.5's ~860M UNet — a real but non-prohibitive cost on
+a single `bigbatch` RTX 3090 24GB. **Feasibility verdict for PR-05: LoRA
+training on SD3.5 is feasible on this cluster's hardware** — no OOM, no
+architectural blocker, well within `bigbatch`'s VRAM and time budget.
+
+**Next:** PR-02 (LAB Wasserstein colour-fidelity check on held-out MITOS
+patches, reusing `score_outputs.py`), blocked on this checkpoint — now
+unblocked.
 
 ## PR-02 — Colour-fidelity test on held-out MITOS patches
 **Status:** TODO — blocked on PR-01
