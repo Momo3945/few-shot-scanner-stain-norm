@@ -292,6 +292,16 @@ def parse_args():
     ap.add_argument("--model", default="stable-diffusion-v1-5/stable-diffusion-v1-5")
     ap.add_argument("--output-dir", required=True)
     ap.add_argument("--lcm-rank", type=int, default=64, help="Rank of the new trainable LCM-LoRA adapter.")
+    ap.add_argument("--lcm-scope", choices=["attention", "full_unet"], default="attention",
+                    help="attention (default): to_k/to_q/to_v/to_out.0 only, the P1-13 first-pass "
+                         "scope. full_unet: the P1-13b scope-matched replication -- the official "
+                         "diffusers v0.39.0 train_lcm_distill_lora_sd_wds.py's own default "
+                         "lora_target_modules list (verified to match the cached "
+                         "latent-consistency/lcm-lora-sdv1-5 checkpoint's own safetensors key "
+                         "coverage exactly, not guessed), so the new adapter's SCOPE matches the "
+                         "generic pretrained LCM-LoRA it's being compared against -- everything "
+                         "else (rank, w range, loss, teacher, data) stays identical to P1-13. See "
+                         "tickets/PHASE1-TICKETS.md P1-13b.")
     ap.add_argument("--resolution", type=int, default=512)
     ap.add_argument("--jitter", type=int, default=8)
     ap.add_argument("--train-steps", type=int, default=4000)
@@ -449,10 +459,22 @@ def main():
     unet.load_lora_adapter(str(teacher_dir), prefix="unet", adapter_name="colour",
                            weight_name="pytorch_lora_weights.safetensors")
 
-    print(f"Adding trainable 'lcm' LoRA adapter (rank {args.lcm_rank}, attention-only) ...")
+    # full_unet list = diffusers v0.39.0's train_lcm_distill_lora_sd_wds.py's own
+    # default lora_target_modules -- verified (not guessed) to match the cached
+    # latent-consistency/lcm-lora-sdv1-5 checkpoint's own safetensors key coverage
+    # exactly (attention QKV/out, proj_in/out, ff.net.0.proj/ff.net.2, resnet
+    # conv1/conv2/conv_shortcut, down/upsampler convs, time_emb_proj).
+    lcm_target_modules = {
+        "attention": ["to_k", "to_q", "to_v", "to_out.0"],
+        "full_unet": ["to_q", "to_k", "to_v", "to_out.0", "proj_in", "proj_out",
+                     "ff.net.0.proj", "ff.net.2", "conv1", "conv2", "conv_shortcut",
+                     "downsamplers.0.conv", "upsamplers.0.conv", "time_emb_proj"],
+    }[args.lcm_scope]
+    print(f"Adding trainable 'lcm' LoRA adapter (rank {args.lcm_rank}, scope={args.lcm_scope}, "
+          f"target_modules={lcm_target_modules}) ...")
     lcm_lora_config = LoraConfig(
         r=args.lcm_rank, lora_alpha=args.lcm_rank, init_lora_weights="gaussian",
-        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        target_modules=lcm_target_modules,
     )
     unet.add_adapter(lcm_lora_config, adapter_name="lcm")
     unet.set_adapters(["colour", "lcm"])

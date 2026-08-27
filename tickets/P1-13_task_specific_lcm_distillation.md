@@ -1,6 +1,21 @@
 # P1-13 — Task-Specific LCM-LoRA Distillation from the Frozen P1-10 Teacher
 
-**Status:** ⏳ PLANNED — conditional follow-up to P1-12.
+**Status:** ✅ CLOSED (2026-08-26) — negative result. Full narrative,
+prerequisite-gate evidence, training ablations, checkpoint-selection
+methodology, post-training controls, the guidance-semantics correction, and
+the full-UNet scope-matched replication (P1-13b) are all recorded in
+`tickets/PHASE1-TICKETS.md`'s P1-13/P1-13b sections — this file is the
+original task spec and is kept for reference, not updated further.
+
+**Final outcome:** neither the attention-only adapter nor the full-UNet
+scope-matched replication (P1-13b) beat the generic pretrained
+`lcm-lora-sdv1-5` on the held-out A06+A08 evaluation, even after correcting
+a train/inference guidance-semantics mismatch (`w` uses the LCM paper's CFG
+form, where diffusers `guidance_scale` G = w + 1). Full-UNet scope brought
+LAB approximately level with generic LCM within seed variation but did not
+close the SSIM gap. Closed under the precommitted hard-stop rule — no
+further rank sweeps, LR zoos, w-range sweeps, additional training slides,
+new losses, or held-out tuning.
 
 ## Motivation
 

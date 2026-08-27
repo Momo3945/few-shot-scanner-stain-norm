@@ -59,5 +59,12 @@ echo "== ControlNet Canny (SDXL) =="
 # diffusers team (same role as lllyasviel/sd-controlnet-canny for SD1.5 above). Also confirmed
 # NOT present in the cache as of 2026-08-10.
 hf download diffusers/controlnet-canny-sdxl-1.0
+echo "== sd-vae-ft-mse (reconstruction-focused SD1.x-compatible VAE) =="
+# Named explicitly in P1-14 (tickets/P1-14_vae_reconstruction_benchmark.md):
+# candidate drop-in replacement for the stock SD1.5 VAE's own encode->decode
+# reconstruction floor (job 44515 found SSIM capped at 0.5393 with zero
+# diffusion at all). Public, not gated. Confirmed NOT present in the cache
+# as of 2026-08-26.
+hf download stabilityai/sd-vae-ft-mse
 
 echo "ALL DOWNLOADS COMPLETE"

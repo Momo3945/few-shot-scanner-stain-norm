@@ -42,6 +42,18 @@
 # OPTIMIZER steps, not microbatches -- effective batch size = 1 x
 # GRAD_ACCUM. Override to reproduce the earlier GRAD_ACCUM=1 run:
 #   OVERFIT_N=8 LR=0.00003 GRAD_ACCUM=1 SAVE_EVERY=125 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 --time=02:00:00 -J p1_13_overfit_lr3e5_ga1 train_p1_10_lcm_lora.slurm 1500
+#
+# P1-13b full-UNet scope replication (set LCM_SCOPE=full_unet, not a
+# positional arg -- default "attention"). Appends _full_unet to the output
+# dir. Matches the official cached lcm-lora-sdv1-5's target-module scope
+# (verified against both the cached checkpoint's own safetensors keys and
+# diffusers v0.39.0's train_lcm_distill_lora_sd_wds.py's own default
+# lora_target_modules -- not guessed) to remove the adapter-scope confound
+# after the attention-only P1-13 adapter, even guidance-corrected, still
+# lost to generic LCM. Everything else (rank, w range, loss, teacher, data)
+# stays identical to the adopted P1-13 config. See
+# tickets/PHASE1-TICKETS.md P1-13b:
+#   OVERFIT_N=8 LCM_SCOPE=full_unet SAVE_EVERY=125 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 --time=01:15:00 -J p1_13b_overfit train_p1_10_lcm_lora.slurm 300
 # =====================================================================
 
 #SBATCH --job-name=p1_13_lcm_distill
@@ -81,6 +93,10 @@ if [[ "${GRAD_ACCUM}" != "1" ]]; then
     OUT_DIR="${OUT_DIR}_ga${GRAD_ACCUM}"
 fi
 SAVE_EVERY="${SAVE_EVERY:-125}"
+LCM_SCOPE="${LCM_SCOPE:-attention}"
+if [[ "${LCM_SCOPE}" != "attention" ]]; then
+    OUT_DIR="${OUT_DIR}_${LCM_SCOPE}"
+fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -95,7 +111,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-13 -- Steps=$STEPS  LR=$LR  GradAccum=$GRAD_ACCUM  SaveEvery=$SAVE_EVERY  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}'"
+echo "P1-13 -- Steps=$STEPS  LR=$LR  GradAccum=$GRAD_ACCUM  SaveEvery=$SAVE_EVERY  LcmScope=$LCM_SCOPE  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}'"
 echo "Teacher=$TEACHER_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -114,6 +130,7 @@ python src/train/train_p1_10_lcm_lora.py \
     --lr "${LR}" \
     --grad-accum-steps "${GRAD_ACCUM}" \
     --save-every "${SAVE_EVERY}" \
+    --lcm-scope "${LCM_SCOPE}" \
     --seed 0 \
     ${SMOKE_FLAG} ${OVERFIT_FLAG}
 

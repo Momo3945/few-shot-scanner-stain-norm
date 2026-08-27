@@ -25,6 +25,15 @@
 #
 # Then score everything together (existing, unmodified scorer):
 #   sbatch score_p1_10_ablation.slurm  # or invoke score_p1_10_ablation.py directly, see below
+#
+# Guidance-corrected re-run (2026-08-25): set LCM_ADAPTER_DIR/GUIDANCE to
+# override the checkpoint/guidance for task_specific, after the guidance
+# sweep found guidance_scale=2.0 (Control 1's original setting) mismatched
+# w~U[1,2]'s training-time CFG semantics (G=w+1) and checkpoint-500 @
+# guidance=1.0 selected as the internally-frozen operating point:
+#   LCM_ADAPTER_DIR=/datasets/mhoosen/stain-norm/lora/a2h_cond_r8_lcm_distilled_lr0.00003_ga4/checkpoint-500 \
+#   GUIDANCE=1.0 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 -J p1_13_ctrl_guidance_fix \
+#     infer_p1_13_lcm_controls.slurm task_specific correct 20
 # =====================================================================
 
 #SBATCH --job-name=p1_13_ctrl
@@ -44,7 +53,8 @@ DATA_ROOT=/datasets/mhoosen/stain-norm
 MITOS_ROOT=${DATA_ROOT}/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
 LORA_DIR=${DATA_ROOT}/lora/a2h_cond_r8/best
-LCM_ADAPTER=${DATA_ROOT}/lora/a2h_cond_r8_lcm_distilled_lr0.00003_ga4/best_by_validation_b
+LCM_ADAPTER=${LCM_ADAPTER_DIR:-${DATA_ROOT}/lora/a2h_cond_r8_lcm_distilled_lr0.00003_ga4/best_by_validation_b}
+GUIDANCE_OVERRIDE=${GUIDANCE:-}
 export HF_HOME=/datasets/mhoosen/hf_cache
 
 VARIANT=${1:?"Usage: sbatch infer_p1_13_lcm_controls.slurm VARIANT SOURCE_MODE [LIMIT] [OUT_TAG]  (VARIANT = task_specific | adapter_disabled | generic_lcm)"}
@@ -60,6 +70,10 @@ if [[ "${VARIANT}" == "task_specific" || "${VARIANT}" == "adapter_disabled" ]]; 
         exit 1
     fi
     LCM_FLAG="--lcm-adapter ${LCM_ADAPTER}"
+fi
+GUIDANCE_FLAG=""
+if [[ -n "${GUIDANCE_OVERRIDE}" ]]; then
+    GUIDANCE_FLAG="--guidance ${GUIDANCE_OVERRIDE}"
 fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
@@ -84,7 +98,7 @@ echo "------------------------------------------------------------------"
 cd "${CODE_DIR}/src/eval"
 python infer_p1_13_lcm_controls.py \
     --variant "${VARIANT}" --source-mode "${SOURCE_MODE}" \
-    --lora "${LORA_DIR}" ${LCM_FLAG} \
+    --lora "${LORA_DIR}" ${LCM_FLAG} ${GUIDANCE_FLAG} \
     --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
     --limit "${LIMIT}" --max-crops-per-frame 4 --seeds 0 1 2
 

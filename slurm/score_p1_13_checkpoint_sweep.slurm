@@ -11,8 +11,13 @@
 # Control 1's guidance_scale=2.0 result should not be trusted until this
 # sweep is done. See tickets/PHASE1-TICKETS.md P1-13.
 #
-# Submit with no args:
+# Submit with no args (defaults to the attention-only P1-13 run):
 #   sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 score_p1_13_checkpoint_sweep.slurm
+#
+# Or override RUN_DIR_NAME to sweep a different run (e.g. the P1-13b
+# full-UNet replication):
+#   RUN_DIR_NAME=a2h_cond_r8_lcm_distilled_lr0.00003_ga4_full_unet sbatch \
+#     --exclude=mscluster48,mscluster65,mscluster46,mscluster44 score_p1_13_checkpoint_sweep.slurm
 # =====================================================================
 
 #SBATCH --job-name=p1_13_gsweep
@@ -30,7 +35,8 @@ set -euo pipefail
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_DIR=/datasets/mhoosen/stain-norm/pairs/train
 TEACHER_DIR=/datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best
-RUN_DIR=/datasets/mhoosen/stain-norm/lora/a2h_cond_r8_lcm_distilled_lr0.00003_ga4
+RUN_DIR_NAME=${RUN_DIR_NAME:-a2h_cond_r8_lcm_distilled_lr0.00003_ga4}
+RUN_DIR=/datasets/mhoosen/stain-norm/lora/${RUN_DIR_NAME}
 VAL_FRAMES_JSON=${RUN_DIR}/training_config.json
 OUT_JSON=${RUN_DIR}/guidance_sweep.json
 export HF_HOME=/datasets/mhoosen/hf_cache

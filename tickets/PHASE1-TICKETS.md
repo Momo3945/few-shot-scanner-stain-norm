@@ -1436,9 +1436,9 @@ operating point.
 
 ## P1-13 — Task-specific LCM-LoRA distillation from the frozen P1-10 teacher
 
-**Status:** 🔄 IN PROGRESS (2026-08-23) -- prerequisite gate evaluated,
-training script + launcher being implemented. Task file:
-`tickets/P1-13_task_specific_lcm_distillation.md`.
+**Status:** ✅ CLOSED (2026-08-26) -- negative result, both attention-only and
+full-UNet (P1-13b) scopes tried; see full narrative and final decision
+below. Task file: `tickets/P1-13_task_specific_lcm_distillation.md`.
 
 **Prerequisite gate**, using the diagnostic above (job 45654/45700, plain
 DDIM, vs job 45650/45692, generic LCM, both at matched steps=8/strength=
@@ -1734,6 +1734,151 @@ treated as final** -- P1-13 is reopened (training/checkpoint NOT
 re-selected yet) to rule this out via an inference-only guidance sweep
 before accepting or rejecting the hypothesis. See below.
 
+**Guidance sweep -- results (2026-08-25), job 46364
+(`score_p1_13_checkpoint_sweep.py`, extended to sweep student
+`guidance_scale in {1.0, 1.5, 2.0}` x every saved checkpoint of the real
+39-pair run, scoring BOTH teacher-fidelity and real-Hamamatsu-ground-truth
+(real-H) metrics, internal validation split only, no held-out slides, no
+new training):**
+
+The hypothesis is confirmed as a real, substantial effect, not just a
+theoretical concern: **guidance=1.0 beats guidance=2.0 on real-H SSIM at
+almost every checkpoint** (e.g. checkpoint-500: 0.1908 at g=1.0 vs 0.1630
+at g=2.0). Best-per-guidance (same 5%-floor+lowest-LAB selection rule,
+restricted to each guidance's own checkpoints):
+
+| Guidance | Best checkpoint | real-H SSIM | real-H LAB |
+|---|---|---|---|
+| 1.0 | 500 | **0.1908** | 27.28 |
+| 1.5 | 500 | 0.1785 | 25.32 |
+| 2.0 | 750 | 0.1696 | 25.69 |
+
+Full guidance=1.0 slice across all 13 checkpoints (real-H, with
+teacher-fidelity alongside as a diagnostic only):
+
+| Checkpoint | real-H SSIM | real-H LAB | teacher-fid. SSIM | teacher-fid. LAB |
+|---|---|---|---|---|
+| 125 | 0.1878 | 28.61 | 0.3356 | 13.35 |
+| 250 | 0.1750 | 27.21 | 0.3233 | 12.17 |
+| 375 | 0.1790 | 27.27 | 0.3157 | 14.62 |
+| **500 (selected)** | 0.1908 | **27.28** | 0.3215 | 14.34 |
+| 625 | 0.1984 | 27.55 | 0.3445 | 13.18 |
+| 750 | 0.1966 | 30.38 | 0.2976 | 17.26 |
+| 875 | 0.1934 | 27.93 | 0.3415 | 14.14 |
+| 1000 | 0.1846 | 30.04 | 0.3023 | 15.03 |
+| 1125 | 0.1938 | 28.58 | 0.3477 | 13.11 |
+| 1250 | 0.1912 | 27.54 | 0.3788 | 14.33 |
+| 1375 | **0.1989** (best in slice) | 28.92 | 0.3539 | 13.43 |
+| best/final | 0.1847 | 29.32 | 0.3276 | 14.55 |
+
+**Internal-validation-only selection (frozen before touching held-out
+slides): checkpoint-500 @ guidance=1.0.** Note real-H SSIM stays in a
+fairly tight 0.175-0.199 band across all 13 checkpoints at g=1.0 -- much
+tighter than the wide oscillation seen at g=2.0 in the earlier
+single-guidance sweep, corroborating that g=2.0 was itself part of the
+instability, not only the checkpoint.
+
+**Frozen guidance-corrected A06+A08 re-run -- results (2026-08-25), job
+46470 (infer, checkpoint-500/guidance=1.0) + job 46511 (score, paired only
+against the unchanged `generic_lcm_correct` arm -- deliberately NOT
+pooled with the original g=2.0 `task_specific_correct` dir, which would
+collide under the same manifest `source_mode` bucket):**
+
+| Arm | SSIM | LAB total |
+|---|---|---|
+| `generic_lcm_correct` (unchanged) | **0.2958** | **71.43** |
+| `task_specific` OLD (checkpoint-625 @ g=2.0) | 0.2109 | 76.82 |
+| `task_specific` NEW (checkpoint-500 @ g=1.0) | 0.2690 | 76.61 |
+
+Paired win-rate (this scoring pass): `generic_lcm_correct` wins 54/80
+crops, `task_specific` (corrected) wins 26/80.
+
+**Conclusion: after correcting the LCM-LoRA guidance-semantics mismatch,
+task-specific distillation improved substantially (SSIM 0.2109 -> 0.2690,
+~27% relative) but remained inferior to generic LCM (0.2958) and had worse
+LAB (76.61 vs 71.43).** The guidance correction was real and material, not
+a wash -- but per the precommitted interpretation rule (loses on both
+axes after correction => negative result), P1-13's attention-only
+task-specific adapter does not beat generic LCM.
+
+Because the generic adapter uses substantially broader full-UNet LoRA
+coverage (rank 64, attention + `proj_in`/`proj_out` + ResNet convs +
+up/down-samplers + `time_emb_proj`, confirmed by inspecting its own
+safetensors keys) while the task-specific adapter was attention-only (also
+rank 64, but only `to_q`/`to_k`/`to_v`/`to_out.0`), one final
+scope-matched replication (P1-13b, full-UNet task-specific LoRA, everything
+else held fixed) is warranted before concluding that task-specific
+distillation itself -- rather than merely its adapter scope -- is
+inferior. See P1-13b below. **This is the last planned P1-13 training
+experiment**: if P1-13b still loses to generic LCM (0.2958 SSIM / 71.43
+LAB) on both axes, P1-13 closes permanently as a negative result, with no
+further rank sweep, LR zoo, w-range sweep, additional training slides, new
+losses, or extra held-out tuning after that.
+
+### P1-13b -- full-UNet scope-matched replication (2026-08-25/26)
+
+Target-module scope matched to the official cached `lcm-lora-sdv1-5`
+(rank 64 kept identical; `to_q`/`to_k`/`to_v`/`to_out.0` + `proj_in`/
+`proj_out` + `ff.net.0.proj`/`ff.net.2` + `conv1`/`conv2`/`conv_shortcut` +
+`downsamplers.0.conv`/`upsamplers.0.conv` + `time_emb_proj` -- verified
+against BOTH the cached checkpoint's own safetensors keys and diffusers
+v0.39.0's `train_lcm_distill_lora_sd_wds.py`'s own default
+`lora_target_modules`, not guessed). Everything else identical to the
+adopted P1-13 config (LR=3e-5, grad-accum=4, `w~U[1,2]`, same 39/11 split,
+same teacher, same Huber loss). `--lcm-scope {attention,full_unet}` added
+to `train_p1_10_lcm_lora.py`; `LCM_SCOPE` env var added to its slurm
+launcher.
+
+Staged rollout, all clean (jobs 46525 smoke, 46528 overfit, 46539 real run,
+46574 guidance sweep, 46638+47012 final A06+A08 comparison): full-UNet
+scope trained noticeably more cleanly than attention-only at every stage --
+the 8-pair overfit test's final checkpoint was the sole dominant Pareto
+point (ssim=0.353/lab=10.37, already better than attention-only's best
+across three separate LR/accum configs), and the real 39-pair run's
+teacher-fidelity Pareto frontier collapsed to a single dominant checkpoint
+(checkpoint-250, ssim=0.382/lab=8.69 -- the best teacher-fidelity result of
+the entire P1-13/P1-13b project). The guidance sweep (13 checkpoints x 3
+guidances, real-H + teacher-fidelity) independently agreed with the
+teacher-fidelity pick: **checkpoint-250 @ guidance=1.0** selected on both
+metrics, and it strictly beat attention-only's selection on both real-H
+axes (ssim 0.1987 vs 0.1908, lab 23.97 vs 27.28).
+
+**Final frozen A06+A08 comparison** (jobs 46638 infer + 47012 score, same
+crops/seeds/protocol as every other P1-13 control):
+
+| Arm | SSIM | LAB total |
+|---|---|---|
+| `generic_lcm_correct` (unchanged) | 0.2958 +/- 0.0019 | 71.43 +/- 0.38 |
+| attention-only (checkpoint-500 @ g=1.0) | 0.2690 | 76.61 |
+| **full-UNet P1-13b (checkpoint-250 @ g=1.0)** | 0.2841 +/- 0.0013 | 71.98 +/- 0.63 |
+
+Paired win-rate: `generic_lcm_correct` 50/80 crops, full-UNet 30/80 (an
+improvement over attention-only's 54/26 split).
+
+**Decision (2026-08-26): P1-13/P1-13b CLOSED under the precommitted
+hard-stop rule.** Full-UNet scope substantially improved the task-specific
+result and brought LAB approximately level with generic LCM within
+observed seed-to-seed variation (71.98 +/- 0.63 vs 71.43 +/- 0.38 -- the
+gap, 0.55, is smaller than either arm's own seed stdev) -- but generic
+retained a clear SSIM advantage (0.2958 vs 0.2841, non-overlapping error
+bars, ~4% relative gap) and the paired win-rate still favours generic
+(50/80 vs 30/80). Per the precommitted rule, failing to beat/clearly match
+generic LCM on BOTH axes closes P1-13 as a negative result.
+
+**Final status: P1-13 and P1-13b are CLOSED. No further P1-13 rank sweeps,
+LR zoos, w-range sweeps, additional training slides, new losses, or
+held-out tuning.** The scientific conclusion: task-specific LCM-LoRA
+distillation from the frozen P1-10 source-conditioned teacher, at the data
+scale available here (39 pairs), does not outperform the generic
+pretrained LCM-LoRA on the actual held-out biological evaluation --
+neither at attention-only nor full-UNet adapter scope, once the
+train/inference guidance-semantics mismatch is corrected. Full-UNet scope
+closed most of the gap on colour recovery specifically but not on
+structural fidelity. LCM acceleration for this task remains best served by
+the generic pretrained adapter (already established, P1-12) or the
+50-step DDIM inversion quality path (P1-11) for cases where speed can be
+traded for fidelity.
+
 ## P1-17 — Differential Diffusion change-map inference (spatially-varying strength)
 
 **Status:** ✅ CLOSED (2026-08-27) — negative result. Internal-validation
@@ -1751,6 +1896,67 @@ effect. Full grid table and interpretation in the task file:
 `tickets/P1-17_differential_diffusion_change_map.md`. Proceeding to P1-16,
 which sidesteps this failure mode entirely (fusion happens outside the UNet,
 post hoc, never re-entering the shared diffusion computation).
+
+## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
+
+**Status:** 🔄 IN PROGRESS (2026-08-27) -- Stage A complete and gates open
+to Stage B (running). Task file:
+`tickets/P1-14_vae_reconstruction_benchmark.md`.
+
+**Motivation:** P1-10's own VAE-only floor check (job 44515, 496 held-out
+crops) found pure stock-SD1.5 encode->decode already caps SSIM at 0.5393 --
+below every classical baseline -- with zero diffusion involved. This ticket
+asks whether `stabilityai/sd-vae-ft-mse`, a reconstruction-focused drop-in
+VAE, closes any of that gap as a pure encode->decode swap, no retraining.
+Deliberately isolated from the whole diffusion pipeline (no UNet/
+ControlNet/LoRA/noise/DDIM) so the result reflects the VAE's own
+contribution before anyone considers swapping it into P1-11.
+
+**Note on methodology vs the historical VAE-only floor number:** job
+44515's 0.5393 compared reconstructed-Aperio against the TRUE Hamamatsu
+target (an identity-transform ceiling for translation quality). P1-14 asks
+a narrower question -- true self-reconstruction fidelity (encode a crop,
+decode it, compare to the SAME crop) for Aperio and Hamamatsu
+independently -- per the ticket's own explicit framing ("isolate decoder/
+autoencoder reconstruction quality", "SSIM(input, reconstruction)"). The
+ticket itself says to prefer a clean new self-consistent benchmark over
+replicating the old code path exactly, so no attempt was made to reproduce
+0.5393 bit-for-bit; the two numbers measure different things and aren't
+meant to match.
+
+**Code:** `src/eval/benchmark_vae_reconstruction.py` +
+`slurm/benchmark_vae_reconstruction.slurm` (new, standalone -- does not
+edit `infer_colour_translation.py` or any other validated P1-10/P1-11
+script). `stabilityai/sd-vae-ft-mse` fetched (job 47228, verified with real
+byte sizes -- 320MB safetensors, not a config-only stub) and added to
+`fetch_models.slurm`'s own download list.
+
+**VAE config inspection (both, logged at runtime, not assumed):** both
+`AutoencoderKL`, `latent_channels=4`, identical `block_out_channels`
+`[128,256,512,512]` and down/up block types, **identical param count
+(83,653,863)**, `dtype=torch.float16` (this benchmark's runtime dtype), and
+**`scaling_factor=0.18215` for both**, confirmed by reading the LOADED
+model's config (not the raw JSON, which does not explicitly serialise this
+field for either checkpoint -- verified by fetching both cached
+`config.json` files directly before writing the benchmark). Only
+`sample_size` differs (512 vs 256, a resolution hint, not a hard
+constraint at the 512x512 crop size this project uses). Architecturally a
+true drop-in swap.
+
+**Stage A -- internal validation (2026-08-27, job 47230, COMPLETED, 50
+non-held-out pairs, both scanner domains, deterministic `.mode()` encode,
+no seeds needed):**
+
+| Domain | stock SSIM | ft_mse SSIM | mean ΔSSIM | 95% bootstrap CI | ΔPSNR | ΔMAE |
+|---|---|---|---|---|---|---|
+| Aperio | 0.5477 | 0.5957 | **+0.0480** | [+0.0470, +0.0490] | +1.38 dB | -3.24 |
+| Hamamatsu | 0.5862 | 0.6312 | **+0.0450** | [+0.0443, +0.0457] | +1.30 dB | -2.81 |
+
+Clears the ticket's meaningful-gain gate (>=+0.01 absolute SSIM) by nearly
+5x, in both scanner domains almost equally (no domain trade-off), with
+tight bootstrap CIs entirely above zero, and PSNR/MAE improving alongside
+SSIM rather than trading off against it. **Gate: OPEN -- proceeding to
+Stage B** (job 47232, submitted, results pending).
 
 ---
 
