@@ -1076,28 +1076,57 @@ task, only on the decoder's own reconstruction fidelity. Full detail:
 `tickets/PHASE1-TICKETS.md` P1-14.
 
 **Update (2026-08-27): P1-16 (raw-source-detail / learned colour-residual
-fusion) — in progress, early results positive.** Fuses raw source-image
-detail back into P1-11's output *after* generation, entirely outside the
-UNet — deliberately sidesteps P1-17's failure mode, since the fusion never
-re-enters the shared diffusion computation. A parameter grid over blur scale
-(σ) and residual-injection weight (β), on 20 internal-validation crops,
-against the upstream P1-11 reference (SSIM 0.1644, LAB 21.46):
+fusion) — the first configuration in this project's entire history to clear
+a classical baseline on SSIM, with the full held-out confirmation still
+pending.** Fuses raw source-image detail back into P1-11's output *after*
+generation, entirely outside the UNet — deliberately sidesteps P1-17's
+failure mode, since the fusion never re-enters the shared diffusion
+computation. The intent: let diffusion supply only the colour/style
+transformation while the untouched Aperio source supplies the fine
+structure, instead of asking the VAE to resynthesise both.
 
-| σ | β | SSIM | LAB total |
-|---|---|---|---|
-| 4 | 0.75 | 0.185 | 21.74 |
-| 8 | 0.75 | 0.187 | 21.75 |
-| 16 | 0.75 | 0.187 | 21.75 |
-| **8** | **0.50** | **0.1866** | **21.44** |
-| 8 | 1.00 | 0.1865 | 22.50 |
+A blur-scale (σ) × residual-weight (β) grid on internal validation
+converged and was frozen at **σ=8, β=0.50** — SSIM gains 12-16% relative
+over upstream P1-11 at every tested config, growing with sample size (20
+crops: +13.4%; 50 crops: +15.6%, SSIM 0.1854 vs. upstream 0.1604), while
+LAB cost stays small (22.67 vs. 22.11). Beaten controls: full luminance
+swap (F1) and a plain alpha-blend (F2) both underperform F3 on the
+SSIM/LAB tradeoff. A visual artifact check found F3 indistinguishable from
+raw source at native and zoomed scale — no haloing, ringing, or gamut
+clipping.
 
-SSIM improves +0.020 to +0.023 (12-14% relative) over upstream at every
-tested configuration — a real, consistent effect, flat across σ and only
-degrading LAB as β increases. Best so far: σ=8, β=0.50 (same SSIM gain, LAB
-essentially tied with upstream, not traded off). Not yet a result on the
-full pipeline: one slide, one seed, no artifact check, no held-out run —
-correctly not yet claimed as final. Full detail: `tickets/PHASE1-TICKETS.md`
-P1-16.
+**Held-out check (A06+A08 subset, 80 crops):**
+
+| | SSIM | Recovery Δlab |
+|---|---|---|
+| Classical baselines (range) | 0.628–0.681 | +3.2 to +9.0 |
+| P1-11 upstream (same subset, prior best) | ~0.45 (full held-out) | +8.74 (full held-out) |
+| **P1-16, F3 (σ=8, β=0.50)** | **0.6505 pooled (A06 0.617 / A08 0.784)** | **+9.34** |
+
+On A08 alone, P1-16 clears *every* classical baseline outright (Macenko
+0.628, Histogram Matching 0.651, Reinhard 0.681, vs. P1-16's 0.784) — the
+first diffusion configuration anywhere in this project (36+ configs across
+A0–A5, P1-10/11/12/13, SDXL) to do so. The pooled recovery figure needed one
+real fix along the way: `score_outputs.py`'s baseline-weighting function was
+using the wrong per-slide crop counts for subset runs, initially showing a
+spurious −22.14 despite both per-slide deltas being positive — fixed and
+pushed (`be1f4f8`), corrected result is the +9.34 above.
+
+**Caveat that matters — full 496-crop held-out confirmation is not yet
+valid.** An attempt to scale this up cheaply reused a pre-existing eval
+directory as the raw-Aperio reference; that directory's reference field
+turned out to be the real Hamamatsu target, not Aperio, silently leaking
+ground truth into the fusion input and producing an invalid SSIM≈0.998
+result. Caught by the number being implausible on its face, confirmed by
+direct pixel comparison, and root-caused by checksumming the reference file
+against known-good raw-Aperio/Hamamatsu checksums. **Do not cite the 0.998
+figure — it is invalid.** A corrected full-496 identity-mode run is
+submitted (job 47361) with checksum verification built in before it's
+trusted; the 80-crop A06+A08 result above did not have this problem
+(verified against known-good references) and stands on its own. Full
+narrative, grid data, and the bug writeup: `tickets/
+P1-16_source_detail_colour_residual_fusion.md` and `tickets/
+PHASE1-TICKETS.md` P1-16.
 
 **P1-15 (re-decoding P1-11's translated latents with P1-14's winning VAE) —
 blocked, not started.** Gated on P1-14 finding a meaningful reconstruction
