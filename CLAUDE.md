@@ -155,6 +155,15 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   this node while every other run on `mscluster22` finished in ~21-22min
   (2026-08-10). Use `--exclude=mscluster40` if a `stampede` job runs
   suspiciously long.
+- **`mscluster61` (on `bigbatch`) showed the same slow/contended signature for
+  a GPU job** (2026-08-27/28, P3-07 D2, job 47330): measured throughput 42.4s
+  per SDXL 50-step-DDIM 1024 output vs 17.5s/output for the identical script
+  and checkpoint on `mscluster57` (job 47298) -- 2.4x slower, enough to
+  TIMEOUT at `--time=03:30:00` having produced the same output count as the
+  first (shorter, `--time=01:30:00`) attempt. Single occurrence so far (not
+  yet promoted to "confirmed bad" the way `mscluster48`/`65`/`46`/`44` were
+  after a second hit) -- but worth excluding pre-emptively on any `bigbatch`
+  job that seems to be running suspiciously long, same as `mscluster40` above.
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 
