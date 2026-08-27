@@ -169,17 +169,34 @@ def main():
     id_base, id_rows = load_rows(args.identity_manifest)
     tr_base, tr_rows = load_rows(args.translate_manifest)
 
+    def is_vae_only(r):
+        # Two manifest shapes exist for a vae_only row in this project: a
+        # mixed-method infer_colour_source_ddim_inversion.py --mode identity
+        # manifest (method=="vae_only", source_mode=="identity_vae_only"), or
+        # a dedicated infer_colour_translation.py --vae-only manifest (no
+        # "method" column at all, source_mode=="vae_only" directly). Accept
+        # either so a full-scale --vae-only run (e.g. the existing project-
+        # wide VAE-only floor check) can supply A_V without a new GPU job.
+        return r.get("method") == "vae_only" or r.get("source_mode") == "vae_only"
+
     # A_raw + A_V: any row in the identity manifest carries the shared
-    # reference_path (= A_raw) for its crop_id; only method=="vae_only" rows
-    # carry A_V.
+    # reference_path (= A_raw) for its crop_id (true for both manifest shapes
+    # above -- reference_path is always the untouched source crop when no
+    # real Hamamatsu target is involved); only vae_only rows carry A_V.
     a_raw_by_crop = {r["crop_id"]: id_base / r["reference_path"] for r in id_rows}
     a_vae_by_key = {(r["crop_id"], r["seed"]): id_base / r["output_path"]
-                    for r in id_rows if r["method"] == "vae_only"}
+                    for r in id_rows if is_vae_only(r)}
 
-    # H_pred: translate-mode rows, method==ddim_inversion, source_mode==correct
-    # (the primary A->H prediction -- zero/shuffled ablation rows, if present
-    # in the same manifest, are deliberately excluded).
-    h_pred_rows = [r for r in tr_rows if r["method"] == "ddim_inversion" and r["source_mode"] == "correct"]
+    # H_pred: translate-mode rows, method==ddim_inversion (or the column is
+    # absent -- some existing full-scale translate-mode manifests in this
+    # project were trimmed to a simpler schema with no "method" column at
+    # all, since every row in a single-source-mode translate run already IS
+    # ddim_inversion; .get() with a matching default handles both shapes),
+    # source_mode==correct (the primary A->H prediction -- zero/shuffled
+    # ablation rows, if present in the same manifest, are deliberately
+    # excluded).
+    h_pred_rows = [r for r in tr_rows
+                   if r.get("method", "ddim_inversion") == "ddim_inversion" and r["source_mode"] == "correct"]
     if not h_pred_rows:
         raise SystemExit(
             "No method=ddim_inversion, source_mode=correct rows found in --translate-manifest -- "

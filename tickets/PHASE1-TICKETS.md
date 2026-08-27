@@ -1899,38 +1899,25 @@ post hoc, never re-entering the shared diffusion computation).
 
 ## P1-16 — Raw-Source-Detail / Learned Colour-Residual Fusion
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 parameter search underway on
-internal validation, first results promising (unlike P1-17's null result).
-Script implemented (`src/eval/fuse_source_detail.py` +
-`slurm/fuse_source_detail.slurm`). Running directly from stock P1-11
-(P1-15 not yet passed). Task file:
+**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 (sigma=8, beta=0.50) frozen
+after a converged internal-validation parameter search (radius/beta grid,
+50 crops: SSIM +15.6% relative over upstream P1-11). Held-out A06+A08
+subset (80 crops) **clears classical baselines on SSIM** (0.6505 pooled,
+0.784 on A08 — the first result in this project's history to do so) with
+real colour recovery (Δlab +9.34, comparable to P1-11's own +8.74). Full
+496-crop held-out confirmation is pending re-run: a **target-leakage bug**
+was found while attempting to scale up cheaply (reused a pre-existing
+directory whose "reference" field turned out to be the real Hamamatsu
+target, not raw Aperio, producing an invalid SSIM≈0.998 result) — caught,
+root-caused via checksum comparison, and being corrected with a proper
+identity-mode run (job 47361) rather than any further shortcuts. Full
+narrative, numbers, and the bug writeup in the task file:
 `tickets/P1-16_source_detail_colour_residual_fusion.md`.
 
-**Prerequisite generated:** P1-11 had never been run on internal-validation
-crops before (only held-out) — ran both required arms (identity mode for
-A_raw/A_V, translate mode for H_pred) on the same 20 training-pair crops,
-inversion-fraction 1.0 (jobs 47257/47258, both clean). Required adding
-`--pairs-dir` support to `slurm/infer_p1_10_ddim_inversion.slurm` (env var
-`PAIRS_DIR=1`, additive, non-breaking).
-
-**F3 grid so far** (upstream P1-11 reference: SSIM=0.1644, LAB=21.46):
-
-| sigma | beta | SSIM | LAB total |
-|---|---|---|---|
-| 4 | 0.75 | 0.185 | 21.74 |
-| 8 | 0.75 | 0.187 | 21.75 |
-| 16 | 0.75 | 0.187 | 21.75 |
-| 8 | 0.50 | **0.1866** | **21.44** |
-| 8 | 1.00 | 0.1865 | 22.50 |
-
-SSIM improves over upstream by +0.020 to +0.023 (12–14% relative) at every
-tested config — a real, consistent effect. SSIM is flat across sigma/beta;
-LAB degrades monotonically as beta increases (heavier residual = more of a
-*blurred approximation* of P1-11's colour shift injected, not a cleaner
-one). Best so far: sigma=8, beta=0.50 — same SSIM gain, LAB essentially
-tied with upstream. Beta below 0.50 untested; no artifact check yet; one
-slide, one seed; no held-out run (correctly not started yet — no config
-frozen). Full detail in the task file.
+Also fixed along the way: `score_outputs.py`'s `baseline_all_for_slides()`
+was weighting the baseline reference by the wrong crop counts for any
+subset (non-full-496) run, producing bogus pooled recovery deltas even
+when per-slide deltas were correct — fixed and pushed (`be1f4f8`).
 
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 

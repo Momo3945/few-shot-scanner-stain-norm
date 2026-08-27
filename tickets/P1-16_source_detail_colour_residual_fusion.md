@@ -1,8 +1,13 @@
 # P1-16 — Raw-Source-Detail / Learned Colour-Residual Fusion
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 parameter search underway on
-internal validation, first results promising. Script implemented
-(`src/eval/fuse_source_detail.py` + `slurm/fuse_source_detail.slurm`).
+**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 (sigma=8, beta=0.50) frozen
+after a converged parameter search; held-out A06+A08 subset (80 crops)
+clears classical baselines on SSIM (0.6505 pooled, 0.784 on A08) with
+positive colour recovery (Δlab +9.34). Full 496-crop held-out confirmation
+pending re-run after a target-leakage bug was found and is being corrected
+(see below — do not cite the earlier full-496 SSIM≈0.998 number, it is
+invalid). Script implemented (`src/eval/fuse_source_detail.py` +
+`slurm/fuse_source_detail.slurm`).
 
 Running directly from stock P1-11 (P1-15 not yet passed — see Upstream Base
 Output below).
@@ -48,14 +53,140 @@ gain as every other config, LAB (21.44) essentially tied with (marginally
 better than) upstream P1-11 itself (21.46), i.e. the structural
 improvement currently looks close to free.
 
-**Not yet done:** beta below 0.50 untested (SSIM looks saturated and LAB
-keeps improving as beta drops, so there may be a still-better point before
-it degrades toward the beta=0 raw-source limit); F1/F2 diagnostic variants
-not run; no visual artifact check (haloing/seams) yet; only one slide
-(A03), one seed; canonical held-out run not started (correctly — no
-config has been frozen yet, and this project's own guardrail is to never
-escalate to held-out before internal validation shows a real, frozen
-effect).
+**Extended beta grid (2026-08-27), sigma=8, beta ∈ {0.10, 0.25} added to
+the earlier {0.50, 0.75, 1.00}:**
+
+| beta | SSIM | LAB total |
+|---|---|---|
+| 0.10 | 0.1866 | 25.63 |
+| 0.25 | 0.1866 | 23.95 |
+| **0.50** | 0.1866 | **21.44** |
+| 0.75 | 0.187 | 21.75 |
+| 1.00 | 0.1865 | 22.50 |
+
+SSIM is completely flat across the *entire* beta range (0.1865–0.187, no
+measurable movement even at beta=0.10, where the crop is almost pure raw
+source) — confirms the mechanism works as designed: `delta_colour` is
+heavily blurred before being added, so by construction it can't touch fine
+structure regardless of beta; the SSIM gain comes from starting at raw
+source pixels at all, not from how much residual gets blended in. LAB
+traces a genuine **U-shape with a real minimum at beta=0.50** (not a
+monotonic collapse toward the beta→0 raw-reversion failure mode the ticket
+warns about) — confirms beta=0.50 as a real, interpretable optimum, not a
+trivial edge case. **Grid converged: sigma=8, beta=0.50 frozen as the
+primary config.**
+
+**Expanded to 50 internal-validation crops (job 47282/47283 identity/
+translate on the full training-pair set, job 47292/47295/47296 fusion +
+scoring):** confirms the finding holds at a larger sample and the SSIM gain
+*strengthens*: fusion SSIM=0.1854 vs upstream 0.1604 (+15.6% relative, up
+from +13.4% at 20 crops). LAB cost is real but modest: fusion 22.67 vs
+upstream 22.11 (the 20-crop sample's apparent "free" LAB parity was partly
+small-sample luck).
+
+**F1/F2 comparison controls (2026-08-27), same 50 crops, confirms F3 is the
+right primary method:**
+
+| Method | SSIM | LAB |
+|---|---|---|
+| Upstream P1-11 | 0.1604 | 22.11 |
+| F1 (full luminance swap) | 0.1826 | 24.63 |
+| F2, alpha=0.50 | 0.1955 | 30.74 |
+| F2, alpha=1.00 | 0.1813 | 20.30 |
+| **F3, sigma=8/beta=0.50** | **0.1854** | 22.67 |
+
+F1 underperforms F3 on both axes — likely gamut/clipping artifacts from
+swapping in H_pred's raw (unblurred) chroma alongside raw's unmodified
+luminance. F2 either trades much more LAB for slightly more SSIM
+(alpha=0.50) or gets the best LAB at a weaker SSIM (alpha=1.00) — a
+different point on the tradeoff curve, but F3 remains the best-balanced
+choice.
+
+**Visual artifact check (2026-08-27), crop A03_00A_c000, full-crop and
+zoomed nuclear region:** F3 is visually indistinguishable from raw source
+at both scales — same sharp nuclear boundaries, chromatin texture,
+stromal fibres, no blur/detail loss (unlike upstream P1-11, visibly softer
+at the same zoom). No haloing, ringing, seams, over-smoothing, or LAB→RGB
+gamut clipping observed. Clean.
+
+**Held-out check, A06+A08 subset (2026-08-27), 80 crops (job 47302 fuse /
+47307 score, reusing P1-11's own pre-existing `identity_inv100`/
+`translate_inv100_correct` — both produced by the correctly-validated
+`infer_colour_source_ddim_inversion.py` script):**
+
+**SSIM = 0.6505 pooled (A06: 0.617, A08: 0.784).** First result in this
+project's entire history (36+ configs across A0–A5, P1-10/11/12/13, SDXL)
+to clear classical Macenko (0.628) at all, and on A08 alone it clears
+*every* classical baseline (Macenko 0.628, HistMatch 0.651, Reinhard
+0.681) outright.
+
+**Bug found + fixed:** the pooled `recovery_delta_lab` for this run
+initially showed -22.14 despite both per-slide deltas being positive (A06
++11.25, A08 +1.69) — traced to `score_outputs.py`'s
+`baseline_all_for_slides()` weighting the baseline reference by the
+baseline FILE's own recorded per-slide crop counts (from the full
+496-crop baseline computation) rather than THIS run's actual crop counts,
+which mismatches for any subset run. Fixed and committed (`be1f4f8`,
+pushed to master) — re-scored, pooled Δlab corrected to **+9.34**,
+consistent with the per-slide values and comparable to P1-11's own
+previously-documented pooled +8.74.
+
+**Mistake found while scaling to the full 496-crop held-out set (2026-08-27)
+— target leakage, documented in full for the record:**
+
+To avoid an expensive new identity-mode GPU run, the full-496-crop attempt
+reused a pre-existing directory, `eval/p1_10_vae_floor` (P1-10's original
+"VAE-only floor" check), treating its `reference_path` as A_raw. This was
+wrong: `p1_10_vae_floor`'s own design (per its later clarification when
+P1-14 was scoped) compares VAE(Aperio) against the **real Hamamatsu
+target**, not against Aperio itself — its `reference_path` is the target,
+not the source. Result: the "fusion" formula silently became
+`LAB(F3) = LAB(real_Hamamatsu) + beta × residual` instead of
+`LAB(F3) = LAB(raw_Aperio) + beta × residual` — directly violating this
+ticket's own "Hard Guardrail — No Target Leakage." This produced an
+absurd SSIM≈0.998 / LAB≈8.6 pooled result (job 47338/47344) that looked
+like a historic breakthrough but was actually the ground truth leaking
+into the input.
+
+**How it was caught:** the number was suspicious on its face (no
+colour-transfer method should score near-perfect structural AND colour
+match), confirmed by downloading the fused output and reference images
+and finding them visually near-identical, then confirmed numerically
+(local pixel diff: mean abs difference 3.52/255) and finally root-caused
+by checksumming `p1_10_vae_floor`'s reference file against the two known-
+good references (`identity_inv100` = true raw Aperio checksum
+`2674f4ae...`; `translate_inv100_correct` = true Hamamatsu checksum
+`07d6b07c...`) — `p1_10_vae_floor`'s reference matched the **Hamamatsu**
+checksum, not Aperio.
+
+**Fix in progress:** submitted a genuine `--mode identity` P1-11 run on
+the full 496 held-out crops (job 47361, `eval/p1_10_ddim_inversion/
+identity_full_heldout/`) instead of reusing any pre-existing directory not
+produced by the exact validated identity-mode path. Checksum-verifying its
+reference against the known-good raw-Aperio checksum before trusting it,
+per the same guardrail this mistake violated. Once verified, F3 fusion
+will be re-run on the full 496 crops using this corrected identity
+manifest + the already-verified `p1_10_ddim_inversion_full` translate
+manifest (its own reference already independently checksum-confirmed as
+genuine Hamamatsu, so it was never the problem).
+
+**Lesson for future scripts in this project:** when reusing a pre-existing
+eval directory as a data source rather than generating fresh output, do
+not assume a "reference_path" column means the same thing across
+different scripts/runs — verify by checksum against a known-good file for
+the same crop_id before trusting it, especially when the guardrail being
+protected is target leakage. The 80-crop and 50-crop results above did NOT
+have this problem (verified: both used `identity_inv100`/
+`identity_pairs_inv100_full`, produced by the correct script, reference
+checksums confirmed against raw Aperio) — this bug was isolated to the one
+full-496 shortcut attempt and has not been found to affect any other
+number in this ticket.
+
+**Not yet done:** the full-496 held-out F3 result (pending job 47361 +
+re-verification); the F1/F2 held-out comparison (only run on internal
+validation so far); Relative Dice / HoVer-Net structural check (ticket's
+optional final-config-only check, not yet warranted until the full-496
+result is confirmed).
 
 ## Motivation
 
