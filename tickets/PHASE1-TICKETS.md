@@ -2067,7 +2067,7 @@ table, and qualitative narrative in the task file:
 
 ## P1-15 — P1-11 with the Winning Alternate Decoder
 
-**Status:** 🔄 IN PROGRESS (2026-08-27). Task file:
+**Status:** ✅ CLOSED (2026-08-28) -- POSITIVE, strong pass. Task file:
 `tickets/P1-15_p1_11_alternate_decoder.md`.
 
 **Motivation:** P1-14 closed positive (`stabilityai/sd-vae-ft-mse` gives a
@@ -2148,11 +2148,70 @@ expected pattern, no red flags.
 
 **Both Stage 1 gates now pass** (`SSIM_alt > SSIM_stock` under correct
 conditioning; the gain is source-conditioned, not a decoder artifact) --
-proceeding to the full 496-crop x 3-seed evaluation across all 5 held-out
+proceeded to the full 496-crop x 3-seed evaluation across all 5 held-out
 slides.
 
-**Not yet started:** full 496-crop x 3-seed evaluation (awaiting user
-go-ahead to submit), per-slide reporting, qualitative panel, final closure.
+**Full held-out evaluation, `--source-mode correct`, all 5 slides, seeds
+0/1/2 (job 47406, COMPLETED 03:41:01; scored by job 47453, COMPLETED
+02:00:39 -- 496 crops x 3 seeds, 2976 output rows):**
+
+| Metric | stock_decoder (= P1-11 canonical) | alt_decoder | Δ |
+|---|---|---|---|
+| SSIM | 0.4960 | **0.5567** | +0.0607 |
+| LAB total | 25.10 | **24.53** | -0.56 (better) |
+| windowed LAB | 26.01 | **25.21** | -0.80 (better) |
+| ΔE2000 | 11.16 | **10.26** | -0.90 (better) |
+| PSNR | 16.79 | **17.68** | +0.89 |
+| MAE | 28.97 | **26.26** | -2.70 |
+
+**Paired win-rate: alt_decoder wins 496/496 crops on SSIM** -- every single
+held-out crop. stock_decoder exactly reproduces P1-11's canonical baseline
+(SSIM 0.4960, wLAB 26.01), confirming a clean apples-to-apples replication.
+Unlike the smoke subset, on the full set alt_decoder improves EVERY metric
+including colour -- no structure/colour trade-off on the pooled aggregate.
+
+**Per-slide (never let pooled ALL stand alone):**
+
+| Slide | stock SSIM | alt SSIM | ΔSSIM | stock wLAB | alt wLAB |
+|---|---|---|---|---|---|
+| A06 (outlier) | 0.3732 | **0.4382** | +0.0650 | **73.82** | 76.79 (worse) |
+| A08 | 0.5368 | **0.5963** | +0.0595 | 19.02 | **18.02** |
+| A09 | 0.4767 | **0.5408** | +0.0641 | 18.54 | **16.64** |
+| A13 | 0.4979 | **0.5575** | +0.0596 | 22.21 | **21.44** |
+| A16 | 0.5273 | **0.5855** | +0.0582 | 17.78 | **16.25** |
+| ALL | 0.4960 | **0.5567** | +0.0607 | 26.01 | **25.21** |
+| ALL excl. A06 | 0.5142 | **0.5742** | +0.0600 | 18.92 | **17.57** |
+
+Every slide's SSIM improves by a similar amount (+0.058 to +0.065). On
+every non-outlier slide, alt_decoder improves both structure and colour
+simultaneously. On A06 (this project's known, expected colour-gap
+outlier), structure improves substantially but colour distance gets
+modestly worse -- consistent with A06 always behaving differently, not a
+new finding.
+
+**Qualitative panel** (`docs/results/p1_15_alt_decoder/qualitative_panel.png`
+-- A06_00A/A08_00A x=0/y=0 crops, seed 0: raw Aperio / real Hamamatsu /
+P1-11 stock decoder / P1-15 alt decoder): no checkerboarding, ringing, or
+obvious blur/over-smoothing in either decoder's output; nuclear contours
+and chromatin texture comparable between stock and alt. On A06, alt
+decoder's output visibly sits closer to the source Aperio's pink cast and
+further from the real Hamamatsu target's magenta cast than stock's output
+-- directly consistent with A06's measured colour-metric regression, not a
+contradiction of it.
+
+**Acceptance criteria (all 6 pass):** improves pooled SSIM (0.4960 ->
+0.5567); improves A06-excluded SSIM (0.5142 -> 0.5742); improves/preserves
+SSIM on every individual slide; retains strong positive colour recovery on
+the pooled/A06-excluded aggregate (A06 alone regresses modestly on colour,
+not disqualifying given it's this project's known outlier); no obvious
+artifacts; no retraining of P1-10 required (decoder-only swap by
+construction).
+
+**Conclusion:** decoding P1-11's existing translated latent with P1-14's
+winning alternate VAE is a clean structural win that also improves pooled
+colour recovery, at the cost of a modest colour regression specifically on
+the A06 outlier slide. Full-run data + qualitative panel archived at
+`docs/results/p1_15_alt_decoder/`.
 
 ---
 

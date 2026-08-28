@@ -4,23 +4,28 @@
 translated latent completely unchanged, and swaps only the final decoding
 stage to P1-14's winning VAE (`sd-vae-ft-mse`) — a decoder-only isolation,
 so any SSIM change is attributable to the decoder alone. Gated on P1-14
-finding a meaningful reconstruction gain (it has, Stage A).
+finding a meaningful reconstruction gain (it did).
 
-**Status:** ⚠️ **Ahead of what's written up.** `RESULTS_SUMMARY.md` and
-`tickets/PHASE1-TICKETS.md` still list this as "blocked, not started," but
-smoke-test data (sanity check + correct/shuffled source-mode arms) now
-exists on the cluster (pulled below, dated 2026-08-27/28). **No numbers
-from this folder should be cited or presented until this is properly
-reviewed and written up** — this README intentionally states no results.
+**Status:** ✅ CLOSED/POSITIVE (2026-08-28) — full 496-crop x 3-seed
+held-out evaluation, all 5 slides. Pooled SSIM 0.4960 → **0.5567**
+(+0.0607), alt_decoder wins **496/496 crops** on SSIM, and pooled colour
+recovery also improves (windowed LAB 26.01 → 25.21). Every slide's SSIM
+improves by a similar amount; on the non-outlier slides (A08/A09/A13/A16)
+colour improves too, while A06 (the project's known colour-gap outlier)
+trades a modest colour regression for its structural gain. All 6
+acceptance criteria pass. No retraining of P1-10 required.
 
-**Files:** `eval/sanity_check/`, `eval/smoke_correct/`,
-`eval/smoke_correct_summary/`, `eval/smoke_shuffled/`,
-`eval/smoke_all_summary/` (`eval_manifest.csv`, `per_crop.csv`,
-`summary.csv`, `paired_win_rate.csv`, `run_metadata.json` per arm).
-
-**Next step:** review this data, write up Stage-appropriate findings in
-`RESULTS_SUMMARY.md`, then update this README to match — flagged to the
-user as a follow-up, not done as part of this reorg.
+**Files:**
+- `eval/sanity_check/` — compatibility verification + exact-latent A/B
+  (job 47308).
+- `eval/smoke_correct/`, `eval/smoke_shuffled/`, `eval/smoke_all_summary/`
+  — Stage 1 smoke test + source-conditioning sanity check (A06+A08
+  subset, jobs 47310/47337, scored by 47391).
+- `eval/full_correct_summary/` — the canonical full 496-crop x 3-seed
+  result (`per_crop.csv`, `summary.csv`, `paired_win_rate.csv`,
+  `run_metadata.json`; jobs 47406/47453).
+- `qualitative_panel.png` — A06/A08 raw / real Hamamatsu / stock decoder /
+  alt decoder comparison, seed 0.
 
 **Full narrative:** `tickets/P1-15_p1_11_alternate_decoder.md`,
 `tickets/PHASE1-TICKETS.md` P1-15.

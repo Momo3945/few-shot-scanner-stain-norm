@@ -108,11 +108,68 @@ patches, reusing `score_outputs.py`), blocked on this checkpoint — now
 unblocked.
 
 ## PR-02 — Colour-fidelity test on held-out MITOS patches
-**Status:** TODO — blocked on PR-01
+**Status:** ✅ DONE (2026-08-28) — new `src/eval/infer_colour_lora_sd35.py`
+(img2img, LoRA-only, no ControlNet/LCM per PR-03/PR-04's separate scope),
+scored via the existing `score_outputs.py` unchanged, per the ticket's own
+instruction.
 **Source:** `sec:sd35_probe`, second measurement
 **Description:** Does the A→H LoRA reduce LAB Wasserstein distance on 10–20 held-out
 MITOS patches? Reuse `score_outputs.py`'s LAB Wasserstein function against a small
 SD3.5 subset — do not build a parallel metrics implementation.
+
+**Three real bugs found and fixed en route** (jobs 47393/47457 FAILED, 47416/47510
+COMPLETED):
+1. Loading the transformer (bf16, ~16.1GB) + all three text encoders (CLIP-L/
+   CLIP-G/T5-XXL fp16, ~11GB) simultaneously would exceed `bigbatch`'s 24GB.
+   Fixed via SD3's own documented low-VRAM inference pattern —
+   `text_encoder_3=None, tokenizer_3=None` drops T5-XXL, bringing residency
+   to ~17.8GB (same range as PR-01's proven training peak).
+2. SD3.5's img2img pipeline casts the preprocessed input image to the
+   pipeline's execution dtype (bf16) before calling `vae.encode()`, not to
+   `vae.dtype` — a separately-loaded fp32 VAE (the pattern used by
+   `train_colour_lora_sd35.py` and the SDXL inference script) crashed with
+   `Input type (BFloat16) and bias type (float) should be the same` (job
+   47393). Fixed by loading the whole pipeline — VAE included — uniformly
+   in bf16.
+3. SD3.5's img2img pipeline defaults to **1024×1024 output regardless of
+   input image size** (unlike SD1.5/SDXL, which infer output size from the
+   input) — a 512-crop run produced 1024×1024 outputs against a 512×512
+   reference, crashing `score_outputs.py`'s windowed LAB comparison (job
+   47457: `cv2.error: !_src.empty()`). Rather than downscale SD3.5's native
+   output, switched `--crop` default to 1024 — the same resolution choice
+   already established for P3-07's native-1024 SDXL variant on this same
+   held-out set — and pass `height=/width=args.crop` explicitly to every
+   `pipe()` call.
+
+**Result (job 47510 inference + job 47541 scoring, 20 crops, strength 0.30,
+28 steps, `lora/a2h_r8_sd35/final`):**
+
+| | LAB total | recovery Δlab | SSIM |
+|---|---|---|---|
+| SD3.5 A2H LoRA, 1024px, strength 0.30 | 90.08 | **+4.77** | 0.183 |
+
+**Caveat — this result is A06-only, not a general finding.** `heldout_frames.csv`
+lists A06's frames first, and `--limit 5` (chosen to land in the ticket's 10–20
+crop range) pulled all 5 sampled frames from slide A06 — this project's own
+documented colour-gap **outlier** slide (LAB Wasserstein ~95 vs ~25 for typical
+slides, per this file's methodology guardrails). The baseline comparison is
+correspondingly restricted to A06's own high baseline, not a representative
+cross-slide baseline. Positive recovery (+4.77) on the hardest slide is a
+genuine feasibility signal — the LoRA measurably closes some of A06's unusually
+large colour gap — but should not be read as "SD3.5 recovers ~5 LAB units in
+general" without a typical-slide run to compare against. SSIM (0.183) is
+noticeably lower than SD1.5/SDXL's colour-LoRA configs at comparable strengths
+(~0.4–0.5) — plausibly reflects A06 itself (SD1.5/SDXL also show A06 as their
+weakest slide), the untuned guidance_scale=2.0/steps=28 carried over without a
+sweep (out of scope for this probe), or a genuine SD3.5-specific structural
+cost; not disentangled here.
+
+**Feasibility verdict for PR-05:** SD3.5 LoRA colour-fidelity inference is
+mechanically feasible on this cluster (fits `bigbatch`, no architectural
+blocker) and shows a positive colour-recovery signal on the one slide tested.
+Whether it holds on typical slides is untested — out of this ticket's scope
+(10–20 patches, one measurement), would need a wider `--limit`/frame selection
+to check.
 
 ## PR-03 — Structural conditioning test
 **Status:** TODO — blocked on PR-00 (ControlNet) + P2-08 (needs HoVer-Net boundary

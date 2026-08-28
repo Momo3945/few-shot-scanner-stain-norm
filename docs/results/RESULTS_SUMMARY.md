@@ -1171,9 +1171,16 @@ P1-16_source_detail_colour_residual_fusion.md` and `tickets/
 PHASE1-TICKETS.md` P1-16.
 
 **P1-15 (re-decoding P1-11's translated latents with P1-14's winning VAE) —
-blocked, not started.** Gated on P1-14 finding a meaningful reconstruction
-improvement (it has, in Stage A); queued behind P1-14's own Stage B result
-before starting. Task file: `tickets/P1-15_p1_11_alternate_decoder.md`.
+CLOSED/POSITIVE (2026-08-28), strong pass.** Full 496-crop x 3-seed
+held-out evaluation: pooled SSIM 0.4960 → **0.5567** (+0.0607), alt_decoder
+wins 496/496 crops, pooled colour recovery improves too (windowed LAB
+26.01 → 25.21). Every slide's SSIM improves similarly; on non-outlier
+slides colour improves alongside structure, while A06 (the known
+colour-gap outlier) trades a modest colour regression for its structural
+gain. No retraining of P1-10 required (decoder-only swap). Task file:
+`tickets/P1-15_p1_11_alternate_decoder.md`, full detail:
+`tickets/PHASE1-TICKETS.md` P1-15, data/panel:
+`docs/results/p1_15_alt_decoder/`.
 
 **Update (2026-08-28): P2-09's downstream atypia classifier extended to
 P1-10, P1-11, P1-16, P3-06, and P3-07 — none existed when P2-09 originally
