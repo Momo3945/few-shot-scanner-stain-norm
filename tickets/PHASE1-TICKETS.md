@@ -890,6 +890,11 @@ excl. A06) = **+0.0064** — weak, barely above the raw_hamamatsu baseline
 and below every classical baseline, despite P1-10 being one of this
 project's best results on SSIM/colour-recovery. Full comparison table and
 caveats: `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
+**STALE (2026-08-28): this method's output is A→H (Aperio input,
+Hamamatsu-styled output), not the H→A the classifier claim needs —
+confirmed in `tickets/P2-12_atypia_classifier_evaluation_hardening.md`
+§0. Does not support any clinical-utility conclusion until P2-12 lands
+and a valid H→A rerun exists.**
 
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
@@ -1191,6 +1196,9 @@ P1-10's own +0.0064 despite the real SSIM/colour gains DDIM inversion adds
 over P1-10. This downstream metric does not track the structural/colour
 metrics for this configuration. Full comparison table and caveats:
 `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
+**STALE (2026-08-28): A→H, not H→A — see `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid clinical-
+utility evidence until P2-12 lands.**
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
@@ -1949,6 +1957,9 @@ excl. A06) = **+0.0288** — a real positive, sitting between histogram
 matching (+0.0024) and Reinhard (+0.0457) on this metric, second only to
 P3-07 among this extension's five configs. Full comparison table and
 caveats: `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
+**STALE (2026-08-28): inherits P1-11's A→H direction, not H→A — see
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid
+clinical-utility evidence until P2-12 lands.**
 
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 

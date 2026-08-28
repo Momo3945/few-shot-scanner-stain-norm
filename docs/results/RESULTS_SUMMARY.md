@@ -1226,6 +1226,21 @@ PHASE2-TICKETS.md` P2-09's Extension section, `tickets/PHASE1-TICKETS.md`
 P1-10/P1-11/P1-16, `tickets/PHASE3-TICKETS.md` P3-06/P3-07. Raw data:
 `/datasets/mhoosen/stain-norm/eval/atypia_classifier_scores_p1_p3_p16/`.
 
+**STALE — every number in this update (2026-08-28):** a new ticket,
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md`, empirically
+confirmed (job 47468) that every method scored above — this extension AND
+the original P2-09 26-method table — is A→H (Aperio input, Hamamatsu-
+styled output), the opposite of the proposal's stated H→A clinical-utility
+design (the classifier is Aperio-trained; the proposal's own text treats
+"raw Hamamatsu" and "the proposed A0-A5 outputs" as parallel substitutable
+items, only coherent if the outputs are normalized *toward* Aperio). None
+of this update's recovery-delta numbers support the clinical-utility claim
+as currently computed. `score_outputs.py`'s SSIM/LAB/colour-recovery
+numbers elsewhere in this document are unaffected. See P2-12 for the full
+mechanism, why this likely explains the A1-wins/P3-07-wins anomalies
+already noted above, and exactly what a corrected rerun costs per
+architecture.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

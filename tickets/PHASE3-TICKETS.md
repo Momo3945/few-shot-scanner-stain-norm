@@ -646,6 +646,9 @@ excl. A06) = **+0.0072** -- weak, essentially tied with P1-10/P1-11, well
 below every classical baseline, despite P3-06's positive (if smaller than
 SD1.5's) colour recovery. Full comparison table and caveats: `tickets/
 PHASE2-TICKETS.md` P2-09's Extension section.
+**STALE (2026-08-28): A->H, not H->A -- see `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid clinical-
+utility evidence until P2-12 lands.**
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
@@ -953,6 +956,18 @@ classifier rewards structure + Aperio-like colour, which P3-07 currently
 does best of the five, partly because its colour normalisation is
 broken.** Full comparison table: `tickets/PHASE2-TICKETS.md` P2-09's
 Extension section.
+
+**STALE, and the mechanism above is now confirmed, not just hypothesised
+(2026-08-28):** `tickets/P2-12_atypia_classifier_evaluation_hardening.md`
+§0 empirically confirms (job 47468) every method scored here, including
+P3-07, is A→H (Aperio input, Hamamatsu-styled output) — the opposite of
+the H→A direction the clinical-utility claim needs, since the classifier
+is Aperio-trained. That is exactly why "structure + Aperio-like colour"
+wins regardless of real normalisation quality: the underlying content
+being classified is literally still Aperio's. This number is not valid
+clinical-utility evidence until P2-12 lands and a genuine H→A rerun
+exists (nontrivial for P3-07 specifically — needs fresh SDXL training,
+per P2-12 §11, since H→A was never trained for this architecture).
 
 ---
 

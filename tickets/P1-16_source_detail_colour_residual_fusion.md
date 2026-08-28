@@ -737,3 +737,11 @@ P1-11's own) -- so this is a case where the downstream classifier reward
 and the structural/colour metrics actually agree, rather than diverging
 the way they do for P3-07 (whose classifier win rides on a colour
 regression, see the P2-09 note).
+
+**STALE (2026-08-28):** `tickets/P2-12_atypia_classifier_evaluation_
+hardening.md` §0 confirms this run (inherited from P1-11's output) is
+A→H, not the H→A direction the clinical-utility claim requires. This
+recovery_delta agreeing with genuine colour recovery is a good sign for
+*this specific number's internal consistency*, but it still isn't valid
+clinical-utility evidence until P2-12 lands and a real H→A version of
+P1-11's output (and this fusion step rerun on top of it) exists.

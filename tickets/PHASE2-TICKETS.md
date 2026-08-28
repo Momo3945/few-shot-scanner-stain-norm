@@ -617,6 +617,22 @@ metric measured — a real counterpoint to the otherwise consistent
 classical-beats-diffusion pattern, worth featuring prominently in the write-up
 precisely because it doesn't fit the rest of the story.
 
+**STALE (2026-08-28) — the headline table above, and the Extension below,
+must both be treated as not-yet-valid clinical-utility evidence.** Newly
+written `tickets/P2-12_atypia_classifier_evaluation_hardening.md` §0
+empirically confirms (job 47468, direct pixel comparison) that every
+method scored above ran A→H (Aperio input, Hamamatsu-styled output) — the
+opposite of this ticket's own stated design (see the "Description" field
+at the top of this ticket and the proposal's own §"Clinical Utility" text:
+the classifier is Aperio-trained, so "raw Hamamatsu" and "the proposed
+A0-A5 outputs" being scored as parallel substitutable items only makes
+sense if those outputs are H→A). This plausibly explains this section's
+own already-noted anomaly below (A1, with no colour LoRA at all, among the
+top performers) — a structural, not colour, effect, consistent with the
+scored outputs still being literally Aperio-content underneath. Status
+stays DONE as a record of what was computed and why it doesn't yet answer
+the intended question; P2-12 defines the corrected rerun.
+
 **Extension (2026-08-28): the same `atypia_r18` checkpoint (inference only,
 no retraining) re-scored on P1-10/P1-11/P1-16 (Phase 1) and P3-06/P3-07
 (Phase 3), none of which existed when this ticket originally closed.**
@@ -845,6 +861,40 @@ independent check — see `docs/results/RESULTS_SUMMARY.md`'s P2-11 follow-up
 section for both full tables. Net: across three independent metric families
 (global colour, windowed colour, pixel-exact structure), classical wins —
 report this as a genuine finding, not an artefact to explain away.
+
+---
+
+## P2-12 — Harden P2-09 clinical-utility / atypia-classifier evaluation
+
+**Status:** ⏳ PLANNED (2026-08-28) — specification only, not yet
+implemented. Full ticket: `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md`.
+
+**Motivation:** before treating P2-09's results (the original 26-method
+table or this session's P1-10/P1-11/P1-16/P3-06/P3-07 extension above) as
+final, close several methodological/robustness gaps in `score_atypia_
+classifier.py`/`train_atypia_classifier.py` — unpaired recovery_delta,
+crop-level (not frame-level) primary metric, per-method outlier policy,
+unbounded GPU batching, raw-accuracy checkpoint selection, unenforced
+manifest assumptions.
+
+**Critical finding surfaced while writing the spec, not something this
+ticket set out to find:** empirically confirmed (job 47468, a real A0
+output is 2x closer in pixel-MAE to its raw-Aperio source than to its
+Hamamatsu reference) that every method ever scored by `score_atypia_
+classifier.py` — A0-A5, the classical baselines, and this session's P1-10/
+P1-11/P1-16/P3-06/P3-07 extension — has run **A→H** (Aperio input,
+Hamamatsu-styled output), the opposite of the proposal's own stated design
+(§"Clinical Utility": classifier trained on Aperio, evaluated on raw
+Hamamatsu *and* "the proposed A0-A5 outputs" as parallel substitutable
+items — only coherent if those outputs are H→A). **Every existing P2-09
+recovery_delta number, including this session's extension above, must be
+treated as not supporting the proposal's clinical-utility claim as
+currently computed** — full evidence, mechanism, and exactly what a
+corrected rerun costs per architecture (cheap re-inference for A0-A5;
+expensive new training for P1-10/P1-11/P3-06/P3-07/P1-16) in the ticket
+file's §0 and §11. Does **not** affect `score_outputs.py`'s SSIM/LAB/
+colour-recovery numbers for any of these methods — those remain valid.
 
 ---
 
