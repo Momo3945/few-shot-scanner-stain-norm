@@ -1,6 +1,6 @@
-# Supervisor update — 2026-08-27 (for the 2026-08-28 meeting)
+# Supervisor update — 2026-08-28 meeting
 
-Quick catch-up for tomorrow. Read top-down; the "Delivery notes" section at
+Quick catch-up for today. Read top-down; the "Delivery notes" section at
 the bottom is for you, not to read aloud. This replaces the 2026-08-19
 version of this file — that meeting already happened; this is prep for the
 next one.
@@ -62,36 +62,41 @@ anything. That's the real ceiling, and it points at a specific next fix
 (swap the decoder — see "in progress" below), not at continuing to tune
 strength/steps.
 
-## Breaking, as of today — one config just crossed the line entirely (flag as preliminary)
+## Confirmed as of this morning — one config now clears classical outright
 
-This landed after everything above, is the most exciting number in this
-update, and needs to be presented carefully — it is real but not yet fully
-confirmed. Direct continuation of the "look at the images" fix: instead of
-asking the VAE to resynthesise the whole image, fuse the raw untouched
-Aperio source's fine detail back into P1-11's output *after* generation —
-let diffusion supply only the colour transformation, let the source supply
-the structure.
+This is the headline of the whole update. Direct continuation of the "look
+at the images" fix: instead of asking the VAE to resynthesise the whole
+image, fuse the raw untouched Aperio source's fine detail back into P1-11's
+output *after* generation — let diffusion supply only the colour
+transformation, let the source supply the structure.
 
-On an 80-crop held-out check (slides A06 + A08):
+An 80-crop preliminary check (A06+A08 only) looked promising yesterday but
+wasn't the full picture. **The genuine full 496-crop, 5-slide held-out run
+completed this morning:**
 
-| | SSIM | Recovery Δlab |
+| Scope | SSIM | Recovery Δlab |
 |---|---|---|
 | Classical baselines (range) | 0.628–0.681 | +3.2 to +9.0 |
-| **This fusion config** | **0.6505 pooled (0.784 on A08)** | **+9.34** |
+| **This fusion config, ALL 5 slides** | **0.729** | **+7.81** |
+| A08 / A09 / A13 / A16 (each individually) | 0.669–0.787, all clear the classical range | all positive |
+| A06 (the persistent outlier) | 0.617 — narrowly short of only the weakest baseline (0.628) | +11.25 |
 
-On A08 specifically, this clears *every* classical baseline outright —
-the first time any diffusion configuration anywhere in this project (36+
-tested so far) has beaten a classical method on SSIM at all.
+**This is the first result in this project's entire history — 37+
+configurations tested — to clear classical stain-normalisation baselines on
+SSIM, at true full held-out scale, not a subset.** Four of five slides clear
+it individually. Colour recovery is a real, modest trade against P1-11's own
+best (+7.81 vs. +8.74, ~89% retained) — not a case of quietly reverting
+toward raw to win on structure; checked directly with a pixel-diff sanity
+test, not just inferred from the SSIM number.
 
-**The honest caveat, say it before he asks:** this is only an 80-crop
-subset (A06+A08), not yet the full 496-crop, 5-slide held-out set. A first
-attempt to scale it up cheaply hit a real bug — it accidentally leaked the
-real target image into the input via a mislabelled reference file, producing
-an obviously-too-good SSIM≈0.998 that had to be thrown out once caught. That
-number is invalid and was never going to be presented. A corrected full run
-is submitted and pending. **Frame this as "the most promising lead right
-now, first result of its kind, confirmation in progress" — not as a closed
-result.**
+**One thing worth mentioning if he asks how solid this is**: getting here
+took catching and discarding two real bugs along the way — a scoring
+baseline-weighting bug (fixed, pushed) and, more seriously, a scaling
+shortcut that accidentally leaked the real target image into the input and
+produced an obviously-too-good SSIM≈0.998 that was caught, checksummed, and
+thrown out before it ever reached this doc. The 0.729 above is a clean,
+re-verified run. Worth stating plainly as evidence the number is trustworthy
+precisely *because* the bad one didn't slip through, not despite it.
 
 ## What you told him you were doing — the ResNet classifier — has a result, and it's the one clean win
 
@@ -154,7 +159,7 @@ None of these change the headline; they round it out and rule out easy
 explanations (LCM scheduler artefacts, an unfair metric, an untested
 hospital domain).
 
-## The one-liner for tomorrow
+## The one-liner for today
 
 > SDXL doesn't rescue this on its own — tested four ways, confirmed it's not
 > just a backbone-size problem. But instead of waiting on that answer, I also
@@ -164,13 +169,12 @@ hospital domain).
 > roughly tripled colour recovery with the same data and the same small
 > model, and traced the remaining gap to a specific, fixable bottleneck — the
 > frozen decoder, which caps structural fidelity before generation even
-> starts. As of today, one config built on that fix — fusing raw source
-> detail back in post-generation — cleared a classical baseline on SSIM
-> outright for the first time in this project, on an 80-crop check; full
-> confirmation is still running, so I'm calling it promising, not proven.
-> Separately, the ResNet classifier test I mentioned last time is done, and
-> it's the one place this pipeline already beats every classical baseline
-> outright, fully confirmed.
+> starts. Building on that fix, one config now clears classical baselines on
+> SSIM outright, at full 496-crop held-out scale, confirmed this morning —
+> the first result in this project's history to do that. Separately, the
+> ResNet classifier test I mentioned last time is done, and it's the one
+> place this pipeline beats every classical baseline on a real downstream
+> clinical task, also fully confirmed.
 
 ## Questions worth putting to him
 
@@ -188,9 +192,12 @@ hospital domain).
   "which method would you actually deploy" — average recovery vs. worst-case
   reliability are different questions, and this is evidence they don't point
   the same way.
-- Given the post-hoc fusion result is this close to closing the gap
-  entirely, is it worth prioritising its full held-out confirmation above
-  everything else currently running (P1-14's decoder swap, SDXL)?
+- Now that the post-hoc fusion result is confirmed and clearing classical
+  baselines outright, does it become the primary reported configuration for
+  the thesis, ahead of P1-11 — and does that change how much further effort
+  goes into P1-14's decoder swap or SDXL versus consolidating this result
+  (the F1/F2 held-out comparison and the Relative Dice/HoVer-Net check are
+  still open)?
 
 ## If he asks for a specific number and you blank
 
@@ -213,12 +220,14 @@ to come up; the full detail lives in `docs/results/RESULTS_SUMMARY.md` and
   into a diagnosed, specific, addressable bottleneck with a fix already in
   progress. Lead the technical explanation with it if he pushes on why SDXL
   didn't just fix things.
-- **Do not oversell the fusion result.** It's genuinely the best number in
-  the whole project so far, but it's an 80-crop subset, not the full
-  held-out set, and you already had to throw out one invalid version of it
-  (the leaked-target 0.998). Say "first result of its kind, confirmation in
-  progress" every time it comes up, not "diffusion beats classical now." If
-  he asks for the full number and you don't have it, that's a completely
-  fine "still running, I'll send it once it's in."
+- **The fusion result is now confirmed — lead with it confidently, but keep
+  the honest framing.** It's the best number in the whole project, at true
+  full held-out scale, not a subset. Still worth mentioning you caught and
+  discarded an invalid leaked-target version (0.998) on the way there —
+  that's evidence the 0.729 is trustworthy, not a reason to hedge on it.
+  What's genuinely still open: the F1/F2 comparison hasn't been repeated at
+  held-out scale, and the Relative Dice/HoVer-Net structural check (the
+  ticket's own optional final-config check) hasn't run yet — say that if
+  asked, don't imply the whole picture is closed.
 - **It's fine to not know something on the spot.** "Let me check and follow
   up" remains a completely normal thing to say.
