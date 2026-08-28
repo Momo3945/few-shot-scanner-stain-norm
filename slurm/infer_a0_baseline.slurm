@@ -34,7 +34,10 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
 
-OUT_DIR=${DATA_ROOT}/eval/a0
+# P2-12: optional overrides, unset -> identical to every prior invocation.
+DIRECTION=${DIRECTION:-A2H}
+OUT_TAG=${OUT_TAG:-a0}
+OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -62,7 +65,7 @@ python src/eval/infer_colour_lora.py \
     --root      "${MITOS_ROOT}" \
     --heldout   "${HELDOUT}" \
     --out       "${OUT_DIR}" \
-    --direction A2H \
+    --direction "${DIRECTION}" \
     --strengths ${STRENGTHS} \
     --steps 50 \
     --limit "${LIMIT}" \

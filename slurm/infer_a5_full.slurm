@@ -36,7 +36,6 @@ CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
 MITOS_ROOT=/datasets/mhoosen/stain-norm/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
-LORA_DIR=${DATA_ROOT}/lora/a2h_r8/final
 HIST_LORA_DIR=${DATA_ROOT}/lora/hist_r32/final
 CONTROLNET=lllyasviel/sd-controlnet-canny
 export HF_HOME=/datasets/mhoosen/hf_cache
@@ -45,6 +44,9 @@ STRENGTHS=${1:-"0.3 0.4 0.5"}
 LIMIT=${2:-8}
 STEPS=${3:-8}
 OUT_TAG=${4:-a5}
+# P2-12: optional overrides, unset -> identical to every prior invocation.
+DIRECTION=${DIRECTION:-A2H}
+LORA_DIR=${LORA_DIR:-${DATA_ROOT}/lora/a2h_r8/final}
 
 OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
@@ -78,7 +80,7 @@ python src/eval/infer_colour_lora.py \
     --out        "${OUT_DIR}" \
     --controlnet "${CONTROLNET}" \
     --lcm \
-    --direction A2H \
+    --direction "${DIRECTION}" \
     --strengths ${STRENGTHS} \
     --steps "${STEPS}" \
     --guidance 1.5 \

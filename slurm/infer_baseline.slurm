@@ -31,8 +31,6 @@ CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
 MITOS_ROOT=${DATA_ROOT}/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
-# Fixed few-shot reference crop -- same A03/H03 pair the colour LoRA trains on.
-TARGET_IMAGE=${DATA_ROOT}/pairs/train/A03_00A_c000_hamamatsu.png
 OUT_ROOT=${DATA_ROOT}/eval
 
 # ---------------------------------------------------------------------
@@ -41,7 +39,13 @@ OUT_ROOT=${DATA_ROOT}/eval
 METHOD=${1:?"Usage: sbatch infer_baseline.slurm METHOD [LIMIT]  (METHOD = macenko | reinhard | histogram_matching)"}
 LIMIT=${2:-0}
 
-OUT_DIR="${OUT_ROOT}/${METHOD}"
+# P2-12: optional overrides, unset -> identical to every prior invocation.
+# Fixed few-shot reference crop -- same A03/H03 pair the colour LoRA trains on;
+# A2H's target is the Hamamatsu side, H2A's is the Aperio side of the same pair.
+DIRECTION=${DIRECTION:-A2H}
+TARGET_IMAGE=${TARGET_IMAGE:-${DATA_ROOT}/pairs/train/A03_00A_c000_hamamatsu.png}
+OUT_TAG=${OUT_TAG:-${METHOD}}
+OUT_DIR="${OUT_ROOT}/${OUT_TAG}"
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -60,7 +64,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "Method=$METHOD  Limit=$LIMIT"
+echo "Method=$METHOD  Direction=$DIRECTION  Limit=$LIMIT"
 echo "Target=$TARGET_IMAGE"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -71,6 +75,7 @@ python src/eval/infer_baseline.py \
     --root         "${MITOS_ROOT}" \
     --heldout      "${HELDOUT}" \
     --target-image "${TARGET_IMAGE}" \
+    --direction    "${DIRECTION}" \
     --out          "${OUT_DIR}" \
     --limit        "${LIMIT}" \
     --seed 0
