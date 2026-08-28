@@ -909,11 +909,38 @@ rank change, or pair-count change:
   is ruled out. **Proceed to D3** to test whether source-RGB conditioning
   specifically (vs Canny-only) is what's preserving Aperio scanner
   appearance alongside morphology at native resolution.
-- **D3 -- RGB vs Canny conditioning split** (inference-only, no retraining):
-  `rgb_canny` (existing) / `rgb_only` (zero Canny channels) / `canny_only`
-  (zero RGB channels), same balanced diagnostic set, same seeds. Tests
-  whether source-RGB conditioning is what's preserving Aperio scanner
-  appearance alongside morphology at native resolution.
+- **D3 -- RGB vs Canny conditioning split.** infer_colour_translation_sdxl.py
+  gained `--condition-mode {rgb_canny,rgb_only,canny_only}` (zeroes one half
+  of the 6-channel condition post-construction, trained weights untouched).
+  Run on the same A06+A08 subset, same operating point, trained colour LoRA
+  ENABLED (D2 already isolated the LoRA question; D3 asks which
+  conditioning channel the deployed model actually uses). Three parallel
+  jobs (47505 rgb_canny, 47506 rgb_only, 47507 canny_only), all bigbatch,
+  all COMPLETED (525/525 outputs each, ~2.1-2.5h). Scored + compared via
+  `slurm/score_d3_p3_07.slurm` (job 47544, COMPLETED).
+
+  **D3 RESULT: H1 not supported as stated -- a more specific finding.**
+  `rgb_only` is nearly IDENTICAL to `rgb_canny` (unmodified) on both SSIM
+  (0.4060 vs 0.4052 pooled) and recovery (-4.93 vs -4.91 pooled) -- the Canny
+  half of the condition contributes almost nothing to this trained model's
+  behaviour; it appears to have learned to rely on the RGB channels almost
+  exclusively. `canny_only` (RGB zeroed) does NOT recover colour as H1
+  predicted -- it collapses on BOTH axes: SSIM 0.1594 (vs 0.405, more than
+  halved) and recovery -17.86 (vs -4.91, over 3.6x worse), with A08
+  particularly severe (raw 25.34 -> model 51.92, recovery -26.58, vs A06's
+  milder -2.37 since A06's raw gap is already ~94 LAB). So RGB conditioning
+  is not a separable "preserves colour at zero structural cost" channel --
+  it is carrying essentially all the useful signal (structural AND colour),
+  and losing it doesn't free up colour recovery, it breaks the model.
+  H1 is revised: it is not RGB-vs-Canny that explains the colour-recovery
+  regression; the Canny half is largely inert at this checkpoint. **Points
+  toward H2** (the RGB-driven base+ControlNet path needs that channel for
+  structure, but the same channel also couples in source-appearance bias
+  that the colour LoRA is too weak to overcome) as the leading remaining
+  explanation. **Proceed to D4** (controlnet_conditioning_scale sweep) to
+  test whether reducing overall ControlNet/RGB-conditioning influence (not
+  swapping which half is used) restores positive recovery while retaining
+  some of 1024's SSIM gain.
 - **D4 -- small conditioning-balance sweep** (only after D1-D3, on internal
   validation only, not the full held-out set): `controlnet_conditioning_scale`
   in {0.25, 0.50, 0.75, 1.00} at fixed strength=0.50/steps=50/guidance=2.0;

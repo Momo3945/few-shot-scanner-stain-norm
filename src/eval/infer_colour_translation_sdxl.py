@@ -109,6 +109,18 @@ def parse_args():
                          "--lora is still required (used only to locate --controlnet's sibling "
                          "dir in existing call sites) but its weights are never loaded. Ignored "
                          "with --vae-only (which already skips the LoRA).")
+    ap.add_argument("--condition-mode", choices=["rgb_canny", "rgb_only", "canny_only"],
+                    default="rgb_canny",
+                    help="Diagnostic-only (P3-07 D3): which half of the 6-channel source "
+                         "condition [source RGB | source Canny] is actually passed to the "
+                         "ControlNet, when --source-mode=correct. rgb_canny = unmodified (the "
+                         "trained condition, default). rgb_only = zero the Canny channels. "
+                         "canny_only = zero the RGB channels. Tests whether source-RGB "
+                         "conditioning specifically (vs edge/morphology structure) is what "
+                         "preserves Aperio scanner colour appearance. Does not alter the trained "
+                         "weights. Ignored with --vae-only or --source-mode zero/shuffled "
+                         "(zero is already an all-channels-zero condition; shuffled swaps the "
+                         "whole 6-channel tensor to a different crop's, orthogonal to this split).")
     ap.add_argument("--controlnet-scale", type=float, default=1.0)
     ap.add_argument("--steps", type=int, default=50,
                     help="DDIM steps. Matches P1-10's SD1.5 default -- 50-step DDIM first, "
@@ -247,13 +259,20 @@ def main():
             return None
         return crops[shuffled_idx[i]]["src"]  # shuffled
 
-    def build_control_tensor(rgb):
+    def build_control_tensor(rgb, condition_mode="rgb_canny"):
         # Must match train_colour_translation_lora_sdxl.py's PairDataset
         # construction exactly, or the trained ControlNet sees an
-        # out-of-distribution input.
+        # out-of-distribution input. condition_mode zeroes one half
+        # AFTER building the normal 6-channel tensor (P3-07 D3 diagnostic
+        # only) -- the trained weights/channel layout never change, only
+        # which half carries real information at inference time.
         canny = extract_canny_control_image(rgb)
         rgb_t = torch.from_numpy(rgb.astype(np.float32) / 255.0).permute(2, 0, 1)
         canny_t = torch.from_numpy(canny.astype(np.float32) / 255.0).permute(2, 0, 1)
+        if condition_mode == "rgb_only":
+            canny_t = torch.zeros_like(canny_t)
+        elif condition_mode == "canny_only":
+            rgb_t = torch.zeros_like(rgb_t)
         return torch.cat([rgb_t, canny_t], dim=0).unsqueeze(0)  # 1x6xHxW, [0,1]
 
     def seed_for(pair_key: str, seed: int) -> int:
@@ -284,7 +303,8 @@ def main():
         from diffusers import (AutoencoderKL, ControlNetModel, DDIMScheduler,
                                StableDiffusionXLControlNetImg2ImgPipeline)
         print(f"Loading P3-06 SDXL pipeline: LoRA={'DISABLED (--no-lora)' if args.no_lora else args.lora}  "
-              f"ControlNet={args.controlnet}  source_mode={args.source_mode} ...")
+              f"ControlNet={args.controlnet}  source_mode={args.source_mode}  "
+              f"condition_mode={args.condition_mode} ...")
         vae = AutoencoderKL.from_pretrained(args.model, subfolder="vae", torch_dtype=torch.float32)
         controlnet = ControlNetModel.from_pretrained(args.controlnet, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
@@ -298,7 +318,8 @@ def main():
         def run_crop(target_src_rgb, control_src_rgb, seed):
             h, w = target_src_rgb.shape[:2]
             control_tensor = (torch.zeros(1, 6, h, w, dtype=torch.float32)
-                              if control_src_rgb is None else build_control_tensor(control_src_rgb))
+                              if control_src_rgb is None
+                              else build_control_tensor(control_src_rgb, args.condition_mode))
             gen = torch.Generator(device=device).manual_seed(seed)
             out = pipe(prompt=args.prompt, image=Image.fromarray(target_src_rgb), strength=args.strength,
                        num_inference_steps=args.steps, guidance_scale=args.guidance,
