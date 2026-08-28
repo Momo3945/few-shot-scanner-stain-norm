@@ -941,10 +941,31 @@ rank change, or pair-count change:
   test whether reducing overall ControlNet/RGB-conditioning influence (not
   swapping which half is used) restores positive recovery while retaining
   some of 1024's SSIM gain.
-- **D4 -- small conditioning-balance sweep** (only after D1-D3, on internal
-  validation only, not the full held-out set): `controlnet_conditioning_scale`
-  in {0.25, 0.50, 0.75, 1.00} at fixed strength=0.50/steps=50/guidance=2.0;
-  optionally colour-LoRA scale in {1.0, 1.5} afterward.
+- **D4 -- small conditioning-balance sweep.** infer_colour_translation_sdxl.py
+  gained `--val-frames-json` (filters `--pairs-dir` to exactly the frame_ids
+  recorded as `val_frames` in the trained checkpoint's own
+  `pair_manifest.json` -- the 5-frame/11-pair internal validation split from
+  training, never the A06/A08/A09/A13/A16 held-out test set, per this
+  ticket's "do not tune on the full held-out set" guardrail).
+  `controlnet_conditioning_scale` in {0.25, 0.50, 0.75, 1.00} at fixed
+  strength=0.50/steps=50/guidance=2.0, trained colour LoRA enabled,
+  condition-mode=rgb_canny (trained default). Sweep job 47599 (bigbatch,
+  COMPLETED, 29min, all 4 scales x 33 outputs). Scored + compared via
+  `slurm/score_d4_p3_07.slurm` (job 47605, COMPLETED) -- `d4_verify_p3_07.py`
+  computes the raw baseline directly from the 11 val pairs (unregistered,
+  coordinate-corresponding training-domain crops -- lab_total/de2000 are
+  valid per metrics.py's distributional definition, SSIM here is for
+  relative cross-scale comparison only, not comparable to the registered
+  held-out SSIM numbers elsewhere in this document).
+
+  **D4 RESULT: no scale restores non-negative recovery.** raw baseline lab
+  29.18; model lab_total ranges 32.73-33.56 across all 4 scales (recovery
+  -3.55 to -4.38) -- no meaningful improvement even at the lowest
+  conditioning scale tested (0.25: recovery -4.21, *worse* than 0.50's
+  -3.55). SSIM moves the "wrong" direction for a pure tradeoff story too --
+  it INCREASES monotonically with more ControlNet influence (0.1486 at 0.25
+  -> 0.1852 at 1.00), not the expected structure-for-colour tradeoff.
+  Reducing source-conditioning strength alone does not fix this at 1024.
 
 Working hypotheses (in priority order, none yet confirmed):
 H1 source-RGB conditioning too dominant at 1024, preserving Aperio colour as
@@ -957,6 +978,28 @@ mismatched (512) baseline -- see D1 above.
 
 Explicitly NOT started: a new 4000-step training run, rank change, expanding
 beyond 50 pairs, or adding new slides.
+
+**D1-D4 diagnostic arc summary (2026-08-28): every mechanistic fix tested so
+far fails to restore positive colour recovery.** D1 ruled out a
+baseline/metric artefact -- the effect is real. D2 ruled out "the colour
+LoRA learned the wrong mapping" -- the LoRA measurably helps (~+3 LAB) but
+is fighting a stronger negative drift from the base+ControlNet+conditioning
+path itself. D3 ruled out "RGB vs Canny channel selection" as the
+explanation in the form H1 predicted -- RGB conditioning carries essentially
+all the useful signal (structural AND colour together); Canny is nearly
+inert at this checkpoint, and removing RGB breaks both axes rather than
+trading one for the other. D4 ruled out "just reduce ControlNet conditioning
+scale" -- no scale in {0.25, 0.50, 0.75, 1.00} restores non-negative
+recovery on internal validation, and SSIM moves the wrong direction for a
+clean tradeoff story (more conditioning = better SSIM, not worse). What
+remains untested and not yet run: H3 (the 1024 crops may be a
+harder/more heterogeneous colour-learning problem under the same ≤50-pair
+budget -- would need the proposal's own sanctioned fallback, expanding
+overlapping A03/H03 crops while reporting the minimum viable pair count, a
+deliberate scope decision requiring explicit go-ahead per this ticket's hard
+scope constraint above) and simply accepting the SSIM-gain/colour-recovery
+trade-off as P3-07's documented finding and closing the ticket as-is. Next
+step needs an explicit decision, not a default escalation.
 
 **Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
 checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,

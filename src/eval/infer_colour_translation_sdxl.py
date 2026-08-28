@@ -65,6 +65,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import os
 from pathlib import Path
 
@@ -93,6 +94,14 @@ def parse_args():
                          "train_colour_translation_lora_sdxl.py's --overfit-n slicing exactly "
                          "(same sort order) so this evaluates precisely the pairs a given "
                          "overfit checkpoint was trained on.")
+    ap.add_argument("--val-frames-json", default=None,
+                    help="With --pairs-dir: restrict to only the pairs whose frame_id is in this "
+                         "training run's saved pair_manifest.json 'val_frames' list -- the "
+                         "internal validation split held out during training, NOT the held-out "
+                         "A06/A08/A09/A13/A16 test set. Required for P3-07 D4's "
+                         "controlnet-conditioning-scale sweep, which must tune on internal "
+                         "validation only per this project's methodology guardrail (never tune "
+                         "on the full held-out set).")
     ap.add_argument("--out", required=True, help="Output dir for crops + manifest.")
     ap.add_argument("--direction", choices=["A2H", "H2A"], default="A2H")
     ap.add_argument("--source-mode", choices=["correct", "zero", "shuffled"], default="correct",
@@ -192,6 +201,12 @@ def main():
     crops = []  # each: {slide, frame, x, y, src, ref, aperio_path}
     if using_pairs_dir:
         pairs = build_pairs(args.pairs_dir)
+        if args.val_frames_json:
+            with open(args.val_frames_json) as fh:
+                val_frames = set(json.load(fh)["val_frames"])
+            pairs = [p for p in pairs if p["frame_id"] in val_frames]
+            print(f"  Restricted to internal validation split ({args.val_frames_json}): "
+                  f"{len(pairs)} pairs from {len(val_frames)} frame(s) {sorted(val_frames)}.")
         if args.overfit_n:
             pairs = pairs[: args.overfit_n]
         if args.limit:
