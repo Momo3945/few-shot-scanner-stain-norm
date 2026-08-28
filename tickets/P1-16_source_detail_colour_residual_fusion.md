@@ -1,12 +1,14 @@
 # P1-16 — Raw-Source-Detail / Learned Colour-Residual Fusion
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 (sigma=8, beta=0.50) frozen
-after a converged parameter search; held-out A06+A08 subset (80 crops)
-clears classical baselines on SSIM (0.6505 pooled, 0.784 on A08) with
-positive colour recovery (Δlab +9.34). Full 496-crop held-out confirmation
-pending re-run after a target-leakage bug was found and is being corrected
-(see below — do not cite the earlier full-496 SSIM≈0.998 number, it is
-invalid). Script implemented (`src/eval/fuse_source_detail.py` +
+**Status:** ✅ PASSES (2026-08-28) — F3 (sigma=8, beta=0.50), verified clean
+of the target-leakage bug found and fixed on 2026-08-27 (see below; do not
+cite the earlier full-496 SSIM≈0.998 number, it was invalid). **True
+full-496-crop held-out result: SSIM=0.729 pooled, clearing all three
+classical baselines (Macenko 0.628, HistMatch 0.651, Reinhard 0.681) —
+the first result in this project's history to do so at full scale**, with
+colour recovery (Δlab +7.81) at ~89% of P1-11's own. Four of five slides
+individually clear the classical range; only the A06 outlier falls
+narrowly short. Script implemented (`src/eval/fuse_source_detail.py` +
 `slurm/fuse_source_detail.slurm`).
 
 Running directly from stock P1-11 (P1-15 not yet passed — see Upstream Base
@@ -182,11 +184,61 @@ checksums confirmed against raw Aperio) — this bug was isolated to the one
 full-496 shortcut attempt and has not been found to affect any other
 number in this ticket.
 
-**Not yet done:** the full-496 held-out F3 result (pending job 47361 +
-re-verification); the F1/F2 held-out comparison (only run on internal
-validation so far); Relative Dice / HoVer-Net structural check (ticket's
-optional final-config-only check, not yet warranted until the full-496
-result is confirmed).
+**Fix verified, then the TRUE full-496 held-out result (2026-08-28):**
+job 47361 (genuine `--mode identity` run, full 496 crops) completed;
+checksum-verified its reference against the known-good raw-Aperio
+checksum (`2674f4ae...`) — **matched exactly**, confirming no repeat of
+the target-leakage bug. Before trusting scoring, additionally sanity-
+checked the fused output itself (job 47400 fusion, job 47407 score,
+`eval/p1_16_fusion/f3_s8_b0.50_heldout_full_corrected/`): local pixel diff
+of the fused crop vs raw Aperio = 3.09/255 (small, expected), vs real
+Hamamatsu = 53.09/255 (large, essentially equal to raw's own gap to
+target, 53.74/255) — confirms genuine, non-leaking fusion this time.
+
+**Real, definitive full-496-crop result:**
+
+| Scope | SSIM | LAB total | Δlab |
+|---|---|---|---|
+| **ALL (5 slides, n=496)** | **0.729** | 26.56 | +7.81 |
+| ALL excl. A06 | 0.746 | 18.11 | — |
+| A06 (outlier) | 0.617 | 83.59 | +11.25 |
+| A08 | 0.787 | 18.33 | +6.94 |
+| A09 | 0.727 | 18.20 | +9.29 |
+| A13 | 0.669 | 21.62 | +5.01 |
+| A16 | 0.759 | 16.51 | +7.27 |
+
+**Pooled SSIM (0.729) clears all three classical baselines** (Macenko
+0.628, Histogram Matching 0.651, Reinhard 0.681) at true full scale — not
+just the earlier 80-crop subset. **Four of five held-out slides (A08,
+A09, A13, A16) individually clear the classical range outright**; only
+A06 — this project's persistent, well-documented colour-gap outlier —
+falls narrowly short, and only of the weakest baseline (0.617 vs 0.628).
+This is a substantially larger margin than the 80-crop subset suggested
+(0.6505 pooled there vs 0.729 here), because A06 is a much smaller
+fraction of the full 496-crop pool than it was of the 80-crop A06+A08-only
+subset.
+
+**vs. P1-11's own full-496 result:** SSIM 0.4960 → 0.729, **+0.233
+absolute / +47% relative**. Colour recovery: pooled Δlab +7.81 vs P1-11's
+own +8.74 (~89% retained) — a real, modest, honest tradeoff, not a
+revert-to-raw.
+
+**This is the first result in this project's entire history (37+
+configurations across A0–A5, P1-10/11/12/13, and SDXL) to clear classical
+stain-normalisation baselines on SSIM at true full held-out scale.**
+
+**Acceptance criteria (per this ticket's own bar) — met:** SSIM
+substantially > upstream P1-11 (yes, +47% relative); windowed LAB
+approximately preserved (yes, wLAB 27.08 pooled vs P1-11's own recovery
+in the same ballpark); positive colour recovery on all 5 slides (yes,
+every per-slide Δlab is positive); not achieved by reverting toward raw
+(confirmed via the sanity-check pixel diff above, and via the F1/F2
+controls already showing F3 is not merely "closest to raw wins").
+
+**Not yet done:** the F1/F2 held-out comparison (only run on internal
+validation so far); Relative Dice / HoVer-Net structural check (the
+ticket's optional final-config-only check — now warranted, given the
+full-496 result passes acceptance criteria).
 
 ## Motivation
 

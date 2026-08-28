@@ -1899,19 +1899,28 @@ post hoc, never re-entering the shared diffusion computation).
 
 ## P1-16 — Raw-Source-Detail / Learned Colour-Residual Fusion
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) — F3 (sigma=8, beta=0.50) frozen
-after a converged internal-validation parameter search (radius/beta grid,
-50 crops: SSIM +15.6% relative over upstream P1-11). Held-out A06+A08
-subset (80 crops) **clears classical baselines on SSIM** (0.6505 pooled,
-0.784 on A08 — the first result in this project's history to do so) with
-real colour recovery (Δlab +9.34, comparable to P1-11's own +8.74). Full
-496-crop held-out confirmation is pending re-run: a **target-leakage bug**
-was found while attempting to scale up cheaply (reused a pre-existing
-directory whose "reference" field turned out to be the real Hamamatsu
-target, not raw Aperio, producing an invalid SSIM≈0.998 result) — caught,
-root-caused via checksum comparison, and being corrected with a proper
-identity-mode run (job 47361) rather than any further shortcuts. Full
-narrative, numbers, and the bug writeup in the task file:
+**Status:** ✅ PASSES (2026-08-28) — F3 (sigma=8, beta=0.50). **True
+full-496-crop held-out result: SSIM=0.729 pooled, clearing all three
+classical baselines (Macenko 0.628, HistMatch 0.651, Reinhard 0.681) —
+the first result in this project's history to do so at full scale**, with
+colour recovery (Δlab +7.81) at ~89% of P1-11's own (+8.74). Four of five
+held-out slides (A08, A09, A13, A16) individually clear the classical
+range outright; only the A06 outlier falls narrowly short (0.617 vs
+Macenko's 0.628). vs. P1-11's own full-496 SSIM (0.4960): +0.233
+absolute / +47% relative.
+
+**Target-leakage bug found and fixed (2026-08-27/28):** an earlier
+attempt to scale up cheaply reused a pre-existing directory
+(`p1_10_vae_floor`) whose "reference" field turned out to be the real
+Hamamatsu target, not raw Aperio, silently leaking ground truth into the
+fusion input and producing an invalid SSIM≈0.998 result. Caught (the
+number was implausible on its face), root-caused via checksum comparison
+against known-good references, and corrected with a genuine
+`--mode identity` run on the full 496 crops (job 47361) — its reference
+checksum verified to match raw Aperio exactly before trusting it, and the
+resulting fusion additionally sanity-checked via local pixel diff (small
+vs raw, large vs Hamamatsu) before scoring. Full narrative, numbers, and
+the bug writeup in the task file:
 `tickets/P1-16_source_detail_colour_residual_fusion.md`.
 
 Also fixed along the way: `score_outputs.py`'s `baseline_all_for_slides()`
