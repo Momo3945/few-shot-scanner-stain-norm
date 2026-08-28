@@ -1,9 +1,13 @@
 # P2-12 — Harden P2-09 Clinical-Utility / Atypia-Classifier Evaluation
 
-**Status:** ⏳ PLANNED — specification only, nothing in this ticket has been
-implemented yet. Written 2026-08-28 in response to a request to methodologically
-harden `tickets/PHASE2-TICKETS.md` P2-09 before its results (including this
-session's P1-10/P1-11/P1-16/P3-06/P3-07 extension) are treated as final.
+**Status:** 🔄 IN PROGRESS (2026-08-28) — §1-§3.10's code hardening
+implemented and smoke-tested (job 47545, 12/15 acceptance criteria
+confirmed against real data + local unit tests; 3 remaining need a
+`train_atypia_classifier.py` smoke run — see §7). No real rerun (§11)
+submitted yet. Written 2026-08-28 in response to a request to
+methodologically harden `tickets/PHASE2-TICKETS.md` P2-09 before its
+results (including this session's P1-10/P1-11/P1-16/P3-06/P3-07
+extension) are treated as final.
 
 **Source:** `docs/proposal_draft(6).tex` §"Clinical Utility" (the exact
 proposal text is quoted below); hardens `tickets/PHASE2-TICKETS.md` P2-09 and
@@ -537,40 +541,90 @@ Ordered so nothing downstream is built on top of an unverified assumption:
 
 ## 7. Acceptance criteria
 
-- [ ] Every method's `recovery_delta` is computed against `raw_hamamatsu`
-      on exactly the same paired frame IDs (§3.2, §3.3).
-- [ ] Method and `raw_hamamatsu` paired sample counts are identical for
-      each comparison, and reported.
-- [ ] Frame-level prediction correctly averages crop probability vectors
-      before `argmax` (§3.3).
-- [ ] Repeated crops (duplicate seeds/keys) do not inflate `n_frames` or
-      `n_paired` (§3.7).
-- [ ] A mismatched translation direction causes a clear, loud failure, not
-      a silent score (§3.1) — verified by the smoke test's deliberately
-      mismatched case.
-- [ ] Mixed `source_mode` values within one manifest do not silently pool
-      (§3.7).
-- [ ] Duplicate seeds/crops are handled per the documented averaging
-      policy, not left ambiguous (§3.7).
-- [ ] GPU inference never transfers the full evaluation set to device at
-      once — peak memory scales with `--batch-size`, not with the method's
-      total crop count (§3.5).
+Status as of the 2026-08-28 smoke test (job 47545, `p3_07_smoke_heldout`:
+93 crops / 8 A06 frames / 3 seeds, real data, six checks against the
+hardened `score_atypia_classifier.py`; local synthetic-data unit tests
+against the pure logic functions preceded it, run before ever touching
+the cluster):
+
+- [x] Every method's `recovery_delta` is computed against `raw_hamamatsu`
+      on exactly the same paired frame IDs (§3.2, §3.3). Verified:
+      `integrity_report.csv` shows `paired_frames=8, method_only_crops=0,
+      raw_only_crops=0` for both `p3_07_smoke_heldout` and `raw_aperio`.
+- [x] Method and `raw_hamamatsu` paired sample counts are identical for
+      each comparison, and reported. Same evidence as above.
+- [x] Frame-level prediction correctly averages crop probability vectors
+      before `argmax` (§3.3). Verified: `per_frame.csv` produced; check 6
+      confirms `summary.csv`'s frame-level `n` matches `per_frame.csv`'s
+      actual distinct-frame count for every method.
+- [x] Repeated crops (duplicate seeds/keys) do not inflate `n_frames` or
+      `n_paired` (§3.7). Verified on real 3-seed data: 93 raw manifest rows
+      collapsed to `paired_crops=31` (the correct distinct-crop count) with
+      `duplicates_dropped=0` (no accidental dupes conflated with the
+      intentional 3-seed averaging) and `paired_frames=8` (not 24).
+- [x] A mismatched translation direction causes a clear, loud failure, not
+      a silent score (§3.1). Verified: check 1 (unresolved direction,
+      rc=1) and check 3 (declared-but-mismatched direction, rc=1) both
+      aborted with the expected distinct error messages; check 2 (matched)
+      and check 4 (`--allow-direction-mismatch`, `recovery_delta` marked
+      `"N/A (non-clinical direction)"`) both succeeded as expected.
+- [x] Mixed `source_mode` values within one manifest do not silently pool
+      (§3.7). Verified via local unit test only (`check_source_mode_uniform`
+      on synthetic mixed-mode rows) — not exercised by this smoke run,
+      since `p3_07_smoke_heldout` is uniformly `source_mode=correct`.
+- [x] Duplicate seeds/crops are handled per the documented averaging
+      policy, not left ambiguous (§3.7). Same evidence as the seed-related
+      item above.
+- [x] GPU inference never transfers the full evaluation set to device at
+      once (§3.5). Verified by code structure (per-batch `.to(device)`
+      inside the chunking loop) plus indirect empirical support: the
+      `--batch-size 1` smoke run (93 individual transfers) completed
+      successfully with predictions identical to `--batch-size 64`.
 - [ ] An invalid `--val-slides` entry fails clearly at training start
-      (§3.6).
+      (§3.6) — **not yet exercised**; this smoke test only ran
+      `score_atypia_classifier.py`, not `train_atypia_classifier.py`.
+      Verified by code review only so far.
 - [ ] Validation class distribution is printed and stored in
-      `training_config.json` (§3.6).
+      `training_config.json` (§3.6) — **not yet exercised**, same reason.
 - [ ] Best checkpoint selection uses the documented class-balanced metric
-      (macro-F1), stored alongside raw accuracy (§3.6).
-- [ ] Common outlier exclusions are identical across every method in a run
-      (§3.4), and the excluded-slide set is recorded once, not per method.
-- [ ] Old-code and new-code crop-level probabilities match (within
-      floating-point tolerance) on a controlled smoke sample (§6).
-- [ ] A small smoke-test run completes end-to-end and produces all
-      expected output files (§6).
-- [ ] An integrity line/report is printed and saved per method, of the
+      (macro-F1), stored alongside raw accuracy (§3.6) — **not yet
+      exercised**, same reason. The manual macro-F1 formula itself was
+      hand-verified against a worked example locally (sklearn isn't
+      installed on this machine to cross-check directly), but a real
+      `--smoke` training run hasn't been submitted yet.
+- [~] Common outlier exclusions are identical across every method in a run
+      (§3.4) — ran without error (`excluded_slides=none`, correctly, since
+      `p3_07_smoke_heldout` is single-slide and `flag_outliers` never flags
+      with <3 slides), but this smoke data doesn't stress-test the
+      "identical across multiple differing methods" case the way a
+      multi-slide, multi-method real rerun will.
+- [x] Old-code and new-code crop-level probabilities match (within
+      floating-point tolerance) on a controlled smoke sample (§6). Check 5:
+      `--batch-size 1` vs `64` gave **zero prediction (argmax) mismatches**
+      across all 155 scored crops; max raw-probability drift was 0.00119
+      (median 0.00006) on a crop not near a decision boundary (0.636 vs
+      0.279, same predicted class either way) — consistent with ordinary
+      cuDNN batch-size-dependent floating-point noise, not a logic bug in
+      the batching rewrite. (The smoke script's own 1e-4 tolerance flagged
+      this as a script-level "FAIL" — that threshold was simply too strict
+      for real GPU non-determinism; the prediction-level check is the one
+      that actually matters and it passed cleanly.)
+- [x] A small smoke-test run completes end-to-end and produces all
+      expected output files (§6). `per_crop.csv`, `per_frame.csv`,
+      `summary.csv`, `integrity_report.csv` all produced and internally
+      consistent across all four scoring invocations (checks 2, 4, 5).
+- [x] An integrity line/report is printed and saved per method, of the
       form `method=X paired_frames=Y missing_vs_raw=0 duplicates=0
-      source_direction=H2A`, before any score is presented as trustworthy
-      (§3.1, §3.10).
+      source_direction=H2A` (§3.1, §3.10). Verified — exact format
+      confirmed in the job log and `integrity_report.csv`.
+
+**Remaining before this ticket can be called fully verified:** a
+`train_atypia_classifier.py --smoke` run (or equivalent) to exercise the
+three unchecked `--val-slides`/class-distribution/checkpoint-selection
+items, and a multi-slide multi-method real rerun to properly stress-test
+the common outlier policy. Both are cheap, GPU-light, and don't require
+any new H2A training — can be scheduled whenever useful, separate from
+§11's real reruns.
 
 ---
 

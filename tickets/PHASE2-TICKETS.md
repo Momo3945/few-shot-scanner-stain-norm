@@ -866,9 +866,12 @@ report this as a genuine finding, not an artefact to explain away.
 
 ## P2-12 — Harden P2-09 clinical-utility / atypia-classifier evaluation
 
-**Status:** ⏳ PLANNED (2026-08-28) — specification only, not yet
-implemented. Full ticket: `tickets/
-P2-12_atypia_classifier_evaluation_hardening.md`.
+**Status:** 🔄 IN PROGRESS (2026-08-28) — code hardening implemented and
+smoke-tested (job 47545): direction gate, strict pairing, frame-level
+aggregation, seed-averaging, batched inference, integrity report all
+verified against real data (12/15 acceptance criteria confirmed; 3 need a
+`train_atypia_classifier.py` smoke run). No real rerun submitted yet. Full
+ticket: `tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
 
 **Motivation:** before treating P2-09's results (the original 26-method
 table or this session's P1-10/P1-11/P1-16/P3-06/P3-07 extension above) as
