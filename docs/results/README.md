@@ -30,7 +30,7 @@ where to look instead.
 | `p1_11_ddim_inversion/` | Deterministic DDIM-inversion initialisation | ✅ done — best SD1.5 result at the time |
 | `p1_12_generic_lcm/` | Few-step LCM acceleration on P1-10 | ✅ closed — speed/quality tradeoff |
 | `p1_13_lcm_distillation/` | Task-specific LCM-LoRA distilled from P1-10 (P1-13 + P1-13b) | ❌ closed negative |
-| `p1_14_vae_decoder_swap/` | Drop-in VAE decoder swap, isolated reconstruction test | 🔄 Stage A done, Stage B unanalysed |
+| `p1_14_vae_decoder_swap/` | Drop-in VAE decoder swap, isolated reconstruction test | ✅ done  |
 | `p1_15_alt_decoder/` | P1-11 decoded with P1-14's winning VAE | ⚠️ smoke data exists, not written up |
 | `p1_16_source_fusion/` | Post-hoc raw-source + colour-residual fusion | ✅ **first config to beat classical on SSIM** |
 | `p1_17_differential_diffusion/` | Per-pixel spatially-varying denoising strength | ❌ closed negative |
