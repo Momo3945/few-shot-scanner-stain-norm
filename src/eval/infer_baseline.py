@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 from pathlib import Path
 
@@ -39,8 +40,13 @@ def parse_args():
     ap.add_argument("--root", required=True, help="Dataset root (heldout paths are relative to this).")
     ap.add_argument("--heldout", required=True, help="heldout_frames.csv.")
     ap.add_argument("--target-image", required=True,
-                    help="Single fixed Hamamatsu reference crop the method fits on "
-                         "(few-shot, same scope as the colour LoRA's own training pair).")
+                    help="Single fixed reference crop the method fits on (few-shot, same "
+                         "scope as the colour LoRA's own training pair) -- a Hamamatsu crop "
+                         "for --direction A2H, an Aperio crop for --direction H2A. Direction "
+                         "is not inferred from this path; pass the matching image yourself.")
+    ap.add_argument("--direction", choices=["A2H", "H2A"], default="A2H",
+                    help="A2H: normalise Aperio->Hamamatsu (default, this script's original "
+                         "and only behaviour before P2-12). H2A: the reverse.")
     ap.add_argument("--out", required=True, help="Output dir for crops + manifest.")
     ap.add_argument("--crop", type=int, default=512)
     ap.add_argument("--tissue-thresh", type=float, default=0.30)
@@ -97,9 +103,9 @@ def main():
         h_reg = reg.h_registered_rgb
         H, W = a_rgb.shape[:2]
 
-        # A2H convention (matches infer_colour_lora.py's default): normalise Aperio
-        # toward Hamamatsu, reference = registered real Hamamatsu.
-        src_frame, ref_frame = a_rgb, h_reg
+        # choose which frame is the "input to normalise" vs the "reference" -- same
+        # convention/flag as infer_colour_lora.py (P2-12: this used to be hardcoded A2H).
+        src_frame, ref_frame = (a_rgb, h_reg) if args.direction == "A2H" else (h_reg, a_rgb)
 
         crops_done = 0
         for y in grid_offsets(H, args.crop):
@@ -129,6 +135,13 @@ def main():
         print(f"  {r['aperio_slide']}_{r['frame_id']}: {crops_done} crops")
 
     man.close()
+
+    # P2-12: record direction retrievably so downstream scoring (score_atypia_
+    # classifier.py) can validate it instead of assuming A2H from silence.
+    with open(out_dir / "run_metadata.json", "w") as fh:
+        json.dump({"script": "infer_baseline.py", "method": args.method,
+                   "direction": args.direction, "target_image": args.target_image}, fh, indent=2)
+
     print(f"\nWrote {n_out} output crops (method={args.method}).")
     print(f"Manifest: {man_path}")
     print("Next: score with score_outputs.py against the manifest.")

@@ -135,13 +135,27 @@ def main():
     rows = load_manifest(args.manifest)
     if not rows:
         raise SystemExit(f"Empty manifest: {args.manifest}")
+    for r in rows:
+        if r["atypia_score"] not in (1, 2, 3):
+            raise SystemExit(f"ABORT: label {r['atypia_score']} out of range {{1,2,3}} for "
+                             f"{r['slide']}_{r['frame_id']} (P2-12 S:3.8 integrity guard -- "
+                             f"build_atypia_manifest.py should already enforce this at build "
+                             f"time, so this indicates a manifest that bypassed it).")
     slides = sorted({r["slide"] for r in rows})
     if args.val_slides:
         val_slides = {s.strip() for s in args.val_slides.split(",") if s.strip()}
+        unknown = val_slides - set(slides)
+        if unknown:
+            raise SystemExit(f"ABORT: --val-slides names not present in the manifest: "
+                             f"{sorted(unknown)}. Manifest slides are: {slides} (P2-12 S:3.6).")
     else:
         val_slides = set(slides[-2:]) if len(slides) > 2 else set()
     train_rows = [r for r in rows if r["slide"] not in val_slides]
     val_rows = [r for r in rows if r["slide"] in val_slides]
+    if not args.smoke and not val_rows:
+        raise SystemExit("ABORT: validation split is empty for a real (non-smoke) run -- "
+                         "checkpoint selection would be silently disabled. Pass --val-slides "
+                         "explicitly or use a manifest with >2 slides (P2-12 S:3.6/S:3.8).")
     print(f"Slides: {len(slides)} total, val={sorted(val_slides)} "
           f"({len(val_rows)} frames), train={len(slides) - len(val_slides)} slides "
           f"({len(train_rows)} frames).")
@@ -172,6 +186,16 @@ def main():
 
     class_counts = Counter(it[3] for it in train_items)
     print(f"Train class distribution (0/1/2 = score 1/2/3): {dict(sorted(class_counts.items()))}")
+    val_class_counts = Counter(it[3] for it in val_items)
+    print(f"Val class distribution   (0/1/2 = score 1/2/3): {dict(sorted(val_class_counts.items()))}")
+    missing_val_classes = sorted(set(range(3)) - set(val_class_counts))
+    if val_items and missing_val_classes:
+        print(f"  WARNING: validation split is missing class(es) {missing_val_classes} "
+              f"(score {[c + 1 for c in missing_val_classes]}) entirely -- macro-F1/balanced "
+              f"checkpoint selection below is computed over whichever classes ARE present; "
+              f"this dataset's small slide count (13 usable training slides total) limits how "
+              f"representative any single held-out split can be (P2-12 S:3.6, documented "
+              f"limitation, not silently ignored).")
     weight = torch.tensor(
         [1.0 / max(class_counts.get(c, 1), 1) for c in range(3)], dtype=torch.float32)
     weight = weight / weight.sum() * 3.0  # keep loss scale comparable to unweighted CE
@@ -220,33 +244,54 @@ def main():
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
+    def macro_f1(trues, preds, num_classes=3):
+        # Manual macro-F1 (zero_division=0, matching sklearn's convention) --
+        # avoids adding a new dependency to this script for one metric.
+        f1s = []
+        for c in range(num_classes):
+            tp = sum(1 for t, p in zip(trues, preds) if t == c and p == c)
+            fp = sum(1 for t, p in zip(trues, preds) if t != c and p == c)
+            fn = sum(1 for t, p in zip(trues, preds) if t == c and p != c)
+            precision = tp / (tp + fp) if (tp + fp) else 0.0
+            recall = tp / (tp + fn) if (tp + fn) else 0.0
+            f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+            f1s.append(f1)
+        return sum(f1s) / num_classes
+
     def evaluate(loader):
+        # P2-12 S:3.6: checkpoint selection uses macro-F1 (class-balanced), not raw
+        # accuracy, which a heavily-skewed val split can reward degenerately. Raw
+        # accuracy is still returned/logged alongside it, never dropped.
         if loader is None:
             return None
         model.eval()
-        correct = total = 0
+        trues, preds = [], []
         with torch.no_grad():
             for x, y in loader:
-                x, y = x.to(device), y.to(device)
-                pred = model(x).argmax(1)
-                correct += (pred == y).sum().item()
-                total += y.numel()
+                x = x.to(device)
+                pred = model(x).argmax(1).cpu()
+                trues.extend(y.tolist()); preds.extend(pred.tolist())
         model.train()
-        return correct / total if total else None
+        if not trues:
+            return None
+        acc = sum(t == p for t, p in zip(trues, preds)) / len(trues)
+        return {"accuracy": acc, "macro_f1": macro_f1(trues, preds)}
 
     # ------------------------------------------------------------------
     # Training loop (step-based, matching train_colour_lora.py's convention)
     # ------------------------------------------------------------------
     log_path = out_dir / "loss_log.csv"
     log_fh = open(log_path, "w", newline="")
-    log_w = csv.writer(log_fh); log_w.writerow(["step", "loss", "train_acc", "val_acc", "sec"])
+    log_w = csv.writer(log_fh)
+    log_w.writerow(["step", "loss", "train_acc", "val_acc", "val_macro_f1", "sec"])
 
     print(f"Training for {args.train_steps} steps (batch {args.batch_size}, lr {args.lr}) ...")
     model.train()
     step = 0
     t0 = time.time()
     running_loss = running_correct = running_n = 0
-    best_val = -1.0
+    best_val_f1 = -1.0
+    best_val_acc_at_best_f1 = None
     done = False
     while not done:
         for x, y in train_loader:
@@ -268,27 +313,32 @@ def main():
                 train_acc = running_correct / running_n if running_n else 0.0
                 running_loss = running_correct = running_n = 0
                 sec = time.time() - t0
-                val_acc = ""
                 print(f"  step {step:5d}/{args.train_steps}  loss {avg_loss:.4f}  "
                       f"train_acc {train_acc:.3f}  ({sec:.1f}s)")
-                log_w.writerow([step, f"{avg_loss:.6f}", f"{train_acc:.4f}", val_acc, f"{sec:.1f}"])
+                log_w.writerow([step, f"{avg_loss:.6f}", f"{train_acc:.4f}", "", "", f"{sec:.1f}"])
                 log_fh.flush()
 
             if step % args.save_every == 0 or step >= args.train_steps:
-                val_acc = evaluate(val_loader)
-                if val_acc is not None:
-                    print(f"    val_acc {val_acc:.3f}")
-                    log_w.writerow([step, "", "", f"{val_acc:.4f}", f"{time.time()-t0:.1f}"])
+                val_metrics = evaluate(val_loader)
+                val_acc = val_metrics["accuracy"] if val_metrics else None
+                val_f1 = val_metrics["macro_f1"] if val_metrics else None
+                if val_metrics is not None:
+                    print(f"    val_acc {val_acc:.3f}  val_macro_f1 {val_f1:.3f} (selection metric)")
+                    log_w.writerow([step, "", "", f"{val_acc:.4f}", f"{val_f1:.4f}", f"{time.time()-t0:.1f}"])
                     log_fh.flush()
                 ckpt_name = "final.pt" if step >= args.train_steps else f"checkpoint-{step}.pt"
-                torch.save({"model": model.state_dict(), "step": step, "val_acc": val_acc},
+                torch.save({"model": model.state_dict(), "step": step, "val_acc": val_acc,
+                           "val_macro_f1": val_f1, "selection_metric": "macro_f1"},
                           out_dir / ckpt_name)
                 print(f"  saved -> {out_dir / ckpt_name}")
-                if val_acc is not None and val_acc >= best_val:
-                    best_val = val_acc
-                    torch.save({"model": model.state_dict(), "step": step, "val_acc": val_acc},
+                if val_f1 is not None and val_f1 >= best_val_f1:
+                    best_val_f1 = val_f1
+                    best_val_acc_at_best_f1 = val_acc
+                    torch.save({"model": model.state_dict(), "step": step, "val_acc": val_acc,
+                               "val_macro_f1": val_f1, "selection_metric": "macro_f1"},
                               out_dir / "best.pt")
-                    print(f"  new best -> {out_dir / 'best.pt'} (val_acc {val_acc:.3f})")
+                    print(f"  new best -> {out_dir / 'best.pt'} (val_macro_f1 {val_f1:.3f}, "
+                          f"val_acc {val_acc:.3f})")
 
             if step >= args.train_steps:
                 done = True
@@ -302,10 +352,19 @@ def main():
         shutil.copy(out_dir / "final.pt", out_dir / "best.pt")
 
     with open(out_dir / "training_config.json", "w") as fh:
-        json.dump(vars(args) | {"val_slides": sorted(val_slides), "n_train_crops": len(train_items),
-                                "n_val_crops": len(val_items), "best_val_acc": best_val,
-                                "class_counts": dict(class_counts)}, fh, indent=2)
-    print(f"\nDone. Best checkpoint: {out_dir / 'best.pt'} (val_acc {best_val:.3f})")
+        json.dump(vars(args) | {
+            "val_slides": sorted(val_slides), "n_train_crops": len(train_items),
+            "n_val_crops": len(val_items), "selection_metric": "macro_f1",
+            "best_val_macro_f1": best_val_f1 if best_val_f1 >= 0 else None,
+            "best_val_acc": best_val_acc_at_best_f1,
+            "class_counts": dict(class_counts), "val_class_counts": dict(val_class_counts),
+            "val_missing_classes": missing_val_classes,
+        }, fh, indent=2)
+    if best_val_f1 >= 0:
+        print(f"\nDone. Best checkpoint: {out_dir / 'best.pt'} "
+              f"(val_macro_f1 {best_val_f1:.3f}, val_acc {best_val_acc_at_best_f1:.3f})")
+    else:
+        print(f"\nDone. Best checkpoint: {out_dir / 'best.pt'} (no val split -- --smoke run).")
 
 
 if __name__ == "__main__":

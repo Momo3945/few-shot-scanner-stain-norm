@@ -45,6 +45,25 @@ if [[ -n "${TAGS:-}" ]]; then
     read -ra TAGS_ARGS <<< "${TAGS}"
 fi
 
+# P2-12 hardening: score_atypia_classifier.py now refuses to score a tag whose
+# translation direction can't be resolved or doesn't match --expect-direction
+# (default H2A -- what the clinical-utility claim actually needs; P2-12 S:0 found
+# every method scored to date was really A2H). Every prior/default invocation of
+# this launcher is unaffected -- these are all optional, unset by default.
+EXPECT_DIRECTION_ARGS=()
+if [[ -n "${EXPECT_DIRECTION:-}" ]]; then
+    EXPECT_DIRECTION_ARGS=(--expect-direction "${EXPECT_DIRECTION}")
+fi
+TAG_DIRECTION_ARGS=()
+if [[ -n "${TAG_DIRECTION:-}" ]]; then
+    read -ra TAG_DIRECTION_ARGS <<< "${TAG_DIRECTION}"
+    TAG_DIRECTION_ARGS=(--tag-direction "${TAG_DIRECTION_ARGS[@]}")
+fi
+ALLOW_MISMATCH_ARGS=()
+if [[ -n "${ALLOW_DIRECTION_MISMATCH:-}" ]]; then
+    ALLOW_MISMATCH_ARGS=(--allow-direction-mismatch)
+fi
+
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
@@ -80,7 +99,8 @@ CMD=(python score_atypia_classifier.py \
 if [[ ${#TAGS_ARGS[@]} -gt 0 ]]; then
     CMD+=(--tags "${TAGS_ARGS[@]}")
 fi
+CMD+=("${EXPECT_DIRECTION_ARGS[@]}" "${TAG_DIRECTION_ARGS[@]}" "${ALLOW_MISMATCH_ARGS[@]}")
 "${CMD[@]}"
 
 echo "------------------------------------------------------------------"
-echo "Scoring done. per_crop.csv + summary.csv in ${OUT_DIR}"
+echo "Scoring done. per_crop.csv + per_frame.csv (PRIMARY) + summary.csv + integrity_report.csv in ${OUT_DIR}"

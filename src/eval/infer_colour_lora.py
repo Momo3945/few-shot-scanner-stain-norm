@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 from pathlib import Path
 
@@ -250,6 +251,14 @@ def main():
         print(f"  {r['aperio_slide']}_{r['frame_id']}: {crops_done} crops x {len(args.strengths)} strengths")
 
     man.close()
+
+    # P2-12: record direction retrievably so downstream scoring (score_atypia_
+    # classifier.py) can validate it instead of assuming A2H from silence.
+    with open(out_dir / "run_metadata.json", "w") as fh:
+        json.dump({"script": "infer_colour_lora.py", "direction": args.direction,
+                   "lora": args.lora, "controlnet": args.controlnet, "lcm": args.lcm,
+                   "hist_lora": args.hist_lora}, fh, indent=2)
+
     print(f"\nWrote {n_out} output crops across strengths {args.strengths}.")
     print(f"Manifest: {man_path}")
     print("Next: score with score_outputs.py against the manifest.")
