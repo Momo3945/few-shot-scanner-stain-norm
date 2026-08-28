@@ -1930,8 +1930,10 @@ when per-slide deltas were correct — fixed and pushed (`be1f4f8`).
 
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 
-**Status:** 🔄 IN PROGRESS (2026-08-27) -- Stage A complete and gates open
-to Stage B (running). Task file:
+**Status:** 🔄 IN PROGRESS (2026-08-27, data updated 2026-08-28) -- Stage A
+complete and positive; Stage B (job 47232) has since COMPLETED with data
+pulled locally, but is not yet analysed into a per-slide table or written
+up (see correction note below) -- treat as not yet closed. Task file:
 `tickets/P1-14_vae_reconstruction_benchmark.md`.
 
 **Motivation:** P1-10's own VAE-only floor check (job 44515, 496 held-out
@@ -1989,15 +1991,24 @@ tight bootstrap CIs entirely above zero, and PSNR/MAE improving alongside
 SSIM rather than trading off against it. **Gate: OPEN -- proceeding to
 Stage B** (job 47232, submitted, results pending).
 
-*(Note, added while documenting P1-15: P1-14 subsequently ran to full
-closure -- Stage B held-out confirmation across all 5 held-out slides,
-qualitative panel, and a CLOSED/POSITIVE final status -- recorded in
-`tickets/P1-14_vae_reconstruction_benchmark.md`'s own status header. That
-narrative did not make it into this file's P1-14 section, most likely lost
-to the concurrent-session branch collisions logged elsewhere in this
-project's history; the per-slide Stage B table has not been reconstructed
-here to avoid fabricating numbers from memory. The ticket file itself is
-the authoritative record of that result until this section is backfilled.)*
+*(Correction, 2026-08-28: an earlier version of this note claimed P1-14 had
+"subsequently ran to full closure" with a CLOSED/POSITIVE status recorded in
+the ticket file's own header. That claim was checked directly against the
+ticket file and the cluster and is false -- `tickets/
+P1-14_vae_reconstruction_benchmark.md` still reads `Status: ⏳ PLANNED` with
+no results section at all. What actually happened: Stage B DID run on the
+cluster (job 47232, COMPLETED, canonical 496-crop Aperio held-out set) and
+the data is real and sound -- `/datasets/mhoosen/stain-norm/eval/
+p1_14_stage_b/{summary.json,per_crop.csv}`, pooled stock SSIM=0.5759 vs
+ft_mse SSIM=0.6182, mean ΔSSIM=+0.0422 (95% CI [+0.0419,+0.0426], n=496),
+clearing the ticket's >=+0.01 gate by ~4x. A qualitative panel also ran
+(job 47259, A06+A08 orig/stock/ft_mse panels + abs-error heatmaps). None of
+this has been analysed into the ticket's required per-slide breakdown (ALL,
+ALL-excl-A06, A06, A08, A09, A13, A16) or written up in the ticket file or
+`RESULTS_SUMMARY.md` -- it is real, unanalysed data, not a closed result.
+Local copies of both stages' CSVs/JSON are already pulled to
+`docs/results/p1_14_vae_decoder_swap/eval/`. Treat this the same way that
+folder's own README already flags it: not yet reported until written up.)*
 
 ---
 
@@ -2062,14 +2073,33 @@ better) -- the same "real but non-disqualifying" pattern P1-14 found for
 this decoder generally. **Gate: PASSES** (`SSIM_alt > SSIM_stock`, colour
 not materially degraded).
 
-**Source-conditioning sanity check, `--source-mode shuffled` (job 47337):**
-submitted, running as of this writing -- confirms the SSIM gain reflects
-genuine source-conditioned structure recovery, not the alt decoder simply
-smoothing over noise independent of the source signal. Not yet scored.
+**Source-conditioning sanity check, `--source-mode shuffled` (job 47337,
+scored together with the correct-source smoke test by job 47391, COMPLETED
+00:36:28 -- the first attempt, job 47372, TIMEOUT'd at the 30-min default
+scoring 960 crop-pairs; resubmitted with `--time=01:00:00`):** PASSED.
 
-**Not yet started:** full 496-crop x 3-seed evaluation (blocked on the
-shuffled sanity check + user go-ahead), per-slide reporting, qualitative
-panel, final closure.
+| Arm | SSIM | LAB total | wLAB | PSNR | MAE |
+|---|---|---|---|---|---|
+| correct + stock | 0.4015 | 62.73 | 63.41 | 12.90 | 48.16 |
+| correct + alt | **0.4658** | 65.29 | 65.74 | 13.27 | 46.81 |
+| shuffled + stock | 0.0925 | 68.53 | 71.05 | 11.16 | 56.96 |
+| shuffled + alt | 0.1117 | 70.09 | 72.48 | 11.40 | 55.35 |
+
+Shuffling the source collapses SSIM from ~0.40-0.47 down to ~0.09-0.11 for
+BOTH decoders -- confirms the correct-source SSIM gain reflects genuine
+source-conditioned structure recovery, not the alt decoder simply smoothing
+over noise independent of the source signal. Alt decoder still edges out
+stock under shuffling too (0.1117 vs 0.0925), consistent with it being a
+generally-better reconstructor independent of conditioning -- exactly the
+expected pattern, no red flags.
+
+**Both Stage 1 gates now pass** (`SSIM_alt > SSIM_stock` under correct
+conditioning; the gain is source-conditioned, not a decoder artifact) --
+proceeding to the full 496-crop x 3-seed evaluation across all 5 held-out
+slides.
+
+**Not yet started:** full 496-crop x 3-seed evaluation (awaiting user
+go-ahead to submit), per-slide reporting, qualitative panel, final closure.
 
 ---
 
