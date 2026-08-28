@@ -1930,10 +1930,10 @@ when per-slide deltas were correct — fixed and pushed (`be1f4f8`).
 
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 
-**Status:** 🔄 IN PROGRESS (2026-08-27, data updated 2026-08-28) -- Stage A
-complete and positive; Stage B (job 47232) has since COMPLETED with data
-pulled locally, but is not yet analysed into a per-slide table or written
-up (see correction note below) -- treat as not yet closed. Task file:
+**Status:** ✅ CLOSED/POSITIVE (2026-08-28) -- Stage A and Stage B both
+confirm `stabilityai/sd-vae-ft-mse` is a true drop-in reconstruction-
+fidelity improvement over the stock SD1.5 VAE, positive on every held-out
+slide individually. Task file:
 `tickets/P1-14_vae_reconstruction_benchmark.md`.
 
 **Motivation:** P1-10's own VAE-only floor check (job 44515, 496 held-out
@@ -1989,26 +1989,46 @@ Clears the ticket's meaningful-gain gate (>=+0.01 absolute SSIM) by nearly
 5x, in both scanner domains almost equally (no domain trade-off), with
 tight bootstrap CIs entirely above zero, and PSNR/MAE improving alongside
 SSIM rather than trading off against it. **Gate: OPEN -- proceeding to
-Stage B** (job 47232, submitted, results pending).
+Stage B.**
 
-*(Correction, 2026-08-28: an earlier version of this note claimed P1-14 had
-"subsequently ran to full closure" with a CLOSED/POSITIVE status recorded in
-the ticket file's own header. That claim was checked directly against the
-ticket file and the cluster and is false -- `tickets/
-P1-14_vae_reconstruction_benchmark.md` still reads `Status: ⏳ PLANNED` with
-no results section at all. What actually happened: Stage B DID run on the
-cluster (job 47232, COMPLETED, canonical 496-crop Aperio held-out set) and
-the data is real and sound -- `/datasets/mhoosen/stain-norm/eval/
-p1_14_stage_b/{summary.json,per_crop.csv}`, pooled stock SSIM=0.5759 vs
-ft_mse SSIM=0.6182, mean ΔSSIM=+0.0422 (95% CI [+0.0419,+0.0426], n=496),
-clearing the ticket's >=+0.01 gate by ~4x. A qualitative panel also ran
-(job 47259, A06+A08 orig/stock/ft_mse panels + abs-error heatmaps). None of
-this has been analysed into the ticket's required per-slide breakdown (ALL,
-ALL-excl-A06, A06, A08, A09, A13, A16) or written up in the ticket file or
-`RESULTS_SUMMARY.md` -- it is real, unanalysed data, not a closed result.
-Local copies of both stages' CSVs/JSON are already pulled to
-`docs/results/p1_14_vae_decoder_swap/eval/`. Treat this the same way that
-folder's own README already flags it: not yet reported until written up.)*
+**Stage B -- canonical held-out confirmation (2026-08-28, job 47232,
+COMPLETED, 496-crop canonical Aperio held-out set, same script as Stage
+A):** Pooled: stock SSIM=0.5759, ft_mse SSIM=0.6182, mean ΔSSIM=+0.0422
+(95% CI [+0.0419, +0.0426]), ΔPSNR=+1.320 dB, ΔMAE=-2.507, n=496.
+
+Per-slide breakdown (paired, from the 496-crop `per_crop.csv` -- never let
+the pooled ALL number stand alone per this project's methodology
+guardrails):
+
+| Slide group | n | stock SSIM | ft_mse SSIM | mean ΔSSIM | median ΔSSIM | 95% CI | ΔPSNR | ΔMAE |
+|---|---|---|---|---|---|---|---|---|
+| ALL | 496 | 0.5759 | 0.6182 | **+0.0422** | +0.0425 | [+0.0419, +0.0426] | +1.320 dB | -2.507 |
+| ALL excl. A06 | 432 | 0.5931 | 0.6348 | **+0.0416** | +0.0420 | [+0.0412, +0.0420] | +1.311 dB | -2.502 |
+| A06 | 64 | 0.4598 | 0.5061 | **+0.0462** | +0.0470 | [+0.0453, +0.0471] | +1.378 dB | -2.543 |
+| A08 | 112 | 0.6062 | 0.6481 | **+0.0419** | +0.0422 | [+0.0412, +0.0426] | +1.308 dB | -2.698 |
+| A09 | 96 | 0.5417 | 0.5856 | **+0.0439** | +0.0444 | [+0.0433, +0.0446] | +1.338 dB | -2.395 |
+| A13 | 64 | 0.5884 | 0.6297 | **+0.0413** | +0.0412 | [+0.0405, +0.0420] | +1.282 dB | -2.590 |
+| A16 | 160 | 0.6167 | 0.6570 | **+0.0403** | +0.0406 | [+0.0396, +0.0410] | +1.309 dB | -2.393 |
+
+Every slide, including the A06 colour-gap outlier, gains a similar amount
+(+0.040 to +0.046) -- A06 shows the *largest* gain, not a degraded one, so
+this is not a result driven by a single slide.
+
+**Qualitative check (job 47259, A06+A08 panels, pulled and viewed
+directly):** nuclear boundaries and chromatin texture visibly crisper
+under `ft_mse` than stock (stock shows mild softening/blur on fine
+chromatin detail that `ft_mse` recovers more of); stromal fibre texture
+reads similarly between the two. No checkerboard artifacts, no ringing,
+no colour drift in either decoder. Abs-error heatmaps put error in the
+same locations for both decoders (nuclear/stromal boundaries, expected),
+but `ft_mse`'s heatmap is visibly lower-amplitude overall, consistent with
+its MAE gain.
+
+**All four acceptance criteria pass** (improves SSIM on internal
+validation; no domain/slide trade-off; no artifacts; compatible latent
+shape/scaling). **Gate to P1-15: confirmed.** Full write-up, per-slide
+table, and qualitative narrative in the task file:
+`tickets/P1-14_vae_reconstruction_benchmark.md`.
 
 ---
 

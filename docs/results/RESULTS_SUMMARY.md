@@ -1069,10 +1069,36 @@ self-reconstruction, no diffusion involved at all):
 
 Clears the ticket's own meaningful-gain gate (≥+0.01 absolute SSIM) by
 nearly 5×, in both scanner domains almost equally, with PSNR/MAE improving
-alongside SSIM rather than trading off against it. Gate open; Stage B
-(swapping the VAE into the actual P1-11 pipeline, not just isolated
-reconstruction) is running now — not yet a result on the real translation
-task, only on the decoder's own reconstruction fidelity. Full detail:
+alongside SSIM rather than trading off against it.
+
+**Update (2026-08-28): P1-14 CLOSED/POSITIVE — Stage B (canonical 496-crop
+held-out confirmation, job 47232) COMPLETED and positive on every held-out
+slide.** Pooled: stock SSIM=0.5759 → `ft_mse` SSIM=0.6182, mean
+ΔSSIM=**+0.0422** (95% CI [+0.0419, +0.0426], n=496), ΔPSNR=+1.320 dB,
+ΔMAE=−2.507.
+
+| Slide group | n | Stock SSIM | `ft_mse` SSIM | mean ΔSSIM | 95% CI |
+|---|---|---|---|---|---|
+| ALL | 496 | 0.5759 | 0.6182 | **+0.0422** | [+0.0419, +0.0426] |
+| ALL excl. A06 | 432 | 0.5931 | 0.6348 | **+0.0416** | [+0.0412, +0.0420] |
+| A06 | 64 | 0.4598 | 0.5061 | **+0.0462** | [+0.0453, +0.0471] |
+| A08 | 112 | 0.6062 | 0.6481 | **+0.0419** | [+0.0412, +0.0426] |
+| A09 | 96 | 0.5417 | 0.5856 | **+0.0439** | [+0.0433, +0.0446] |
+| A13 | 64 | 0.5884 | 0.6297 | **+0.0413** | [+0.0405, +0.0420] |
+| A16 | 160 | 0.6167 | 0.6570 | **+0.0403** | [+0.0396, +0.0410] |
+
+Every slide gains a similar amount (+0.040 to +0.046) — including the A06
+colour-gap outlier, which shows the *largest* gain, not a degraded one, so
+this is not a result driven by a single slide. Qualitative check (A06+A08
+panels, job 47259, pulled and inspected directly): nuclear boundaries and
+chromatin texture visibly crisper under `ft_mse` than stock (stock shows
+mild blur/softening on fine chromatin detail that `ft_mse` recovers more
+of); no checkerboarding, ringing, or colour drift in either decoder;
+`ft_mse`'s abs-error heatmap is visibly lower-amplitude than stock's,
+consistent with its MAE gain. All four of the ticket's acceptance criteria
+pass. **Gate to P1-15: confirmed** (P1-15 was already underway on the
+strength of Stage A alone — this closes the open question behind it). Full
+detail: `tickets/P1-14_vae_reconstruction_benchmark.md`,
 `tickets/PHASE1-TICKETS.md` P1-14.
 
 **Update (2026-08-28): P1-16 (raw-source-detail / learned colour-residual
