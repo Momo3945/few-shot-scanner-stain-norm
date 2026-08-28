@@ -719,3 +719,21 @@ The ticket does **not** pass if high SSIM is achieved mainly by reverting toward
 > The learned target-scanner transformation is not cleanly separable into a smooth colour residual that can simply be projected back onto the raw source. A more principled pixel-preserving translation architecture would be required.
 
 Either outcome is scientifically useful.
+
+## Downstream-classifier extension (2026-08-28)
+
+P2-09's `atypia_r18` checkpoint (inference only, no retraining) re-scored
+against this ticket's frozen F3 config (sigma=8, beta=0.50) on the
+corrected full-496 held-out output (job 47418, part of a batch also
+covering P1-10/P1-11/P3-06/P3-07 -- see `tickets/PHASE2-TICKETS.md` P2-09's
+Extension section for the full comparison table and methodology).
+
+Recovery delta (accuracy vs. raw_hamamatsu, excl. A06, n=416) = **+0.0288**
+-- a real positive, sitting between histogram matching (+0.0024) and
+Reinhard (+0.0457), second-best of the five methods tested in this batch
+(behind P3-07's +0.0769). Unlike P3-07, P1-16's colour recovery on the
+structural/colour metrics is genuinely positive (Δlab +7.81, ~89% of
+P1-11's own) -- so this is a case where the downstream classifier reward
+and the structural/colour metrics actually agree, rather than diverging
+the way they do for P3-07 (whose classifier win rides on a colour
+regression, see the P2-09 note).

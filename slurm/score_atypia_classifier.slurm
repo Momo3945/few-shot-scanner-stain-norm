@@ -36,6 +36,15 @@ CHECKPOINT=${1:-${DATA_ROOT}/classifier/atypia_r18/best.pt}
 OUT_TAG=${2:-atypia_classifier_scores}
 OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 
+# Optional override: TAGS="tag1 tag2 ..." (space-separated, relative to
+# ${DATA_ROOT}/eval, may include subdirs e.g. "p1_10_ddim_inversion/p1_10_ddim_inversion_full").
+# Unset/empty -> script's own DEFAULT_TAGS (the original 26-method A0-A5/baseline
+# run) is used, so every prior invocation of this launcher is unaffected.
+TAGS_ARGS=()
+if [[ -n "${TAGS:-}" ]]; then
+    read -ra TAGS_ARGS <<< "${TAGS}"
+fi
+
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
@@ -62,12 +71,16 @@ python -c "import torch; print('cuda available:', torch.cuda.is_available())"
 echo "------------------------------------------------------------------"
 
 cd "${CODE_DIR}/src/eval"
-python score_atypia_classifier.py \
+CMD=(python score_atypia_classifier.py \
     --checkpoint       "${CHECKPOINT}" \
     --testing-manifest "${DATA_ROOT}/pairs/atypia_test_manifest.csv" \
     --testing-root     "${TESTING_ROOT}" \
     --eval-root        "${DATA_ROOT}/eval" \
-    --out              "${OUT_DIR}"
+    --out              "${OUT_DIR}")
+if [[ ${#TAGS_ARGS[@]} -gt 0 ]]; then
+    CMD+=(--tags "${TAGS_ARGS[@]}")
+fi
+"${CMD[@]}"
 
 echo "------------------------------------------------------------------"
 echo "Scoring done. per_crop.csv + summary.csv in ${OUT_DIR}"

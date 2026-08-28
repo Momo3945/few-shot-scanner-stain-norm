@@ -640,6 +640,13 @@ headroom at another operating point, mirroring the open question left after
 P3-04's A4-SDXL strength sweep). P1-11-on-SDXL (DDIM inversion) remains
 out of scope for this ticket, per the original scope decision above.
 
+**Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
+checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
+excl. A06) = **+0.0072** -- weak, essentially tied with P1-10/P1-11, well
+below every classical baseline, despite P3-06's positive (if smaller than
+SD1.5's) colour recovery. Full comparison table and caveats: `tickets/
+PHASE2-TICKETS.md` P2-09's Extension section.
+
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
 **Source:** `sec:phase3_sdxl`; retargets the already-drafted-but-never-started
@@ -904,6 +911,32 @@ mismatched (512) baseline -- see D1 above.
 
 Explicitly NOT started: a new 4000-step training run, rank change, expanding
 beyond 50 pairs, or adding new slides.
+
+**Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
+checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
+excl. A06) = **+0.0769** -- the single best result across every method
+tested this session (P1-10/P1-11/P1-16/P3-06/P3-07), beating even the
+original P2-09 headline diffusion config (A3@0.50, +0.0625) and every
+classical baseline. **Read this together with the colour-recovery
+regression above, not instead of it** -- P3-07's colour recovery is
+`-5.60` (negative, confirmed real by D1, not a metric artefact), so this
+is not a scanner-normalisation win. Two things line up to explain it: (1)
+P3-07 has the best structural SSIM of any SDXL config (0.4313, closing
+most of the gap to SD1.5's 0.4485, exceeding SD1.5 outright on A06), and
+atypia scoring is a morphology task; (2) the negative colour recovery
+means P3-07's output stayed closer to Aperio's own colour statistics
+rather than migrating to Hamamatsu's -- and the classifier's own
+raw_aperio sanity check already scores higher (0.4279) than real
+raw_hamamatsu (0.4135), i.e. the classifier is more comfortable with
+Aperio-flavoured colour to begin with. So P3-07 likely wins by combining
+the best available structure preservation with colour that (by failing to
+normalise) happens to stay in the classifier's more legible domain --
+the same "structure over colour" pattern P2-09 already flagged for A1.
+**Not evidence P3-07 is the best normalisation method; evidence the
+classifier rewards structure + Aperio-like colour, which P3-07 currently
+does best of the five, partly because its colour normalisation is
+broken.** Full comparison table: `tickets/PHASE2-TICKETS.md` P2-09's
+Extension section.
 
 ---
 

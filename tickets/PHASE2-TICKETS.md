@@ -617,6 +617,78 @@ metric measured — a real counterpoint to the otherwise consistent
 classical-beats-diffusion pattern, worth featuring prominently in the write-up
 precisely because it doesn't fit the rest of the story.
 
+**Extension (2026-08-28): the same `atypia_r18` checkpoint (inference only,
+no retraining) re-scored on P1-10/P1-11/P1-16 (Phase 1) and P3-06/P3-07
+(Phase 3), none of which existed when this ticket originally closed.**
+Job 47418 (`score_atypia_p1_p3_p16`, COMPLETED). Required a small additive
+patch to `score_atypia_classifier.py`/`score_atypia_classifier.slurm` (an
+optional `TAGS` env-var override, plus handling for the newer
+`infer_colour_source_ddim_inversion.py`-family manifest schema which has no
+`strength` column at all, unlike the original `infer_colour_lora.py`/
+`infer_baseline.py` manifests this script was written against) — additive
+only, the original 26-method run's behaviour and output are unchanged.
+
+Same A06-outlier discipline as this ticket's own headline table (A06
+excluded uniformly from every method, not each method's own inconsistently-
+triggered auto-flag): recovery delta = accuracy(method) −
+accuracy(raw_hamamatsu), n=416/method excl. A06. **This run's own
+`raw_hamamatsu` excl-A06 accuracy (0.4135) matches this ticket's original
+headline-table value exactly** — confirms it's scored on the same
+underlying labelled crop set, so the comparison below is apples-to-apples
+with the table above, not a separately-scaled number.
+
+| Method | acc (excl. A06) | Recovery Δ |
+|---|---|---|
+| **P3-07** (SDXL, native 1024×1024, `tickets/PHASE3-TICKETS.md`) | 0.4904 | **+0.0769** |
+| **P1-16** (raw-source-detail/colour-residual fusion, `tickets/P1-16_source_detail_colour_residual_fusion.md`) | 0.4423 | **+0.0288** |
+| P1-11 (DDIM-inversion, `tickets/PHASE1-TICKETS.md`) | 0.4231 | +0.0096 |
+| P3-06 (SDXL transfer, `tickets/PHASE3-TICKETS.md`) | 0.4207 | +0.0072 |
+| P1-10 (source-conditioned, `tickets/PHASE1-TICKETS.md`) | 0.4199 | +0.0064 |
+| raw_aperio (sanity check) | 0.4279 | +0.0144 |
+| raw_hamamatsu (baseline) | 0.4135 | 0.0000 |
+
+**P3-07 (+0.0769) is now the single best recovery-delta result in this
+project on this metric — beats both the original headline diffusion config
+(A3@0.50, +0.0625) and every classical baseline (best: Reinhard +0.0457).
+Read this together with `tickets/PHASE3-TICKETS.md` P3-07's own colour
+result, not instead of it: P3-07's colour recovery is Δlab=-5.60 —
+negative, confirmed real (D1 diagnostic ruled out a baseline artefact),
+every slide flips negative — so this is not a scanner-normalisation win.**
+Two things line up to explain it instead: P3-07 has the best structural
+SSIM of any SDXL config (0.4313, closing most of the gap to SD1.5's
+0.4485), and atypia scoring is a morphology task, not a colour-matching
+one — the same "structure over colour" pattern already flagged below for
+A1; and P3-07's negative colour recovery means its output stayed closer
+to Aperio's own colour statistics than to Hamamatsu's, and this
+classifier's own raw_aperio sanity check already scores higher (0.4279)
+than real raw_hamamatsu (0.4135) — i.e. it's already more comfortable
+with Aperio-flavoured colour. **Not evidence P3-07 is the best
+normalisation method — evidence the classifier rewards structure +
+Aperio-like colour, which P3-07 does best of the five tested, partly
+because its colour normalisation is broken.**
+
+P1-16 (+0.0288) sits between histogram matching (+0.0024) and Reinhard
+(+0.0457) — unlike P3-07, P1-16's colour recovery is genuinely positive
+(Δlab +7.81, ~89% of P1-11's own), so this one IS a case of the
+classifier rewarding a method that also actually normalises colour.
+**P1-10, P1-11, and P3-06 are all weak here — barely above raw_hamamatsu
+and well below every classical baseline**, despite P1-10/P1-11 being this
+project's best-ever results on SSIM/LAB-recovery; this downstream-
+classifier metric evidently does not track structural/colour fidelity the
+way those metrics do (consistent with this ticket's own caveat above that
+this is a noisy instrument measuring something distinct from the rest of
+the project's metrics).
+
+A06 remains dramatically easier than the other four slides for every
+method on this classifier, including the sanity checks (`raw_aperio` A06
+acc=0.984, `raw_hamamatsu` A06 acc=0.484 — the two sanity checks disagree
+by 50 points on A06 alone) — reinforces that A06 must never be pooled in
+without exclusion for this metric specifically, more so than for the
+structural/colour metrics.
+
+Full per-crop and per-slide data: `/datasets/mhoosen/stain-norm/eval/
+atypia_classifier_scores_p1_p3_p16/{summary.csv,per_crop.csv}`.
+
 ## P2-10 — CAMELYON17 multi-centre generalisation
 **Status:** ✅ DONE (2026-08-20) — FAIL verdict. D_pre=56.70, D_post=57.52,
 only 1/10 centre pairs improved. H2/RQ4's cross-hospital generalisation claim

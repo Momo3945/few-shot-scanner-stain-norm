@@ -145,9 +145,20 @@ def main():
         with open(man_path, newline="") as fh:
             rows = list(csv.DictReader(fh))
 
+        # Newer P1-10/P1-11/P3-06/P3-07-style eval_manifest.csv (seed,
+        # source_mode, crop_id, ... -- infer_colour_source_ddim_inversion.py
+        # family) carries no "strength" column at all (unlike infer_colour_lora.py
+        # / infer_baseline.py's schema). Pool every row under the tag itself in
+        # that case (source_mode is uniformly "correct" in every *_full_heldout
+        # manifest used this way -- checked directly before relying on it, not
+        # assumed) instead of KeyError'ing on a column that isn't there.
+        has_strength = bool(rows) and "strength" in rows[0]
         for r in rows:
-            strength = r["strength"]
-            label = tag if strength == "na" else f"{tag}_s{strength}"
+            if has_strength:
+                strength = r["strength"]
+                label = tag if strength == "na" else f"{tag}_s{strength}"
+            else:
+                label = tag
             out_path = tag_dir / r["output_path"]
             methods[label].append((r["slide"], r["frame"], r["x"], r["y"],
                                    lambda p=out_path: read_png(p)))

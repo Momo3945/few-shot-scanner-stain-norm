@@ -1175,6 +1175,57 @@ blocked, not started.** Gated on P1-14 finding a meaningful reconstruction
 improvement (it has, in Stage A); queued behind P1-14's own Stage B result
 before starting. Task file: `tickets/P1-15_p1_11_alternate_decoder.md`.
 
+**Update (2026-08-28): P2-09's downstream atypia classifier extended to
+P1-10, P1-11, P1-16, P3-06, and P3-07 — none existed when P2-09 originally
+closed.** Same `atypia_r18` ResNet18 checkpoint (inference only, no
+retraining), job 47418. Recovery delta = accuracy(method) −
+accuracy(raw_hamamatsu), A06 excluded uniformly (n=416/method, same
+methodology and — verified — the same underlying crop set as P2-09's
+original headline table: this run's own raw_hamamatsu excl-A06 accuracy,
+0.4135, matches that table's value exactly):
+
+| Method | acc (excl. A06) | Recovery Δ |
+|---|---|---|
+| **P3-07** (SDXL, native 1024×1024) | 0.4904 | **+0.0769** |
+| **P1-16** (raw-source-detail/colour-residual fusion) | 0.4423 | **+0.0288** |
+| P1-11 (DDIM-inversion) | 0.4231 | +0.0096 |
+| P3-06 (SDXL transfer) | 0.4207 | +0.0072 |
+| P1-10 (source-conditioned) | 0.4199 | +0.0064 |
+| raw_aperio (sanity check) | 0.4279 | +0.0144 |
+| raw_hamamatsu (baseline) | 0.4135 | 0.0000 |
+
+**P3-07 (+0.0769) is nominally the best recovery-delta result in the
+project on this metric — but read together with P3-07's own colour
+result, not instead of it.** P3-07's structural/colour scoring shows
+Δlab=**-5.60**, a real, confirmed-not-artefact colour-recovery
+*regression* (every held-out slide flips negative — see
+`tickets/PHASE3-TICKETS.md` P3-07). This is not a scanner-normalisation
+win: two things line up instead — P3-07 has the best structural SSIM of
+any SDXL config tested (0.4313, closing most of the gap to SD1.5's
+0.4485), and atypia grading is a morphology task, echoing P2-09's original
+A1 finding that structural conditioning alone can drive this metric; and
+P3-07's negative colour recovery means its output stayed closer to
+Aperio's own colour statistics than to Hamamatsu's, which this
+classifier — trained on Aperio, and already scoring raw_aperio (0.4279)
+above real raw_hamamatsu (0.4135) — finds easier to read regardless. **Not
+evidence of the best normalisation method; evidence the classifier
+rewards structure + Aperio-like colour, which P3-07 currently does best of
+the five, partly because its colour normalisation is broken.**
+
+**P1-16 (+0.0288), by contrast, IS a case where classifier reward and
+genuine colour recovery agree** — its structural/colour Δlab (+7.81) is
+solidly positive. **P1-10, P1-11, and P3-06 all score weakly on this
+metric** (+0.006 to +0.010, barely above raw_hamamatsu, below every
+classical baseline) despite P1-10/P1-11 being this project's best-ever
+SSIM/colour-recovery results — this downstream metric plainly does not
+track those metrics. Full tables, per-slide breakdown, and the small
+additive patch required (`score_atypia_classifier.py`/`.slurm` gained an
+optional `TAGS` override plus support for the newer strength-less manifest
+schema, without touching the original 26-method run's behaviour): `tickets/
+PHASE2-TICKETS.md` P2-09's Extension section, `tickets/PHASE1-TICKETS.md`
+P1-10/P1-11/P1-16, `tickets/PHASE3-TICKETS.md` P3-06/P3-07. Raw data:
+`/datasets/mhoosen/stain-norm/eval/atypia_classifier_scores_p1_p3_p16/`.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

@@ -884,6 +884,13 @@ anything tested. **Conclusion: the full 496-crop evaluation does not need to
 be re-run at a different strength** — nothing in this sweep would change the
 reported verdict.
 
+**Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
+checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
+excl. A06) = **+0.0064** — weak, barely above the raw_hamamatsu baseline
+and below every classical baseline, despite P1-10 being one of this
+project's best results on SSIM/colour-recovery. Full comparison table and
+caveats: `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
+
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
 **Status:** ✅ DONE (2026-08-22) — implementation, smoke test (identity +
@@ -1176,6 +1183,14 @@ diagnosis (task file's opening question) was correct: part of P1-10's
 remaining structural-fidelity loss WAS caused by the random-noise img2img
 initialization, and DDIM inversion recovers a real, substantial, uniform
 share of it without sacrificing colour recovery.
+
+**Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
+checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
+excl. A06) = **+0.0096** — still weak, essentially the same order as
+P1-10's own +0.0064 despite the real SSIM/colour gains DDIM inversion adds
+over P1-10. This downstream metric does not track the structural/colour
+metrics for this configuration. Full comparison table and caveats:
+`tickets/PHASE2-TICKETS.md` P2-09's Extension section.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
@@ -1927,6 +1942,13 @@ Also fixed along the way: `score_outputs.py`'s `baseline_all_for_slides()`
 was weighting the baseline reference by the wrong crop counts for any
 subset (non-full-496) run, producing bogus pooled recovery deltas even
 when per-slide deltas were correct — fixed and pushed (`be1f4f8`).
+
+**Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
+checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
+excl. A06) = **+0.0288** — a real positive, sitting between histogram
+matching (+0.0024) and Reinhard (+0.0457) on this metric, second only to
+P3-07 among this extension's five configs. Full comparison table and
+caveats: `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
 
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 
