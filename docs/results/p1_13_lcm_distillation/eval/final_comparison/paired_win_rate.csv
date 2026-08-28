@@ -1,0 +1,3 @@
+source_mode,wins,n_crops_compared
+generic_lcm_correct,50,80
+task_specific_correct,30,80

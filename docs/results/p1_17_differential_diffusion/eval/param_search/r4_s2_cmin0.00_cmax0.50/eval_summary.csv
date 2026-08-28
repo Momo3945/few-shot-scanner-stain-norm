@@ -1,0 +1,3 @@
+strength,scope,n_crops,lab_total,wlab_mean,de2000_mean,ssim,psnr,mae,robust_z,outlier,recovery_delta_lab
+r4_s2_cmin0.00_cmax0.50,ALL,20,22.04088,22.38734,15.93267,0.16577,14.09528,38.20293,,,
+r4_s2_cmin0.00_cmax0.50,A03,20,22.04088,22.38734,15.93267,0.16577,14.09528,38.20293,0.0,False,

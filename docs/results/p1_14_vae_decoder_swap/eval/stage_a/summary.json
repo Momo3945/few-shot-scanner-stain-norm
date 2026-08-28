@@ -1,0 +1,126 @@
+{
+  "vae_info": {
+    "stock": {
+      "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+      "subfolder": "vae",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 512,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "ft_mse": {
+      "repo": "stabilityai/sd-vae-ft-mse",
+      "subfolder": null,
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    }
+  },
+  "summary": {
+    "stock": {
+      "aperio": {
+        "lab_total": 6.1089491,
+        "wlab_mean": 6.5553517913818355,
+        "de2000_mean": 9.252264636918323,
+        "ssim": 0.5477152043514075,
+        "psnr": 18.408619472912164,
+        "mae": 23.07852658589681
+      },
+      "hamamatsu": {
+        "lab_total": 7.1734690000000025,
+        "wlab_mean": 7.753224868774414,
+        "de2000_mean": 8.372252762216961,
+        "ssim": 0.5861923593471805,
+        "psnr": 19.302282993228438,
+        "mae": 20.797529424031573
+      }
+    },
+    "ft_mse": {
+      "aperio": {
+        "lab_total": 7.103819100000001,
+        "wlab_mean": 7.406309432983399,
+        "de2000_mean": 7.879023861504703,
+        "ssim": 0.5957311172407145,
+        "psnr": 19.7884220522654,
+        "mae": 19.842985331217452
+      },
+      "hamamatsu": {
+        "lab_total": 5.373016699999998,
+        "wlab_mean": 5.945738830566406,
+        "de2000_mean": 7.243254932853221,
+        "ssim": 0.6312176952605622,
+        "psnr": 20.602389668215196,
+        "mae": 17.984704310099286
+      }
+    }
+  },
+  "paired": {
+    "aperio": {
+      "mean_delta_ssim": 0.04801591288930686,
+      "median_delta_ssim": 0.047917027798525746,
+      "mean_delta_psnr": 1.3798025793532296,
+      "mean_delta_mae": -3.235541254679362,
+      "mean_delta_lab_total": 0.9948699999999997,
+      "ssim_delta_bootstrap_ci95": [
+        0.04704533713560893,
+        0.048983762976399704
+      ],
+      "n_crops": 50
+    },
+    "hamamatsu": {
+      "mean_delta_ssim": 0.04502533591338171,
+      "median_delta_ssim": 0.04500365532074341,
+      "mean_delta_psnr": 1.3001066749867565,
+      "mean_delta_mae": -2.8128251139322917,
+      "mean_delta_lab_total": -1.8004522999999997,
+      "ssim_delta_bootstrap_ci95": [
+        0.044320961583015454,
+        0.045712199757358574
+      ],
+      "n_crops": 50
+    }
+  },
+  "stage": "internal",
+  "n_crops": 50
+}

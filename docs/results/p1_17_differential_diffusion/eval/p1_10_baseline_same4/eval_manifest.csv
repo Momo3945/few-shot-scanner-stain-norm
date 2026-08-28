@@ -1,0 +1,13 @@
+seed,source_mode,crop_id,slide,frame,x,y,output_path,reference_path,aperio_path
+0,correct,A03_00A_c000,A03,00A,0,0,outputs/A03_00A_c000_correct_seed0.png,reference/A03_00A_c000.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c000_aperio.png
+1,correct,A03_00A_c000,A03,00A,0,0,outputs/A03_00A_c000_correct_seed1.png,reference/A03_00A_c000.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c000_aperio.png
+2,correct,A03_00A_c000,A03,00A,0,0,outputs/A03_00A_c000_correct_seed2.png,reference/A03_00A_c000.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c000_aperio.png
+0,correct,A03_00A_c024,A03,00A,0,0,outputs/A03_00A_c024_correct_seed0.png,reference/A03_00A_c024.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c024_aperio.png
+1,correct,A03_00A_c024,A03,00A,0,0,outputs/A03_00A_c024_correct_seed1.png,reference/A03_00A_c024.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c024_aperio.png
+2,correct,A03_00A_c024,A03,00A,0,0,outputs/A03_00A_c024_correct_seed2.png,reference/A03_00A_c024.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c024_aperio.png
+0,correct,A03_00A_c048,A03,00A,0,0,outputs/A03_00A_c048_correct_seed0.png,reference/A03_00A_c048.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c048_aperio.png
+1,correct,A03_00A_c048,A03,00A,0,0,outputs/A03_00A_c048_correct_seed1.png,reference/A03_00A_c048.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c048_aperio.png
+2,correct,A03_00A_c048,A03,00A,0,0,outputs/A03_00A_c048_correct_seed2.png,reference/A03_00A_c048.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00A_c048_aperio.png
+0,correct,A03_00B_c001,A03,00B,0,0,outputs/A03_00B_c001_correct_seed0.png,reference/A03_00B_c001.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00B_c001_aperio.png
+1,correct,A03_00B_c001,A03,00B,0,0,outputs/A03_00B_c001_correct_seed1.png,reference/A03_00B_c001.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00B_c001_aperio.png
+2,correct,A03_00B_c001,A03,00B,0,0,outputs/A03_00B_c001_correct_seed2.png,reference/A03_00B_c001.png,/datasets/mhoosen/stain-norm/pairs/train/A03_00B_c001_aperio.png

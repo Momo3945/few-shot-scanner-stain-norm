@@ -1,0 +1,23 @@
+{
+  "script": "infer_p1_10_differential_diffusion.py",
+  "checkpoint_lora": "/datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best",
+  "checkpoint_controlnet": "/datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best/controlnet",
+  "direction": "A2H",
+  "source_mode": "correct",
+  "radius": 2,
+  "sigma": 2.0,
+  "c_min": 0.0,
+  "c_max": 0.7,
+  "steps": 50,
+  "guidance": 2.0,
+  "controlnet_conditioning_scale": 1.0,
+  "config_tag": "r2_s2_cmin0.00_cmax0.70",
+  "seeds": [
+    0
+  ],
+  "dtype": "torch.float16",
+  "model": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+  "prompt": "H&E stained histopathology tissue",
+  "vae_scale_factor": 8,
+  "git_commit": "unknown"
+}

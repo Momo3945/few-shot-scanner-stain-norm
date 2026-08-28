@@ -1,0 +1,98 @@
+{
+  "vae_info": {
+    "stock": {
+      "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+      "subfolder": "vae",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 512,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "ft_mse": {
+      "repo": "stabilityai/sd-vae-ft-mse",
+      "subfolder": null,
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    }
+  },
+  "summary": {
+    "stock": {
+      "aperio": {
+        "lab_total": 4.597085241935479,
+        "wlab_mean": 5.184771960781466,
+        "de2000_mean": 8.055044360603443,
+        "ssim": 0.575927730700766,
+        "psnr": 19.61736485722994,
+        "mae": 19.257930022413998
+      }
+    },
+    "ft_mse": {
+      "aperio": {
+        "lab_total": 5.346924072580647,
+        "wlab_mean": 5.7974718001581005,
+        "de2000_mean": 6.7883927257853935,
+        "ssim": 0.6181691013650343,
+        "psnr": 20.93716922190013,
+        "mae": 16.750845240008427
+      }
+    }
+  },
+  "paired": {
+    "aperio": {
+      "mean_delta_ssim": 0.04224137066426819,
+      "median_delta_ssim": 0.04246869642137602,
+      "mean_delta_psnr": 1.319804364670197,
+      "mean_delta_mae": -2.507084782405566,
+      "mean_delta_lab_total": 0.7498388306451611,
+      "ssim_delta_bootstrap_ci95": [
+        0.04186842297430685,
+        0.0426166425715497
+      ],
+      "n_crops": 496
+    }
+  },
+  "stage": "heldout",
+  "n_crops": 496
+}
