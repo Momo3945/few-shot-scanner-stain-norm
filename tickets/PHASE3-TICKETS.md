@@ -883,13 +883,29 @@ rank change, or pair-count change:
   sampled crop (raw always beats model, by 2.6 to 8.0 LAB). **Verdict: the
   negative colour recovery is a real model effect, not a baseline/metric
   artefact -- proceed to D2.**
-- **D2 -- colour-LoRA-disabled comparison** (highest-priority mechanistic
-  test, not yet started): same trained 1024 ControlNet + source conditioning
-  + SDXL base + 50-step DDIM + strength 0.50 + guidance 2.0, colour LoRA
-  DISABLED, on a balanced A06+A08 internal diagnostic (not A06 alone).
-  Distinguishes "frozen SDXL + source-conditioning path already drifts colour
-  negative and the LoRA is too weak to overcome it" from "the 1024 LoRA
-  itself learned the wrong mapping."
+- **D2 -- colour-LoRA-disabled comparison.** infer_colour_translation_sdxl.py
+  gained a `--no-lora` flag (skips `pipe.load_lora_weights()`, keeps the
+  trained 1024 ControlNet + source conditioning + frozen SDXL base
+  identical). Run on a balanced A06+A08 held-out subset (not A06 alone) at
+  the same operating point as the full run (strength=0.50, steps=50,
+  guidance=2.0, crop=1024). Inference: job 47298 (bigbatch, TIMEOUT at
+  1h30m, 303/513 outputs) -> resubmit job 47330 (`--time=03:30:00`, TIMEOUT
+  again at the SAME 303 outputs -- turned out to be `mscluster61` running
+  2.4x slower than the first attempt's node, not a hang; see Cluster facts
+  in CLAUDE.md) -> resubmit job 47402 (`--time=10:00:00`,
+  `--exclude=...,mscluster61`, **COMPLETED**, 2h11m, all 525/525 outputs).
+  Scored + compared via `slurm/score_d2_p3_07.slurm` (job 47451, COMPLETED).
+
+  **D2 RESULT: Case A confirmed.** No-LoRA recovery is *more negative* than
+  WITH-LoRA on both slides -- A06 -6.92 (no-LoRA) vs -3.91 (with-LoRA); A08
+  -8.94 vs -5.47; pooled A06+A08 -8.21 vs -5.25. The colour LoRA is not the
+  cause and is not inert either -- it measurably pulls recovery back toward
+  positive (~+3 LAB on both slides) but is too weak to overcome a stronger
+  negative drift coming from the frozen SDXL base + trained ControlNet +
+  source conditioning path itself. Case B (LoRA learned the wrong mapping)
+  is ruled out. **Proceed to D3** to test whether source-RGB conditioning
+  specifically (vs Canny-only) is what's preserving Aperio scanner
+  appearance alongside morphology at native resolution.
 - **D3 -- RGB vs Canny conditioning split** (inference-only, no retraining):
   `rgb_canny` (existing) / `rgb_only` (zero Canny channels) / `canny_only`
   (zero RGB channels), same balanced diagnostic set, same seeds. Tests
