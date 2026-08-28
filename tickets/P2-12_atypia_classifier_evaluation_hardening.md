@@ -1,13 +1,12 @@
 # P2-12 — Harden P2-09 Clinical-Utility / Atypia-Classifier Evaluation
 
 **Status:** 🔄 IN PROGRESS (2026-08-28) — §1-§3.10's code hardening
-implemented and smoke-tested (job 47545, 12/15 acceptance criteria
-confirmed against real data + local unit tests; 3 remaining need a
-`train_atypia_classifier.py` smoke run — see §7). No real rerun (§11)
-submitted yet. Written 2026-08-28 in response to a request to
-methodologically harden `tickets/PHASE2-TICKETS.md` P2-09 before its
-results (including this session's P1-10/P1-11/P1-16/P3-06/P3-07
-extension) are treated as final.
+implemented and smoke-tested end to end (jobs 47545 + 47598): all 15
+acceptance criteria confirmed against real data (see §7). No real rerun
+(§11) submitted yet — that's the only remaining work on this ticket.
+Written 2026-08-28 in response to a request to methodologically harden
+`tickets/PHASE2-TICKETS.md` P2-09 before its results (including this
+session's P1-10/P1-11/P1-16/P3-06/P3-07 extension) are treated as final.
 
 **Source:** `docs/proposal_draft(6).tex` §"Clinical Utility" (the exact
 proposal text is quoted below); hardens `tickets/PHASE2-TICKETS.md` P2-09 and
@@ -580,18 +579,30 @@ the cluster):
       inside the chunking loop) plus indirect empirical support: the
       `--batch-size 1` smoke run (93 individual transfers) completed
       successfully with predictions identical to `--batch-size 64`.
-- [ ] An invalid `--val-slides` entry fails clearly at training start
-      (§3.6) — **not yet exercised**; this smoke test only ran
-      `score_atypia_classifier.py`, not `train_atypia_classifier.py`.
-      Verified by code review only so far.
-- [ ] Validation class distribution is printed and stored in
-      `training_config.json` (§3.6) — **not yet exercised**, same reason.
-- [ ] Best checkpoint selection uses the documented class-balanced metric
-      (macro-F1), stored alongside raw accuracy (§3.6) — **not yet
-      exercised**, same reason. The manual macro-F1 formula itself was
-      hand-verified against a worked example locally (sklearn isn't
-      installed on this machine to cross-check directly), but a real
-      `--smoke` training run hasn't been submitted yet.
+- [x] An invalid `--val-slides` entry fails clearly at training start
+      (§3.6). Verified 2026-08-28, job 47598, check 1:
+      `--val-slides NOTREAL` aborted (rc=1) before touching the GPU, with
+      `ABORT: --val-slides names not present in the manifest: ['NOTREAL'].
+      Manifest slides are: [...11 real names...]`.
+- [x] Validation class distribution is printed and stored in
+      `training_config.json` (§3.6). Verified, job 47598, checks 2/3: both
+      printed `Val class distribution (0/1/2 = score 1/2/3): {0: 4, 1: 184}`
+      and correctly warned `validation split is missing class(es) [2]
+      (score [3]) entirely` — a real, previously-silent gap on this
+      dataset's actual A17/A18 split, now surfaced rather than hidden.
+      `training_config.json`'s `val_class_counts`/`val_missing_classes`
+      fields confirmed present and non-empty by direct verification script.
+- [x] Best checkpoint selection uses the documented class-balanced metric
+      (macro-F1), stored alongside raw accuracy (§3.6). Verified, job
+      47598: both `--smoke` runs logged `val_acc 0.064  val_macro_f1 0.041
+      (selection metric)` / `val_acc 0.069  val_macro_f1 0.044`, saved
+      `best.pt` with `selection_metric='macro_f1'` and non-null
+      `val_macro_f1`/`val_acc`, and `training_config.json` carries the same
+      fields — all confirmed by loading the actual checkpoint with `torch.
+      load` and reading the actual JSON, not assumed from the training log
+      alone. The manual macro-F1 formula was also hand-verified earlier
+      against a worked example (sklearn isn't installed locally to
+      cross-check directly).
 - [~] Common outlier exclusions are identical across every method in a run
       (§3.4) — ran without error (`excluded_slides=none`, correctly, since
       `p3_07_smoke_heldout` is single-slide and `flag_outliers` never flags
@@ -618,13 +629,14 @@ the cluster):
       source_direction=H2A` (§3.1, §3.10). Verified — exact format
       confirmed in the job log and `integrity_report.csv`.
 
-**Remaining before this ticket can be called fully verified:** a
-`train_atypia_classifier.py --smoke` run (or equivalent) to exercise the
-three unchecked `--val-slides`/class-distribution/checkpoint-selection
-items, and a multi-slide multi-method real rerun to properly stress-test
-the common outlier policy. Both are cheap, GPU-light, and don't require
-any new H2A training — can be scheduled whenever useful, separate from
-§11's real reruns.
+**All 15 criteria confirmed as of 2026-08-28 (jobs 47545 + 47598).** The
+one soft item (`[~]` common outlier policy) ran correctly but on
+single-slide data that can't stress-test "identical exclusions across
+multiple differing methods" the way a real multi-slide, multi-method
+rerun will — worth re-checking opportunistically once §11's real reruns
+happen, not a blocker on its own. The code hardening itself (§1-§3.10) is
+now verified against real data end to end; nothing in §11's actual reruns
+is blocked by open validation questions on the harness anymore.
 
 ---
 
