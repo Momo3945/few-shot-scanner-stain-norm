@@ -1,0 +1,2 @@
+strength,n_crops,ssim,psnr,mae,lab_total,wlab_mean,de2000_mean
+0.20,64,0.14291,13.11288,41.54103,28.16959,30.25152,18.13367
