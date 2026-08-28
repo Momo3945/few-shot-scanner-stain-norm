@@ -9,32 +9,42 @@ model learn to translate between scanners, instead of (or better than) the
 existing simpler, non-AI colour-correction methods?
 
 **Start with `RESULTS_SUMMARY.md`** in this same folder — it's the full
-written report, in order, with the actual findings explained. Everything
-else in this folder is the raw data and images that report is built from.
-This README is just a map and a glossary.
+written report, in order, with the actual findings explained. This README
+is a map: one row per experiment, pointing at where its numbers and images
+actually live.
 
-## Where things are
+## Index
 
-- **`RESULTS_SUMMARY.md`** — the main report. Read this first.
-- **`qualitative/`** — actual before/after images, so you can look at the
-  results yourself rather than just trust a number. Good place to start if
-  you'd rather see pictures than read numbers.
-- **`phase1_ablation/`** — the core experiment's raw numbers. "Phase 1" tested
-  six increasingly complex versions of the AI pipeline (named A0 through A5,
-  see glossary below) against a "do nothing" comparison.
-- **`classical_baselines/`** — raw numbers for the older, non-AI methods
-  (Macenko, Reinhard, Histogram Matching) that the AI pipeline is compared
-  against. These are simple, deterministic colour-recipe adjustments, not AI.
-- **`analyze.py`** — the script used to double-check trends in the numbers.
+Every ticket folder has the same shape: a `README.md` (mechanism + headline
+number + pointers), an `eval/` with the real pulled CSVs where a new pull
+was needed, and `images/` where a diagnostic image exists. Folders marked
+"data lives elsewhere" don't duplicate CSVs already sitting in
+`phase1_ablation/` or `classical_baselines/` — their README says exactly
+where to look instead.
 
-Every result folder (`a0/`, `a3_ext_s02/`, `macenko/`, etc.) has up to three
-files:
-- `eval_summary.csv` — the headline numbers, averaged. **This is the file
-  quoted throughout `RESULTS_SUMMARY.md`.**
-- `eval_per_crop.csv` — the same numbers, but for every individual image
-  crop rather than averaged. Useful for double-checking an average isn't
-  hiding something.
-- `eval_manifest.csv` — bookkeeping: which output file matches which input.
+| Folder | What it is | Status |
+|---|---|---|
+| `phase1_ablation/` | The A0–A5 ablation ladder + strength-sweep follow-ups + raw baseline | ✅ done |
+| `classical_baselines/` | Macenko, Reinhard, Histogram Matching | ✅ done |
+| `p1_10_source_conditioning/` | Training-time source conditioning (fresh ControlNet branch) | ✅ done — mixed |
+| `p1_11_ddim_inversion/` | Deterministic DDIM-inversion initialisation | ✅ done — best SD1.5 result at the time |
+| `p1_12_generic_lcm/` | Few-step LCM acceleration on P1-10 | ✅ closed — speed/quality tradeoff |
+| `p1_13_lcm_distillation/` | Task-specific LCM-LoRA distilled from P1-10 (P1-13 + P1-13b) | ❌ closed negative |
+| `p1_14_vae_decoder_swap/` | Drop-in VAE decoder swap, isolated reconstruction test | 🔄 Stage A done, Stage B unanalysed |
+| `p1_15_alt_decoder/` | P1-11 decoded with P1-14's winning VAE | ⚠️ smoke data exists, not written up |
+| `p1_16_source_fusion/` | Post-hoc raw-source + colour-residual fusion | ✅ **first config to beat classical on SSIM** |
+| `p1_17_differential_diffusion/` | Per-pixel spatially-varying denoising strength | ❌ closed negative |
+| `p2_06_ground_truth_comparison/` | SSIM/PSNR/MAE vs. real target, all methods (data lives elsewhere) | ✅ done |
+| `p2_07_cycle_consistency/` | Round-trip A→H→A reconstruction | ❌ done |
+| `p2_08_hovernet_relative_dice/` | Nucleus-detection agreement vs. HoVer-Net | ❌ done — fails 0.95 threshold |
+| `p2_09_atypia_classifier/` | Downstream ResNet18 atypia classifier | ✅ **diffusion beats every classical baseline** |
+| `p2_10_camelyon17/` | Cross-hospital generalisation, 5 unseen centres | ❌ done |
+| `p2_11_baseline_confound/` | Windowed-metric confound check (data lives elsewhere) | ✅ done |
+| `p3_04_sdxl_a4/` | SDXL port of the original A4 ladder config | ❌ done |
+| `p3_05_sdxl_a5_warmstart/` | SDXL port of the A5 histopathology warm-start | ❌ done |
+| `p3_06_sdxl_source_cond/` | SDXL transfer of P1-10's fresh-ControlNet architecture | ❌ done |
+| `p3_07_sdxl_native1024/` | P3-06 retrained at native 1024×1024 | 🔄 reopened, D1 diagnostic now resolved |
+| `analyze.py` | Reproducible per-crop trend analysis behind the P1-09 strength-sweep picks | — |
 
 ## Glossary — the A0–A5 names
 
@@ -73,12 +83,15 @@ altering the actual tissue structure).
 ## The short version of what was found
 
 The AI pipeline reliably shifts colour in the right direction (better than
-doing nothing), and one configuration (source-conditioned training, see
-`RESULTS_SUMMARY.md`'s P1-10 section) achieved the best colour-recovery
-result of any AI configuration tested. But on *structural* accuracy
-(`ssim`), the simple non-AI methods (`classical_baselines/`) consistently
-beat every AI configuration tested — because they mathematically never move
-a pixel, while the AI regenerates the image and can't help but drift
-slightly from a pixel-perfect match. `RESULTS_SUMMARY.md` explains this
-finding in full, including why it happens and what was done to rule out
-measurement artefacts.
+doing nothing). For most of the project's history, the simple non-AI
+methods (`classical_baselines/`) consistently beat every AI configuration
+on structural accuracy (`ssim`) — because they mathematically never move a
+pixel, while the AI regenerates the image and can't help but drift slightly
+from a pixel-perfect match. **That changed with `p1_16_source_fusion/`**:
+using the AI only to estimate a colour shift, then compositing it onto the
+untouched raw source, clears every classical baseline on SSIM at full
+held-out scale — the same trick classical methods use, borrowed
+deliberately. Separately, `p2_09_atypia_classifier/` is the one place
+diffusion beat classical *without* that trick, on a real downstream
+clinical task. `RESULTS_SUMMARY.md` explains all of this in full, including
+why it happens and what was done to rule out measurement artefacts.
