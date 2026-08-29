@@ -118,6 +118,14 @@ def parse_args():
                          "--lora is still required (used only to locate --controlnet's sibling "
                          "dir in existing call sites) but its weights are never loaded. Ignored "
                          "with --vae-only (which already skips the LoRA).")
+    ap.add_argument("--lora-scale", type=float, default=1.0,
+                    help="Diagnostic-only (P3-07 D5): adapter weight for the colour LoRA at "
+                         "inference, via diffusers' set_adapters (same mechanism already used "
+                         "for --lcm-scale/--hist-scale in infer_colour_lora_sdxl.py). Tests "
+                         "whether increasing the LoRA's influence beyond its trained weight "
+                         "(1.0) moves recovery toward zero/positive, given D2 already showed the "
+                         "LoRA pulls in the correct direction but not far enough. Ignored with "
+                         "--vae-only or --no-lora.")
     ap.add_argument("--condition-mode", choices=["rgb_canny", "rgb_only", "canny_only"],
                     default="rgb_canny",
                     help="Diagnostic-only (P3-07 D3): which half of the 6-channel source "
@@ -318,15 +326,20 @@ def main():
         from diffusers import (AutoencoderKL, ControlNetModel, DDIMScheduler,
                                StableDiffusionXLControlNetImg2ImgPipeline)
         print(f"Loading P3-06 SDXL pipeline: LoRA={'DISABLED (--no-lora)' if args.no_lora else args.lora}  "
-              f"ControlNet={args.controlnet}  source_mode={args.source_mode}  "
-              f"condition_mode={args.condition_mode} ...")
+              f"lora_scale={args.lora_scale}  ControlNet={args.controlnet}  "
+              f"source_mode={args.source_mode}  condition_mode={args.condition_mode} ...")
         vae = AutoencoderKL.from_pretrained(args.model, subfolder="vae", torch_dtype=torch.float32)
         controlnet = ControlNetModel.from_pretrained(args.controlnet, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetImg2ImgPipeline.from_pretrained(
             args.model, controlnet=controlnet, vae=vae, torch_dtype=torch.float16)
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
         if not args.no_lora:
-            pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors")
+            # Named adapter + set_adapters even for this single LoRA -- same mechanism
+            # already used for --lcm-scale/--hist-scale in infer_colour_lora_sdxl.py,
+            # here applied to a custom weight instead of the implicit 1.0 default.
+            pipe.load_lora_weights(args.lora, weight_name="pytorch_lora_weights.safetensors",
+                                   adapter_name="colour")
+            pipe.set_adapters(["colour"], adapter_weights=[args.lora_scale])
         pipe.to(device)
         pipe.set_progress_bar_config(disable=True)
 

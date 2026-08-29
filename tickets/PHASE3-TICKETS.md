@@ -991,15 +991,62 @@ inert at this checkpoint, and removing RGB breaks both axes rather than
 trading one for the other. D4 ruled out "just reduce ControlNet conditioning
 scale" -- no scale in {0.25, 0.50, 0.75, 1.00} restores non-negative
 recovery on internal validation, and SSIM moves the wrong direction for a
-clean tradeoff story (more conditioning = better SSIM, not worse). What
-remains untested and not yet run: H3 (the 1024 crops may be a
-harder/more heterogeneous colour-learning problem under the same ≤50-pair
-budget -- would need the proposal's own sanctioned fallback, expanding
-overlapping A03/H03 crops while reporting the minimum viable pair count, a
-deliberate scope decision requiring explicit go-ahead per this ticket's hard
-scope constraint above) and simply accepting the SSIM-gain/colour-recovery
-trade-off as P3-07's documented finding and closing the ticket as-is. Next
-step needs an explicit decision, not a default escalation.
+clean tradeoff story (more conditioning = better SSIM, not worse).
+
+**D5 -- colour-LoRA-scale sweep** (final bounded inference-only test before
+considering training-data expansion). infer_colour_translation_sdxl.py
+gained `--lora-scale`, applied via `pipe.set_adapters(["colour"],
+adapter_weights=[scale])` -- the same mechanism already established in
+`infer_colour_lora_sdxl.py` for `--lcm-scale`/`--hist-scale`, here given a
+custom weight for the single colour-LoRA adapter instead of the implicit
+1.0 default. Swept `lora_scale` in {1.0, 1.25, 1.5, 2.0} at fixed
+strength=0.50, controlnet_conditioning_scale=1.0, guidance=2.0, 50-step
+DDIM, condition-mode=rgb_canny, on the SAME 11-pair internal validation
+split D4 used. Sweep job 47646 (bigbatch, COMPLETED, 36min, all 4 scales x
+33 outputs). Scored + compared via `slurm/score_d5_p3_07.slurm` (job 47710,
+COMPLETED) -- `d5_verify_p3_07.py` reports SSIM, LAB total, windowed LAB,
+ΔE2000, and recovery Δlab per scale, plus applies the selection rule
+(require recovery Δlab > 0 first; among positive configs pick highest SSIM).
+
+**D5 RESULT: increasing LoRA scale makes recovery WORSE, monotonically, not
+better.** raw baseline lab 29.18. Recovery by scale: 1.0 -> -4.38, 1.25 ->
+-5.65, 1.5 -> -7.64, 2.0 -> -8.00 -- a clean monotonic degradation, not
+noise. SSIM degrades in lockstep (0.1852 -> 0.1832 -> 0.1700 -> 0.1126). D2
+showed the LoRA at its trained weight (1.0) genuinely pulls colour in the
+correct direction relative to no-LoRA; D5 shows that amplifying that same
+LoRA beyond its trained/calibrated weight does not extend the correction
+further -- it pushes the output out of the regime the adapter was actually
+trained for, degrading colour AND structure together. No configuration in
+the grid achieves positive recovery, and the trend is not consistently
+toward zero/positive (it moves away from zero) -- both conditions for the
+second (strength x lora_scale) grid are unmet. **Per the diagnostic
+protocol, stop inference-only tuning here.**
+
+**D1-D5 diagnostic arc summary (2026-08-29): every mechanistic and
+inference-only fix tested fails to restore positive colour recovery.**
+Every inference-only knob available at this checkpoint has now been tried:
+baseline artefact (D1), LoRA mis-mapping (D2, LoRA actually helps but is
+too weak), RGB-vs-Canny channel selection (D3, RGB carries all the signal),
+ControlNet conditioning scale (D4, no scale helps), and colour-LoRA
+influence (D5, more influence makes it worse, not better).
+
+**Proposed next step: P3-07b, a bounded >50-pair training follow-up
+(NOT YET STARTED -- needs explicit go-ahead).** Per the remaining hypothesis
+(H3: the native-1024 crops may be a harder/more heterogeneous colour-
+learning problem than 512, and <=50 paired A03/H03 crops may simply be
+insufficient to learn it), retrain the same architecture (rank-8 colour
+LoRA + fresh 6-channel source-conditioned ControlNet, same SDXL base, same
+4000 steps, same A03/H03-only scope) using all 96 available non-overlapping
+A03/H03 1024 candidate pairs (measured in the original extraction job
+46384) instead of the capped 50, with everything else held fixed --
+architecture, rank, step count, slide scope, loss, no overlapping crops, no
+new slides. **P3-07b must be explicitly labelled a supplementary >50-pair
+follow-up, not evidence for or against the proposal's formal <=50-pair H1
+claim** ("<=50 coordinate-corresponding A03/H03 crop pairs are sufficient...
+trained on <=50 examples from one slide pair") -- P3-07 itself, at <=50
+pairs, remains the H1-relevant result regardless of what P3-07b finds. Do
+not add slides, sweep rank, add new losses, or use overlapping crops in
+P3-07b.
 
 **Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
 checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
