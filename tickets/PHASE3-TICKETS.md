@@ -1048,6 +1048,31 @@ pairs, remains the H1-relevant result regardless of what P3-07b finds. Do
 not add slides, sweep rank, add new losses, or use overlapping crops in
 P3-07b.
 
+**P3-07b IN PROGRESS (2026-08-29).** Extracted all 96 non-overlapping
+tissue-passing A03/H03 1024 candidates locally (`extract_pairs.py --root
+data/mitos --out pairs_1024_full96_staging --crop 1024 --max-pairs 96
+--seed 0 --skip-heldout --tissue-thresh 0.3`), written to
+`pairs/train_1024_full96/` (192 files) + `pairs/train_1024_full96_manifest.csv`.
+**Verified byte-for-byte superset of P3-07's 50 pairs** -- same seed's
+per-frame round-robin selection deterministically reproduces the original
+50 as a prefix, plus 46 more (spot-checked all 50 aperio/hamamatsu
+filenames match exactly). Uploaded to
+`/datasets/mhoosen/stain-norm/pairs/train_1024_full96/` (192 files
+verified). New dedicated training script `src/train/train_p3_07b_lora_sdxl.py`
+(+ `slurm/train_p3_07b_lora_sdxl.slurm`) -- a new file per this ticket's own
+instruction, not a parameterised reuse of `train_colour_translation_lora_sdxl.py`,
+but line-for-line identical architecture/hyperparameters (rank 8, 4000
+steps, resolution 1024, A2H, same leak check, same leave-one-frame-out val
+split) -- only `--pairs-dir` differs. New checkpoint tag
+`lora/a2h_cond_r8_sdxl_1024_full96/`, never touches `lora/a2h_cond_r8_sdxl_1024/`
+(P3-07).
+
+Smoke test (job 47734, COMPLETED, 3m15s): 96 pairs -> 24 frames -> 5 held
+out for val (76 train / 20 val), ControlNet/LoRA trainable-param counts
+identical to P3-07 (7,647,552 / 11,612,160), no NaNs, checkpoint saved
+cleanly. Full 4000-step run submitted (job 47743, bigbatch,
+`--exclude=mscluster48,65,46,44,61`) -- RUNNING, not yet complete.
+
 **Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
 checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
 excl. A06) = **+0.0769** -- the single best result across every method
