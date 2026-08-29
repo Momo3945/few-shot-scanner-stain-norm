@@ -1070,8 +1070,20 @@ split) -- only `--pairs-dir` differs. New checkpoint tag
 Smoke test (job 47734, COMPLETED, 3m15s): 96 pairs -> 24 frames -> 5 held
 out for val (76 train / 20 val), ControlNet/LoRA trainable-param counts
 identical to P3-07 (7,647,552 / 11,612,160), no NaNs, checkpoint saved
-cleanly. Full 4000-step run submitted (job 47743, bigbatch,
-`--exclude=mscluster48,65,46,44,61`) -- RUNNING, not yet complete.
+cleanly. **Full 4000-step run COMPLETED (job 47743, bigbatch, 1h52m58s,
+exit 0).** val_loss trended down over the run to a final/best 0.0982
+(no NaNs/crashes). Checkpoint: `lora/a2h_cond_r8_sdxl_1024_full96/{final,best}`.
+
+Per this project's own standing discipline (every new checkpoint gets the
+mandatory source-conditioning ablation before its held-out numbers are
+trusted -- same requirement P3-06 and P3-07 each satisfied on their own
+checkpoints even though the architecture is shared), next steps (not yet
+started, awaiting go-ahead): (1) source-conditioning ablation
+(correct/zero/shuffled) on an 8-pair internal diagnostic from
+`pairs/train_1024_full96`, (2) full 5-slide/3-seed held-out inference +
+scoring, matching P3-07's exact methodology, to get a directly comparable
+recovery Δlab. Only once that number exists can P3-07b actually answer
+H3 (more data helps native-1024 colour learning) or not.
 
 **Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
 checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
