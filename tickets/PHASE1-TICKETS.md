@@ -896,6 +896,25 @@ confirmed in `tickets/P2-12_atypia_classifier_evaluation_hardening.md`
 §0. Does not support any clinical-utility conclusion until P2-12 lands
 and a valid H→A rerun exists.**
 
+**H2A training started (2026-08-29):** per P2-12 §8's cost breakdown,
+P1-10 has no H2A-direction checkpoint at all (unlike A0-A5, which reused
+pre-existing `h2a_r4`/`h2a_r8` LoRA checkpoints from P1-03c/d) — a genuine
+new joint training run is required before any valid H2A clinical-utility
+number can exist for this architecture. No code changes needed —
+`train_colour_translation_lora.slurm` already takes `DIRECTION` as its
+first positional arg, same script/architecture validated for A2H, just
+applied with `--direction H2A` on the same 50 pairs (source/target roles
+swap, no new data). Mandatory overfit control submitted first (job 47810,
+`OVERFIT_N=8`, 2000 steps -- skipping a 300-step re-check since that step
+count was already established insufficient for this exact architecture
+under A2H): writes to `lora/h2a_cond_r8_overfit8/`, never touches the
+existing `lora/a2h_cond_r8/` checkpoint. Full 4000-step training to follow
+once the overfit control passes (original A2H full run: only 24:50
+wall-clock, job 44445). Then P1-11's DDIM-inversion path needs a small
+launcher patch (`infer_p1_10_ddim_inversion.slurm` currently hardcodes
+`CHECKPOINT_DIR=lora/a2h_cond_r8/best` and never passes `--direction` at
+all) before it can run against the new H2A checkpoint -- see P1-11 below.
+
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
 **Status:** ✅ DONE (2026-08-22) — implementation, smoke test (identity +
@@ -1199,6 +1218,22 @@ metrics for this configuration. Full comparison table and caveats:
 **STALE (2026-08-28): A→H, not H→A — see `tickets/
 P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid clinical-
 utility evidence until P2-12 lands.**
+
+**H2A follow-on started (2026-08-29):** P1-10's H2A training is underway
+(see P1-10 above, job 47810) -- once a valid `lora/h2a_cond_r8/` checkpoint
+exists, P1-11's own DDIM-inversion path needs: (1) a small additive patch
+to `infer_p1_10_ddim_inversion.slurm` (`CHECKPOINT_DIR` is currently
+hardcoded to `lora/a2h_cond_r8/best` and the script never passes
+`--direction` at all, always defaulting to A2H -- same override pattern
+already used elsewhere this session); (2) the identity smoke test +
+source-conditioning ablation (correct/shuffled/zero) rerun at the cheap
+`LIMIT=20` scale to revalidate against the new checkpoint (reusing
+`f=1.00`, already established optimal for A2H -- not re-sweeping); (3)
+only then the full 496-crop x 3-seed held-out run, which is the expensive
+step -- the original A2H run (job 44858) needed the full 10-hour time
+budget (TIMEOUT'd right at `--time=10:00:00`, recovered with zero data
+loss) -- needs its own explicit go-ahead once (1)-(2) look good. None of
+this submitted yet beyond P1-10's own overfit control.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
