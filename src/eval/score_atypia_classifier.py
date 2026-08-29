@@ -49,12 +49,18 @@ distinct strength value when a `strength` column exists and isn't "na" (the olde
 infer_colour_lora.py/infer_baseline.py schema), a single method per tag when a
 `strength` column is absent (the newer infer_colour_source_ddim_inversion.py-family
 schema, which has no notion of a strength sweep). Two additional synthetic methods
-are derived without any new inference, from exactly one --tags entry (the first
-processed) to avoid re-deriving the same reference crop N times:
-  - raw_hamamatsu: the registered-Hamamatsu reference_path column, deduplicated.
+are derived without any new inference, from ONE EXPLICIT source tag's manifest
+(--raw-hamamatsu-tag, default the first --tags entry) -- deliberately independent
+of which tags are being scored as methods:
+  - raw_hamamatsu: the source tag's reference_path column, deduplicated. Requires
+    the source tag be A2H-direction -- reference_path is the Aperio crop for
+    H2A-direction tags, not Hamamatsu (P2-12 bugfix, job 47648: an H2A run's
+    raw_hamamatsu accidentally matched raw_aperio to 5 decimal places before this
+    was caught and fixed). Validated at runtime, not assumed.
   - raw_aperio (sanity check, not proposal-required): the ORIGINAL raw Aperio frame
     re-cropped at the manifest's own (x, y, crop). Exempt from the direction gate --
-    it's ground truth, not a translation output.
+    it's ground truth, not a translation output. Already direction-agnostic (always
+    reads real aperio_path), unaffected by the raw_hamamatsu bug above.
 
 Usage
 -----
@@ -64,7 +70,12 @@ Usage
         --testing-root /datasets/mhoosen/stain-norm/mitos_heldout/mitos_atypia_2014_testing_aperio \
         --eval-root /datasets/mhoosen/stain-norm/eval \
         --tags h2a_a0 h2a_a1 \
+        --raw-hamamatsu-tag a0 \
         --out eval/atypia_classifier_scores
+
+    (--raw-hamamatsu-tag is required whenever --tags are H2A-direction, since none
+    of them can supply genuine Hamamatsu pixels themselves -- point it at any
+    existing A2H-direction tag, e.g. the canonical 'a0' run.)
 
 Direction resolution per tag: reads <eval-root>/<tag>/run_metadata.json's
 "direction" field if present (written by infer_colour_lora.py, infer_baseline.py,
@@ -204,6 +215,22 @@ def frame_groups(keys, key_to_frame):
     return out
 
 
+def validate_raw_hamamatsu_source_direction(direction, source_tag):
+    """P2-12 bug fix: reference_path only represents genuine Hamamatsu pixels when the
+    source tag's own direction is A2H -- for H2A, reference_path is the Aperio crop
+    (infer_colour_lora.py's ref_frame=a_rgb branch), which silently made raw_hamamatsu
+    identical to raw_aperio the first time an H2A run was scored (job 47648, caught by
+    the two accuracies matching to 5 decimal places). Raises loudly instead of repeating
+    that silently."""
+    if direction != "A2H":
+        raise SystemExit(
+            f"ABORT: raw_hamamatsu cannot be derived from tag '{source_tag}' -- its "
+            f"direction is {direction!r}, not A2H. For H2A-direction tags, reference_path "
+            f"is the Aperio crop, not Hamamatsu (see tickets/"
+            f"P2-12_atypia_classifier_evaluation_hardening.md). Pass --raw-hamamatsu-tag "
+            f"pointing at an existing A2H-direction tag (e.g. 'a0') instead.")
+
+
 def paired_bootstrap_ci(method_correct: dict, raw_correct: dict, frame_ids, n_boot=2000, seed=0):
     """method_correct/raw_correct: {frame_id: 0/1}, both covering every id in frame_ids.
     Returns (mean_delta, lo, hi) over a paired bootstrap resample of frame_ids."""
@@ -251,6 +278,14 @@ def parse_args():
     ap.add_argument("--outlier-z", type=float, default=3.5)
     ap.add_argument("--no-raw-aperio", action="store_true",
                     help="Skip the raw_aperio sanity-check method (on by default).")
+    ap.add_argument("--raw-hamamatsu-tag", default=None,
+                    help="Existing A2H-direction tag (e.g. 'a0') whose reference/ folder "
+                         "holds genuine registered-Hamamatsu crops, used as the raw_hamamatsu "
+                         "ground-truth baseline. Required whenever the run includes H2A tags -- "
+                         "reference_path means Aperio, not Hamamatsu, for H2A (P2-12 bug). "
+                         "Defaults to the first --tags entry if omitted, but that fallback is "
+                         "only safe when the first tag is itself A2H -- validated at runtime "
+                         "either way, never silently trusted.")
     ap.add_argument("--expect-direction", choices=["A2H", "H2A"], default="H2A",
                     help="Direction every non-synthetic tag must resolve to (P2-12 S:3.1). "
                          "H2A is what the clinical-utility claim actually needs, since the "
@@ -335,8 +370,6 @@ def main():
     all_methods = {}       # label -> [item, ...]
     method_tag = {}        # label -> originating tag (for direction lookup)
     total_duplicates = {}  # label -> n_duplicates dropped
-    derived_done = False
-    raw_hamamatsu_items, raw_aperio_items = [], []
 
     for tag in args.tags:
         tag_dir = eval_root / tag
@@ -359,29 +392,60 @@ def main():
             method_tag[label] = tag
             total_duplicates[label] = n_dup  # same manifest -> same dup count per label from this tag
 
-        if not derived_done:
-            seen_ref = set()
-            for r in rows:
-                key = (r["slide"], r["frame"], r["x"], r["y"])
-                if key in seen_ref:
-                    continue
-                seen_ref.add(key)
-                raw_hamamatsu_items.append({"slide": r["slide"], "frame": r["frame"],
-                                            "x": r["x"], "y": r["y"], "seed": None,
-                                            "_ref_path": tag_dir / r["reference_path"]})
-                if not args.no_raw_aperio:
-                    aperio_path = Path(args.testing_root) / r["aperio_path"]
-                    x, y, crop = int(r["x"]), int(r["y"]), args.crop
-                    raw_aperio_items.append({"slide": r["slide"], "frame": r["frame"],
-                                             "x": r["x"], "y": r["y"], "seed": None,
-                                             "_aperio_path": aperio_path, "_x": x, "_y": y, "_c": crop})
-            derived_done = True
-
     if not all_methods:
         raise SystemExit(f"No usable eval_manifest.csv found under {eval_root} for tags {args.tags}")
+
+    # ------------------------------------------------------------------
+    # raw_hamamatsu / raw_aperio ground truth -- derived from ONE explicit source
+    # tag's manifest, independent of which --tags are actually being scored as
+    # methods (P2-12 bugfix: this used to implicitly reuse the first --tags entry,
+    # which silently mislabelled Aperio as Hamamatsu whenever that entry was
+    # H2A-direction, since reference_path means Aperio for H2A -- caught when
+    # raw_hamamatsu and raw_aperio scored identically to 5 decimal places, job
+    # 47648). raw_hamamatsu specifically REQUIRES an A2H-direction source tag,
+    # validated below, not assumed.
+    # ------------------------------------------------------------------
+    raw_ham_source_tag = args.raw_hamamatsu_tag or args.tags[0]
+    raw_ham_source_dir = eval_root / raw_ham_source_tag
+    raw_ham_source_direction, raw_ham_source_via = resolve_direction(
+        raw_ham_source_dir, raw_ham_source_tag, tag_overrides)
+    if raw_ham_source_direction is None:
+        raise SystemExit(
+            f"ABORT: cannot determine direction for raw_hamamatsu source tag "
+            f"'{raw_ham_source_tag}' -- no run_metadata.json under {raw_ham_source_dir} and "
+            f"no --tag-direction override given. Pass --tag-direction "
+            f"{raw_ham_source_tag}=A2H if you know it, or pass --raw-hamamatsu-tag pointing "
+            f"at a different, known-A2H tag.")
+    validate_raw_hamamatsu_source_direction(raw_ham_source_direction, raw_ham_source_tag)
+    print(f"  raw_hamamatsu source: tag={raw_ham_source_tag} -> {raw_ham_source_direction} "
+          f"(via {raw_ham_source_via})")
+
+    raw_ham_man_path = raw_ham_source_dir / "eval_manifest.csv"
+    if not raw_ham_man_path.exists():
+        raise SystemExit(f"ABORT: raw_hamamatsu source manifest not found at {raw_ham_man_path}.")
+    with open(raw_ham_man_path, newline="") as fh:
+        raw_ham_rows = list(csv.DictReader(fh))
+
+    raw_hamamatsu_items, raw_aperio_items = [], []
+    seen_ref = set()
+    for r in raw_ham_rows:
+        key = (r["slide"], r["frame"], r["x"], r["y"])
+        if key in seen_ref:
+            continue
+        seen_ref.add(key)
+        raw_hamamatsu_items.append({"slide": r["slide"], "frame": r["frame"],
+                                    "x": r["x"], "y": r["y"], "seed": None,
+                                    "_ref_path": raw_ham_source_dir / r["reference_path"]})
+        if not args.no_raw_aperio:
+            aperio_path = Path(args.testing_root) / r["aperio_path"]
+            x, y, crop = int(r["x"]), int(r["y"]), args.crop
+            raw_aperio_items.append({"slide": r["slide"], "frame": r["frame"],
+                                     "x": r["x"], "y": r["y"], "seed": None,
+                                     "_aperio_path": aperio_path, "_x": x, "_y": y, "_c": crop})
+
     if not raw_hamamatsu_items:
-        raise SystemExit("raw_hamamatsu could not be derived -- first --tags entry produced no rows "
-                          "(P2-12 S:3.8 integrity guard: the clinical baseline must exist).")
+        raise SystemExit(f"raw_hamamatsu could not be derived -- '{raw_ham_source_tag}' produced "
+                          f"no rows (P2-12 S:3.8 integrity guard: the clinical baseline must exist).")
 
     # Direction gate (P2-12 S:3.1) -- fail loudly before any classification happens,
     # not partway through a long GPU job.
@@ -590,6 +654,13 @@ def main():
         # this method, not its own full (possibly larger) crop set for that frame.
         keep_slides_all = {slide for slide, _ in paired_frame_ids}
         m_all = pool_frame_level(method_frames, crops, keep_slides=keep_slides_all)
+
+        if label == "raw_aperio" and m_all and ham_all and m_all["accuracy"] == ham_all["accuracy"]:
+            print(f"  WARNING: raw_aperio accuracy ({m_all['accuracy']:.5f}) is IDENTICAL to "
+                  f"raw_hamamatsu's -- this is the exact signature of the P2-12 direction bug "
+                  f"(raw_hamamatsu accidentally reading Aperio pixels). Verify --raw-hamamatsu-tag "
+                  f"'{raw_ham_source_tag}' is genuinely A2H-direction and its reference/ folder "
+                  f"holds real Hamamatsu crops before trusting any recovery_delta in this run.")
 
         recovery_delta = ci_lo = ci_hi = paired_raw_acc = ""
         if is_clinical and m_all:

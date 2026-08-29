@@ -63,6 +63,10 @@ ALLOW_MISMATCH_ARGS=()
 if [[ -n "${ALLOW_DIRECTION_MISMATCH:-}" ]]; then
     ALLOW_MISMATCH_ARGS=(--allow-direction-mismatch)
 fi
+RAW_HAM_TAG_ARGS=()
+if [[ -n "${RAW_HAMAMATSU_TAG:-}" ]]; then
+    RAW_HAM_TAG_ARGS=(--raw-hamamatsu-tag "${RAW_HAMAMATSU_TAG}")
+fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -99,7 +103,7 @@ CMD=(python score_atypia_classifier.py \
 if [[ ${#TAGS_ARGS[@]} -gt 0 ]]; then
     CMD+=(--tags "${TAGS_ARGS[@]}")
 fi
-CMD+=("${EXPECT_DIRECTION_ARGS[@]}" "${TAG_DIRECTION_ARGS[@]}" "${ALLOW_MISMATCH_ARGS[@]}")
+CMD+=("${EXPECT_DIRECTION_ARGS[@]}" "${TAG_DIRECTION_ARGS[@]}" "${ALLOW_MISMATCH_ARGS[@]}" "${RAW_HAM_TAG_ARGS[@]}")
 "${CMD[@]}"
 
 echo "------------------------------------------------------------------"
