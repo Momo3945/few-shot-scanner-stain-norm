@@ -70,6 +70,10 @@ OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 STEPS=${STEPS:-50}
 STRENGTH=${STRENGTH:-0.50}
 GUIDANCE=${GUIDANCE:-2.0}
+# P2-12: this script never passed --direction at all, always defaulting to
+# A2H regardless of which checkpoint was loaded. Additive override, unset ->
+# identical to every prior invocation.
+DIRECTION=${DIRECTION:-A2H}
 
 # PAIRS_DIR/OVERFIT_N (env vars, not positional -- diagnostic mode, mirrors
 # train_colour_translation_lora.slurm's OVERFIT_N convention): evaluate a
@@ -93,7 +97,7 @@ fi
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
 echo "P1-10 -- Mode=$MODE  Checkpoint=$CHECKPOINT_DIR  Limit=$LIMIT  PairsArgs='${PAIRS_ARGS}'"
-echo "Steps=$STEPS  Strength=$STRENGTH  Guidance=$GUIDANCE"
+echo "Steps=$STEPS  Strength=$STRENGTH  Guidance=$GUIDANCE  Direction=$DIRECTION"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed"
@@ -120,12 +124,12 @@ else
     if [[ -n "$PAIRS_ARGS" ]]; then
         python infer_colour_translation.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
-            --source-mode "${MODE}" ${PAIRS_ARGS} --out "${OUT_DIR}" \
+            --source-mode "${MODE}" --direction "${DIRECTION}" ${PAIRS_ARGS} --out "${OUT_DIR}" \
             --limit "${LIMIT}" --steps "${STEPS}" --strength "${STRENGTH}" --guidance "${GUIDANCE}"
     else
         python infer_colour_translation.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
-            --source-mode "${MODE}" \
+            --source-mode "${MODE}" --direction "${DIRECTION}" \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
             --limit "${LIMIT}" --max-crops-per-frame 4 --steps "${STEPS}" --strength "${STRENGTH}" --guidance "${GUIDANCE}"
     fi

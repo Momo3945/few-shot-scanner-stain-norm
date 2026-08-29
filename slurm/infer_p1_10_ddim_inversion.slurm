@@ -76,8 +76,13 @@ DATA_ROOT=/datasets/mhoosen/stain-norm
 MITOS_ROOT=${DATA_ROOT}/mitos_heldout
 HELDOUT=${DATA_ROOT}/pairs/heldout_frames.csv
 TRAIN_PAIRS_DIR=${DATA_ROOT}/pairs/train
-CHECKPOINT_DIR=${DATA_ROOT}/lora/a2h_cond_r8/best
 export HF_HOME=/datasets/mhoosen/hf_cache
+# P2-12: optional overrides, unset -> identical to every prior invocation
+# (CHECKPOINT_DIR was hardcoded to the A2H checkpoint; --direction was never
+# passed to infer_colour_source_ddim_inversion.py at all, always defaulting
+# to A2H regardless of which checkpoint was loaded).
+CHECKPOINT_DIR=${CHECKPOINT_DIR:-${DATA_ROOT}/lora/a2h_cond_r8/best}
+DIRECTION=${DIRECTION:-A2H}
 
 # PAIRS_DIR=1 (env var, not positional -- mirrors infer_p1_10_differential_
 # diffusion.slurm's own convention): evaluate against P1-10's internal
@@ -126,7 +131,7 @@ python -c "from diffusers import DDIMInverseScheduler" \
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS"
+echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION"
 echo "Checkpoint=$CHECKPOINT_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -139,7 +144,7 @@ cd "${CODE_DIR}/src/eval"
 python infer_colour_source_ddim_inversion.py \
     --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
     ${DATA_FLAGS} --out "${OUT_DIR}" \
-    --mode "${MODE}" --source-mode "${SOURCE_MODE}" \
+    --mode "${MODE}" --source-mode "${SOURCE_MODE}" --direction "${DIRECTION}" \
     --inversion-fraction "${FRACTION}" \
     --limit "${LIMIT}" --max-crops-per-frame 4 \
     --seeds ${SEEDS} \
