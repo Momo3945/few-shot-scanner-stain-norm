@@ -642,6 +642,28 @@ is blocked by open validation questions on the harness anymore.
 
 ## 8. Rerun requirements
 
+**A0-A5 + classical baselines H2A rerun: COMPLETE (2026-08-29).** All 10
+inference jobs ran clean (jobs 47609/47611-47619), each writing to a new
+`eval/h2a_*` directory (existing A2H results untouched):
+`h2a_a0`/`h2a_a1`/`h2a_r4`/`h2a_r8`/`h2a_a3`/`h2a_a4`/`h2a_a5` (1488 crops
+each, 3-strength sweep) and `h2a_macenko`/`h2a_reinhard`/
+`h2a_histogram_matching` (496 crops each). Confirmed as a genuine H2A
+inference, not just a relabelled A2H one, two ways: (1) every dir's
+`run_metadata.json` records `"direction": "H2A"`; (2) empirically (job
+47647, mirroring §0's original A2H confirmation) -- `h2a_a0`'s output is
+closer in pixel-MAE to the raw Hamamatsu crop it was actually generated
+from (37.5) than to the saved Aperio reference (58.4), same pattern and
+magnitude as the original A2H check (30.9 vs 61.3). Required six small
+additive script patches (`DIRECTION`/`LORA_DIR`/`OUT_TAG`/`TARGET_IMAGE`
+env-var overrides on `infer_a0_baseline.slurm`, `infer_a1_controlnet.
+slurm`, `infer_a3_combined.slurm`, `infer_a4_lcm.slurm`, `infer_a5_full.
+slurm`, `infer_baseline.slurm` -- the last of which also gained the
+`--direction` flag `infer_baseline.py` never had at all); `infer_colour_
+lora.slurm` (A2) needed no changes, already tag-driven. No new training --
+`h2a_r4`/`h2a_r8` and the Aperio-side target crop all already existed.
+Final atypia-classifier scoring against these 10 directories is the one
+remaining step on this ticket.
+
 **Mandatory once this ticket lands, regardless of §0's direction finding:**
 the scoring step (`score_atypia_classifier.py`) must be rerun against
 whatever manifests are being compared, since its output schema and pairing
