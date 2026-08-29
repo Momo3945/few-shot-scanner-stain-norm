@@ -1,12 +1,16 @@
 # P2-12 — Harden P2-09 Clinical-Utility / Atypia-Classifier Evaluation
 
-**Status:** 🔄 IN PROGRESS (2026-08-28) — §1-§3.10's code hardening
-implemented and smoke-tested end to end (jobs 47545 + 47598): all 15
-acceptance criteria confirmed against real data (see §7). No real rerun
-(§11) submitted yet — that's the only remaining work on this ticket.
-Written 2026-08-28 in response to a request to methodologically harden
-`tickets/PHASE2-TICKETS.md` P2-09 before its results (including this
-session's P1-10/P1-11/P1-16/P3-06/P3-07 extension) are treated as final.
+**Status:** ✅ CLOSED for the A0-A5 + classical-baseline scope (2026-08-29)
+— hardening implemented and smoke-tested (jobs 47545 + 47598, all 15
+acceptance criteria confirmed, §7); H2A rerun complete (§8); a second real
+bug (raw_hamamatsu silently reading Aperio pixels for H2A runs) found and
+fixed via the real rerun itself, then re-verified (§8); **final corrected
+result: no configuration shows a genuine clinical-utility benefit under
+the correct direction — see §8.5.** P2-09's original "first positive
+result in the project" is reversed, not merely weakened, once measured
+correctly. **Still open:** P1-10/P1-11/P3-06/P3-07/P1-16 have no valid
+H2A number at all (§8) — separate, expensive follow-on work, not part of
+this ticket's closed scope.
 
 **Source:** `docs/proposal_draft(6).tex` §"Clinical Utility" (the exact
 proposal text is quoted below); hardens `tickets/PHASE2-TICKETS.md` P2-09 and
@@ -103,7 +107,7 @@ normalized."
 **cannot currently support the proposal's stated clinical-utility claim**,
 and must be re-measured in the correct direction before anyone treats
 either the original P2-09 table or this session's extension as evidence
-either way. See §11 (Rerun Requirements) for exactly what a correct rerun
+either way. See §8 (Rerun Requirements) for exactly what a correct rerun
 costs per architecture, and §3 below for the validation this ticket adds so
 this can never again go unnoticed.
 
@@ -493,7 +497,7 @@ Ordered so nothing downstream is built on top of an unverified assumption:
    checkpoint.
 9. **Smoke-test validation (§10)** on a small controlled sample before any
    real rerun.
-10. **Reruns (§11)**, in the order that unblocks the most: cheap
+10. **Reruns (§8)**, in the order that unblocks the most: cheap
     re-inference (A0-A5 ladder, once H2A checkpoints/flags exist) before
     expensive retraining (P1-10/P1-11/P3-06/P3-07).
 
@@ -633,9 +637,9 @@ the cluster):
 one soft item (`[~]` common outlier policy) ran correctly but on
 single-slide data that can't stress-test "identical exclusions across
 multiple differing methods" the way a real multi-slide, multi-method
-rerun will — worth re-checking opportunistically once §11's real reruns
+rerun will — worth re-checking opportunistically once §8's real reruns
 happen, not a blocker on its own. The code hardening itself (§1-§3.10) is
-now verified against real data end to end; nothing in §11's actual reruns
+now verified against real data end to end; nothing in §8's actual reruns
 is blocked by open validation questions on the harness anymore.
 
 ---
@@ -735,22 +739,118 @@ choosing a different step is expected behaviour, not evidence the current
 
 ---
 
+## 8.5 Final result (2026-08-29)
+
+**Corrected clinical-utility scoring complete for the A0-A5 ladder + 3
+classical baselines (job 47727, `atypia_classifier_scores_h2a_fixed`,
+using the fixed `--raw-hamamatsu-tag a0` derivation from §8's bugfix).
+Verdict: no configuration shows a genuine, broad clinical-utility benefit
+under the direction the proposal actually requires.**
+
+Pooled (`ALL`, n=120 frames), recovery_delta = accuracy(method) −
+accuracy(raw_hamamatsu) [0.44167]:
+
+| Method | Recovery Δ (pooled) | 95% CI |
+|---|---|---|
+| **h2a_a1_s0.50** | **+0.058** | [+0.017, +0.108] |
+| h2a_a1_s0.40 | +0.050 | [+0.000, +0.108] |
+| h2a_a1_s0.30 | +0.042 | [-0.008, +0.092] |
+| h2a_a0_s0.30 | +0.008 | [-0.025, +0.050] |
+| h2a_a0_s0.50 | 0.000 | [-0.042, +0.042] |
+| h2a_a3_s0.50 | 0.000 | [-0.042, +0.042] |
+| h2a_a4_s0.30 | 0.000 | [-0.033, +0.033] |
+| h2a_a0_s0.40 | -0.017 | [-0.050, +0.017] |
+| h2a_a3_s0.30 | -0.017 | [-0.058, +0.025] |
+| h2a_a3_s0.40 | -0.017 | [-0.058, +0.025] |
+| h2a_macenko | -0.033 | [-0.108, +0.033] |
+| h2a_reinhard | -0.033 | [-0.075, +0.000] |
+| h2a_a4_s0.40 | -0.025 | [-0.067, +0.017] |
+| h2a_a5_s0.30 | -0.025 | [-0.067, +0.008] |
+| h2a_r8_s0.40 | -0.042 | [-0.100, +0.017] |
+| h2a_r4_s0.30 | -0.050 | [-0.092, -0.017] |
+| h2a_r4_s0.40 | -0.050 | [-0.100, +0.000] |
+| h2a_r8_s0.30 | -0.058 | [-0.108, -0.025] |
+| h2a_a4_s0.50 | -0.067 | [-0.133, 0.000] |
+| h2a_a5_s0.40 | -0.067 | [-0.133, -0.008] |
+| h2a_r8_s0.50 | -0.083 | [-0.167, 0.000] |
+| h2a_a5_s0.50 | -0.083 | [-0.158, -0.025] |
+| h2a_r4_s0.50 | -0.100 | [-0.183, -0.017] |
+| h2a_histogram_matching | -0.108 | [-0.175, -0.042] |
+
+**On the surface, `h2a_a1` (ControlNet-only, no colour LoRA at all) looks
+like a real positive, and its CI even excludes zero at strength 0.50.**
+Per-slide breakdown (paired, from `per_frame.csv`) shows why this cannot
+be taken at face value:
+
+| Method | ALL | A06 (n=16) | A08 (n=27) | A09 (n=21) | A13 (n=16) | A16 (n=40) | non-A06 pooled |
+|---|---|---|---|---|---|---|---|
+| h2a_a1_s0.50 | +0.058 | **+0.500** | 0.000 | 0.000 | -0.062 | 0.000 | **-0.010** |
+| h2a_a1_s0.40 | +0.050 | +0.438 | 0.000 | 0.000 | -0.062 | 0.000 | -0.010 |
+| h2a_a1_s0.30 | +0.042 | +0.375 | 0.000 | 0.000 | -0.062 | 0.000 | -0.010 |
+
+**`h2a_a1`'s entire pooled recovery is A06 alone.** On the other four
+held-out slides — 104 of the 120 held-out frames — the delta is flat zero
+or slightly negative, identical to every other method. This is exactly
+the failure mode CLAUDE.md's own standing methodology rule exists to catch
+("A06 is a genuine colour-gap outlier... never let the pooled ALL number
+stand alone"), just manifesting on a different metric than usual (accuracy
+delta, not SSIM). Checked systematically across **every one of the 24
+scored configurations** (script: local, not committed, mirrors this
+project's one-off-diagnostic convention) — **the non-A06 pooled delta is
+≤ 0.000 for every single one, with no exception.** Not one configuration
+— diffusion or classical — shows a genuine positive effect on the four
+non-A06 slides.
+
+**Corrected conclusion, superseding P2-09's original claim:** under H→A
+(the direction the proposal's clinical-utility design actually requires,
+per §0), **there is no real downstream-classifier benefit from any tested
+stain-normalisation method** — not the diffusion ablation ladder, not the
+classical baselines. The apparent exception (A1) is a single-outlier-slide
+artefact, not a general effect. P2-09's original "first clearly positive
+result anywhere in this project" was an artefact of scoring the wrong
+translation direction (§0) — reversed, not merely weakened, once measured
+correctly.
+
+**Structural/colour context** (`score_outputs.py`, jobs 47649-47658/
+47733/47735, same H2A outputs, ALL scope, strength 0.30 shown for the
+3-strength methods): diffusion methods show **negative** colour recovery
+under H2A (SSIM 0.30-0.43, `recovery_delta_lab` -3.6 to -5.7) while
+classical baselines still recover colour well (SSIM 0.70-0.74,
+`recovery_delta_lab` +1.4 to +9.5) — classical continues to beat diffusion
+on structure/colour even under the corrected direction, consistent with
+this project's established A2H-direction pattern (`tickets/
+PHASE2-TICKETS.md` P2-11). The diffusion methods' colour regression here
+echoes P3-07's own colour-recovery regression (`tickets/
+PHASE3-TICKETS.md`) — a recurring pattern worth a dedicated look elsewhere
+in this project, not scoped into P2-12.
+
+**What remains open:** P1-10/P1-11/P3-06/P3-07/P1-16 still have no valid
+H2A clinical-utility number at all (§8's per-architecture cost breakdown —
+all five need genuine new training, not just inference, to get one). Given
+this result, there is no evidence yet that funding that training would
+change the picture — but it is also not evidence that it wouldn't, since
+none of this project's actual best-performing configurations have been
+tested in the correct direction. That decision is separate, explicit
+follow-on work, not concluded by this ticket.
+
+---
+
 ## 9. Risks / interpretation
 
-- **This ticket may show P2-09's headline "first positive result in the
-  project" evaporates, weakens, or reverses once measured in the correct
-  direction with strict pairing and frame-level aggregation.** That is a
-  legitimate, scientifically valid outcome — the goal here is methodological
-  fairness (same fixed classifier, same ground-truth frames, same paired
-  comparison set, one prediction per true clinical annotation unit, the
-  intended H→A direction), not a predetermined positive result. Do not let
-  the fact that P2-09 was previously "the first clearly positive result
-  anywhere in this project" bias the implementation toward preserving that
-  outcome.
-- Conversely, it is equally possible a corrected H2A rerun on the cheap-to-
-  regenerate A0-A5 ladder still shows a real positive recovery — this
-  ticket does not presuppose the answer either way.
-- The compute cost asymmetry in §11 (A0-A5 = cheap re-inference; P1-10/
+- **P2-09's headline "first positive result in the project" reversed, not
+  merely weakened, once measured in the correct direction with strict
+  pairing and frame-level aggregation — confirmed, see §8.5.** This was a
+  legitimate, scientifically valid possible outcome from the start (the
+  goal was methodological fairness, not a predetermined result), and it is
+  what happened. The one apparent exception (A1) turned out to be a
+  single-slide artefact under per-slide inspection, not a real effect —
+  underscoring exactly why §0's direction fix and this section's original
+  caution both mattered.
+- (Resolved: the A0-A5 ladder's corrected rerun did not show a real
+  positive recovery — see §8.5. The one config that looked positive
+  pooled turned out to be a single-slide artefact under per-slide
+  inspection.)
+- The compute cost asymmetry in §8 (A0-A5 = cheap re-inference; P1-10/
   P1-11/P3-06/P3-07/P1-16 = expensive new training) means a corrected,
   valid clinical-utility result may become available for the *classical*
   ablation ladder well before it's available for this project's actual
@@ -775,7 +875,7 @@ choosing a different step is expected behaviour, not evidence the current
 - **Not** retraining every diffusion architecture (P1-10/P1-11/P3-06/
   P3-07/P1-16) in the H2A direction as part of *this* ticket's mandatory
   scope — that is real, separate, per-architecture follow-on work,
-  explicitly flagged in §11 and requiring its own go-ahead given the
+  explicitly flagged in §8 and requiring its own go-ahead given the
   compute cost.
 - **Not** touching `score_outputs.py` or any of the SSIM/LAB-Wasserstein/
   colour-recovery scoring — those are unaffected by §0's finding (see the

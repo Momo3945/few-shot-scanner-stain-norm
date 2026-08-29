@@ -633,6 +633,32 @@ scored outputs still being literally Aperio-content underneath. Status
 stays DONE as a record of what was computed and why it doesn't yet answer
 the intended question; P2-12 defines the corrected rerun.
 
+**CORRECTED RESULT (2026-08-29) — supersedes the headline table above.**
+P2-12's H2A rerun of the full A0-A5 ladder + 3 classical baselines is
+complete (job 47727, `atypia_classifier_scores_h2a_fixed`, after fixing a
+second real bug found via this rerun -- `raw_hamamatsu` was silently
+reading Aperio pixels for H2A runs, see `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md` §8). **Verdict: no
+configuration -- not one of A0/A1/A2(r4/r8)/A3/A4/A5, nor Macenko/
+Reinhard/Histogram Matching -- shows a genuine clinical-utility benefit
+once measured in the correct direction.** The one config that looked
+positive pooled (A1, all three strengths, up to +0.058 recovery with a
+95% CI excluding zero at strength 0.50) turns out to be **entirely an A06
+artefact** -- checked per-slide across all 24 scored configurations, the
+non-A06 pooled delta is ≤0.000 for every single one, no exception. **This
+reverses, not merely weakens, P2-09's original "first clearly positive
+result in the project" claim** -- that claim was measured in the wrong
+direction (A→H, see the STALE note above). Full per-slide table and
+methodology: `tickets/P2-12_atypia_classifier_evaluation_hardening.md`
+§8.5. Structural/colour context (`score_outputs.py`, same H2A outputs):
+diffusion methods show negative colour recovery under H2A while classical
+baselines still recover colour well -- classical continues to beat
+diffusion on structure/colour even under the corrected direction,
+consistent with this project's established A2H-direction pattern (P2-11
+below). P1-10/P1-11/P3-06/P3-07/P1-16 still have no valid H2A number --
+separate, expensive follow-on work (new training required, not just
+inference), not concluded by this result either way.
+
 **Extension (2026-08-28): the same `atypia_r18` checkpoint (inference only,
 no retraining) re-scored on P1-10/P1-11/P1-16 (Phase 1) and P3-06/P3-07
 (Phase 3), none of which existed when this ticket originally closed.**
@@ -866,14 +892,18 @@ report this as a genuine finding, not an artefact to explain away.
 
 ## P2-12 — Harden P2-09 clinical-utility / atypia-classifier evaluation
 
-**Status:** 🔄 IN PROGRESS (2026-08-28) — code hardening implemented and
-smoke-tested end to end (jobs 47545 + 47598): direction gate, strict
-pairing, frame-level aggregation, seed-averaging, batched inference,
-integrity report, `--val-slides` validation, val class-distribution
-reporting, and macro-F1 checkpoint selection all verified against real
-data -- **all 15 acceptance criteria confirmed**. No real rerun submitted
-yet -- that's the only remaining work. Full ticket: `tickets/
-P2-12_atypia_classifier_evaluation_hardening.md`.
+**Status:** ✅ CLOSED for the A0-A5 + classical-baseline scope (2026-08-29)
+— hardening implemented and smoke-tested (jobs 47545 + 47598, all 15
+acceptance criteria confirmed against real data), H2A rerun of A0-A5 +
+Macenko/Reinhard/Histogram Matching complete, a second real bug (raw_
+hamamatsu silently reading Aperio pixels for H2A runs) found via the real
+rerun and fixed. **Final result: no configuration shows a genuine
+clinical-utility benefit under the correct direction** -- reverses P2-09's
+original claim, see the CORRECTED RESULT note under P2-09 above and
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md` §8.5 for the
+full per-slide table. Still open: P1-10/P1-11/P3-06/P3-07/P1-16 have no
+valid H2A number (separate, expensive follow-on work). Full ticket:
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
 
 **Motivation:** before treating P2-09's results (the original 26-method
 table or this session's P1-10/P1-11/P1-16/P3-06/P3-07 extension above) as

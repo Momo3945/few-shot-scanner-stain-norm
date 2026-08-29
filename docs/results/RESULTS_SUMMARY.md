@@ -1248,6 +1248,41 @@ mechanism, why this likely explains the A1-wins/P3-07-wins anomalies
 already noted above, and exactly what a corrected rerun costs per
 architecture.
 
+**Update (2026-08-29): P2-12's corrected H2A rerun is complete for A0-A5 +
+the 3 classical baselines — verdict: no configuration shows a genuine
+clinical-utility benefit once measured in the correct direction.**
+Reversing, not merely weakening, P2-09's original "first clearly positive
+result in the project" claim. `atypia_classifier_scores_h2a_fixed`
+(job 47727), after fixing a second real bug the rerun itself surfaced —
+`raw_hamamatsu` was silently reading Aperio pixels for H2A runs (the
+manifest's `reference_path` column means Aperio, not Hamamatsu, once
+direction flips), caught because it made `raw_hamamatsu` match
+`raw_aperio` to 5 decimal places. Pooled recovery deltas range +0.058
+(`h2a_a1` at strength 0.50) to -0.108 (`h2a_histogram_matching`), n=120
+frames throughout.
+
+The one seemingly-positive result — `h2a_a1` (ControlNet-only, no colour
+LoRA), whose 95% CI even excludes zero at strength 0.50 — is **entirely an
+A06 artefact**: +0.500 delta on A06 alone, flat-to-zero or negative on all
+four other slides (A08/A09/A13/A16). Checked systematically across every
+one of the 24 scored configurations: **the non-A06 pooled delta is ≤0.000
+for every single one, no exception** — not one method, diffusion or
+classical, shows a genuine effect once the known colour-gap outlier slide
+is excluded. Structural/colour context (`score_outputs.py`, same H2A
+outputs): diffusion methods show *negative* colour recovery under H2A
+(SSIM 0.30-0.43, recovery_delta_lab -3.6 to -5.7) while classical
+baselines still recover colour well (SSIM 0.70-0.74, +1.4 to +9.5) —
+classical continues to beat diffusion on structure/colour even under the
+corrected direction, matching this project's established A2H-direction
+pattern (P2-11).
+
+P1-10/P1-11/P3-06/P3-07/P1-16 still have no valid H2A number — all five
+need genuine new training (not just inference) to get one, separate
+follow-on work not concluded by this result either way. Full per-slide
+table and methodology: `tickets/P2-12_atypia_classifier_evaluation_
+hardening.md` §8.5; status also updated in `tickets/PHASE2-TICKETS.md`
+P2-09 and P2-12.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it
