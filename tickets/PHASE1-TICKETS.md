@@ -937,6 +937,21 @@ A2H overfit control's own pass: SSIM >2.4x higher for `correct`, jobs
 (all 50 pairs, mirrors job 44445's exact config -- only 24:50 wall-clock
 for A2H) -- awaiting go-ahead to submit.
 
+**Full training run COMPLETE (2026-08-31, job 48392, all 50 pairs, 4000
+steps, `mscluster45`, 1255.1s ~20:55 wall-clock -- close to A2H's own
+24:50).** Validation loss converged cleanly: 0.0494 at step 3500/3750 ->
+**0.0482 (best, final step 4000)** -- monotonic-enough convergence, no
+divergence or collapse. `lora/h2a_cond_r8/{best,final}` both saved and
+real (checkpoint files written at every `save_every` interval throughout,
+not just at the end). Coincidentally converges to the same val_loss floor
+(0.0482) as A2H's own best checkpoint -- plausible given a similarly-
+difficult problem on the same pair count/architecture, not evidence of a
+bug (different training run, different direction, independently
+converged). **P1-10 H2A training is DONE.** Next: P1-11's own DDIM-
+inversion smoke-test sequence against this checkpoint (identity +
+source-conditioning ablation at `LIMIT=20`) before the expensive full
+496-crop x 3-seed run -- see P1-11 below.
+
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
 **Status:** ✅ DONE (2026-08-22) — implementation, smoke test (identity +
