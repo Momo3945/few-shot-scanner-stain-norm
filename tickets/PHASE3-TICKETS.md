@@ -1077,13 +1077,61 @@ exit 0).** val_loss trended down over the run to a final/best 0.0982
 Per this project's own standing discipline (every new checkpoint gets the
 mandatory source-conditioning ablation before its held-out numbers are
 trusted -- same requirement P3-06 and P3-07 each satisfied on their own
-checkpoints even though the architecture is shared), next steps (not yet
-started, awaiting go-ahead): (1) source-conditioning ablation
-(correct/zero/shuffled) on an 8-pair internal diagnostic from
-`pairs/train_1024_full96`, (2) full 5-slide/3-seed held-out inference +
-scoring, matching P3-07's exact methodology, to get a directly comparable
-recovery Δlab. Only once that number exists can P3-07b actually answer
-H3 (more data helps native-1024 colour learning) or not.
+checkpoints even though the architecture is shared): **ablation PASSED**
+(jobs 47807/47808/47809 correct/zero/shuffled, scored job 47820) --
+`correct` LAB 25.25 decisively beats `shuffled` 35.94 and `zero` 57.49 on
+every pooled metric, wins the SSIM win-rate 5/8 vs `zero`'s 3/8 (`shuffled`
+0/8). ControlNet is genuinely used on the new checkpoint.
+
+**Full 5-slide/3-seed held-out inference COMPLETED** (job 47846, bigbatch,
+6h24m, 1485/1485 outputs -- first attempt job 47832 was cancelled and
+resubmitted with a longer `--time` after measuring its throughput would
+exceed the original 8h budget; mscluster57 both times, no bad-node issue).
+Scored (job 47975, COMPLETED, 1h06m) and aggregated against the SAME
+`pairs/baseline_metrics/baseline_summary.csv` P3-07 used (job 48390,
+COMPLETED) -- D1 already confirmed this baseline is resolution-robust, so
+the comparison to P3-07's own table is direct and valid.
+
+**P3-07b RESULT -- colour recovery flips positive on every single slide.**
+
+| | P3-07 (<=50 pairs) | **P3-07b (96 pairs, supplementary)** |
+|---|---|---|
+| ALL SSIM | 0.4313 | **0.4416** |
+| ALL_excl_outliers SSIM | 0.4485 | **0.4591** |
+| ALL recovery Δlab | **-5.60** | **+1.74** |
+| ALL_excl_outliers recovery Δlab | -- | **+1.62** |
+| A06 (outlier) Δlab | -3.48 | **+2.55** |
+| A08 Δlab | -5.54 | **+1.82** |
+| A09 Δlab | -6.64 | **+1.31** |
+| A13 Δlab | -4.81 | **+0.81** |
+| A16 Δlab | -4.89 | **+2.00** |
+
+Same architecture, same 4000 steps, same resolution, same everything --
+the ONLY variable that changed is training-pair count (50 -> 96, a strict
+superset). Every slide's recovery flips sign, and SSIM also improves
+slightly rather than trading off against it. This is strong support for
+H3: the negative colour recovery at native 1024 was a genuine
+insufficient-data problem under the <=50-pair budget, not an architectural
+ceiling -- D1-D5 correctly ruled out every mechanistic/inference-only fix
+because the actual cause was upstream of all of them.
+
+**Reiterating the scope note (do not lose this in the result's excitement):
+P3-07b is a supplementary >50-pair finding, not evidence for or against the
+proposal's formal <=50-pair H1 claim.** P3-07 (<=50 pairs, recovery -5.60)
+remains the number that answers H1 as literally stated in
+`docs/proposal_draft(6).tex`. P3-07b shows WHY P3-07 regressed (insufficient
+data at native resolution) and demonstrates the regression is fixable with
+more data -- a genuinely informative finding for the thesis discussion
+section -- but it does not retroactively make P3-07's <=50-pair colour
+recovery positive, and must always be reported alongside P3-07, never in
+place of it.
+
+**Status: P3-07/P3-07b both COMPLETE.** Next step (not started, awaiting
+direction): write up the full P3-07/P3-07b comparison for the thesis, and
+decide whether this closes Phase 3's SDXL-transfer work or motivates a
+further descoped follow-up (e.g. checking whether P3-06's 512 checkpoint
+shows a similar pair-count sensitivity, out of scope unless explicitly
+requested).
 
 **Downstream-classifier extension (2026-08-28, P2-09's atypia_r18
 checkpoint, job 47418):** recovery delta (accuracy vs. raw_hamamatsu,
