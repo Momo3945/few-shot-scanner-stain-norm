@@ -914,6 +914,28 @@ wall-clock, job 44445). Then P1-11's DDIM-inversion path needs a small
 launcher patch (`infer_p1_10_ddim_inversion.slurm` currently hardcodes
 `CHECKPOINT_DIR=lora/a2h_cond_r8/best` and never passes `--direction` at
 all) before it can run against the new H2A checkpoint -- see P1-11 below.
+Both launchers patched (additive `DIRECTION`/`CHECKPOINT_DIR` overrides).
+
+**Overfit control PASSES (2026-08-30), decisively -- mirrors the original
+A2H result closely.** Mandatory source-conditioning ablation on `lora/
+h2a_cond_r8_overfit8/final` (jobs 47834/47835/47836 = correct/zero/
+shuffled, `PAIRS_DIR`+`OVERFIT_N=8`, `DIRECTION=H2A`, 8 crops x 3 seeds
+each; scored by job 47978, `score_p1_10_ablation.py`, unmodified --
+direction-agnostic):
+
+| mode | SSIM | LAB total | MAE |
+|---|---|---|---|
+| **correct** | **0.1545 ± 0.0010** | **31.44 ± 0.76** | **39.83 ± 0.31** |
+| shuffled | 0.0501 ± 0.0021 | 39.93 ± 0.34 | 49.78 ± 0.81 |
+| zero | 0.0501 ± 0.0024 | 46.00 ± 1.30 | 54.18 ± 1.11 |
+
+`correct` beats both controls by ~3x on SSIM, wins 8/8 crops on paired
+comparison -- confirms the ControlNet branch is genuinely using source
+conditioning on this checkpoint, not ignoring it (same signature as the
+A2H overfit control's own pass: SSIM >2.4x higher for `correct`, jobs
+44431-44433). **Cleared to proceed to the full 4000-step training run**
+(all 50 pairs, mirrors job 44445's exact config -- only 24:50 wall-clock
+for A2H) -- awaiting go-ahead to submit.
 
 ## P1-11 — DDIM-inversion inference path for P1-10 (inference-only follow-up)
 
