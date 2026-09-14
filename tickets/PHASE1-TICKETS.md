@@ -1296,6 +1296,15 @@ just the overfit one. **Cleared to proceed to the expensive full 496-crop
 x 3-seed held-out run** -- awaiting go-ahead to submit (original A2H run,
 job 44858, needed the full 10-hour time budget).
 
+**Full 496-crop x 3-seed held-out run SUBMITTED (2026-09-14), job 54460,
+`mscluster74`, `--time=10:00:00`** -- translate mode, `source-mode=correct`,
+`f=1.0`, all 5 held-out slides, seeds 0/1/2, against `lora/h2a_cond_r8/
+best`. Writes to `eval/p1_10_ddim_inversion/h2a_translate_inv100_correct_
+full/`, doesn't touch any existing A2H output. Still running -- not yet
+verified via the actual log (a job leaving the queue is not proof of
+success; will confirm from the `.out` tail once it completes, same
+discipline as every other job in this project).
+
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
 **Status:** 🔄 IN PROGRESS (2026-08-22) -- data-driven follow-up, not from
