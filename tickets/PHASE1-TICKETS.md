@@ -1269,8 +1269,32 @@ source-conditioning ablation (correct/shuffled/zero) rerun at the cheap
 only then the full 496-crop x 3-seed held-out run, which is the expensive
 step -- the original A2H run (job 44858) needed the full 10-hour time
 budget (TIMEOUT'd right at `--time=10:00:00`, recovered with zero data
-loss) -- needs its own explicit go-ahead once (1)-(2) look good. None of
-this submitted yet beyond P1-10's own overfit control.
+loss) -- needs its own explicit go-ahead once (1)-(2) look good.
+
+**Smoke test against the full H2A checkpoint PASSES decisively
+(2026-08-31/2026-09-14).** Both launcher patches landed (`infer_p1_10_
+ddim_inversion.slurm` gained `CHECKPOINT_DIR`/`DIRECTION` overrides --
+also had to strip stray CRLF line endings that made `sbatch` reject the
+script outright, a pre-existing artefact in this file, not something the
+patch introduced). Identity check (job 48435, `f=1.0`, `LIMIT=20`) and the
+translate-mode source-conditioning ablation (jobs 48436/48437/48438 =
+correct/shuffled/zero, same settings, 3 seeds each) all completed cleanly
+-- 240 output rows apiece, no errors. Scored by job 54432 (`score_p1_10_
+ablation.py`, unmodified):
+
+| mode | SSIM | LAB total | MAE |
+|---|---|---|---|
+| **correct** | **0.4343** | **95.95** | **47.40** |
+| shuffled | 0.1040 | 98.73 | 54.72 |
+| zero | 0.1238 | 143.56 | 75.62 |
+
+`correct` beats both controls by 3.5-4.2x on SSIM and wins **80/80**
+crops on paired comparison -- an even wider margin than P1-10's own
+overfit-checkpoint ablation (§ above, ~3x). Confirms the DDIM-inversion
+path genuinely uses source conditioning on the full H2A checkpoint, not
+just the overfit one. **Cleared to proceed to the expensive full 496-crop
+x 3-seed held-out run** -- awaiting go-ahead to submit (original A2H run,
+job 44858, needed the full 10-hour time budget).
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
