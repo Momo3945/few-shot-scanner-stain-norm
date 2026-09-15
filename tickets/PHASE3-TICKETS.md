@@ -650,6 +650,77 @@ PHASE2-TICKETS.md` P2-09's Extension section.
 P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid clinical-
 utility evidence until P2-12 lands.**
 
+## P3-06b / P3-07 H2A — extend the SDXL source-conditioned transfer to H2A
+**Status:** TODO — not started (scoped 2026-09-15).
+**Source:** direct extension of P3-06/P3-07's own descope note ("H2A stays
+out of scope, matching P3-03/P3-05's own descope") now that
+`tickets/PHASE1-TICKETS.md` P1-10/P1-11 has completed the equivalent H2A
+work on SD1.5 (full training + DDIM-inversion held-out run, both DONE
+2026-09-15) — resolving the exact P2-09/P2-12 clinical-utility gap flagged
+above ("A->H, not H->A ... not valid clinical-utility evidence until P2-12
+lands"). This ticket is the SDXL-backbone analog of that same fix, at both
+resolutions P3-06 (512) and P3-07 (1024, ≤50 pairs) already established.
+
+**No new code required.** Both `src/train/train_colour_translation_lora_sdxl.py`
+and `src/eval/infer_colour_translation_sdxl.py` already take
+`--direction {A2H,H2A}` (written in from the start "for symmetry with the
+SD1.5 script," never exercised for H2A) — confirmed by direct read
+2026-09-15. `slurm/train_colour_translation_lora_sdxl.slurm`'s
+`OUT_DIR="${OUT_ROOT}/${DIRECTION,,}_${OUT_SUFFIX}"` already produces an
+isolated `lora/h2a_cond_r8_sdxl[_1024]/` namespace automatically from
+`DIRECTION=H2A` — same isolation convention P1-10's own H2A run used, no
+launcher edit needed either.
+
+**Staged sequence (mirrors P1-10/P1-11's H2A precedent exactly — mandatory
+overfit control before anything else is trusted, per this project's
+standing discipline):**
+1. `P3-06 H2A (512):` `OVERFIT_N=8 DIRECTION=H2A` overfit control (300 steps,
+   escalate to 2000 if flat-plateau, matching every prior overfit control
+   in this project) → source-conditioning ablation (correct/zero/shuffled,
+   `score_p1_10_ablation.py` unmodified, direction-agnostic) → full
+   4000-step training (`lora/h2a_cond_r8_sdxl/`) → full 496-crop x 3-seed
+   held-out inference → score (`score_outputs.py`/`score_p1_10_ablation.py`
+   + `aggregate_p1_10_full.py`, all unmodified).
+2. `P3-07 H2A (1024, ≤50 pairs):` identical sequence with
+   `PAIRS_DIR=pairs/train_1024 RESOLUTION=1024`, writing to
+   `lora/h2a_cond_r8_sdxl_1024/`.
+
+**Cost estimate (from this exact architecture's own measured A2H
+wall-clock, `sacct`-verified 2026-09-15):**
+
+| Stage | P3-06 H2A (512) | P3-07 H2A (1024) |
+|---|---|---|
+| Overfit control + ablation | ~minutes each | ~minutes each |
+| Full training (4000 steps) | ~1:25 (job 46025's A2H figure) | ~4:59 (job 46552's A2H figure) |
+| Full held-out inference (1488 crops) | ~2:34 (job 46226) | ~5:45 (job 47029) |
+| Scoring | fast | ~1:06 (job 47975) |
+| **Subtotal GPU time** | **~4–4.5h** | **~11.5–12h** |
+
+**~15–16h combined `bigbatch` compute**, run as separately-confirmed
+`sbatch` stages per CLAUDE.md's permission rule — real elapsed time will
+run well beyond that given queue waits (10min–2.5h+ observed recently) and
+per-stage confirmation gates. P1-10/P1-11's own H2A work took ~2.5 weeks
+calendar time (2026-08-29 → 2026-09-15) for comparable staging, mostly
+queue/gating overhead, not raw compute.
+
+**Outcome-risk flag (why this might not be a clean win):** SD1.5's own H2A
+result was not just weaker than A2H, it reversed sign decisively — colour
+recovery went from +2.89 (A2H, P1-10) to **-15.64** (H2A, P1-11), negative
+on every single slide, no exceptions, a much larger regression than any
+A0-A5 H2A number (-3.6 to -5.7). P3-07's SDXL@1024 A2H result was *already*
+negative at the ≤50-pair budget (-5.60), only rescued by P3-07b's
+supplementary 96-pair run (+1.74) — which is explicitly outside H1's
+literal ≤50-pair scope. If H2A degrades proportionally the way it did on
+SD1.5, **P3-07 H2A at ≤50 pairs could land substantially more negative**,
+plausibly needing its own P3-07b-style >50-pair rescue to get a clean read
+— effectively doubling P3-07 H2A's real cost if that materialises. P3-06
+H2A (512) is comparatively lower-risk (its A2H point was already positive,
++1.22) but could still land considerably weaker than its A2H counterpart,
+mirroring the ~60%-weaker-than-SD1.5 pattern P3-06 A2H already showed.
+
+**Next step:** submit the P3-06 H2A overfit-8 control (300 steps) —
+awaiting go-ahead.
+
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
 **Source:** `sec:phase3_sdxl`; retargets the already-drafted-but-never-started
