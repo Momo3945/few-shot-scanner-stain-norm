@@ -70,7 +70,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   gate is a backstop, not the whole rule.
 - **Standard submit shape:**
   `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm && \`
-  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51 \`
+  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83 \`
   `[-J job_name] [--time=HH:MM:SS] slurm/<script>.slurm <positional args>'`
   — always pass the bad-node `--exclude` list on `bigbatch` GPU jobs (see
   Cluster facts below); `-J` gives the job a readable name for log-matching;
@@ -134,38 +134,40 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   `torch.cuda.is_available()` is False (do not CPU-crawl — this has happened before
   and burned ~1 hour on job 3809). **Confirmed GPU-less/broken nodes on `bigbatch`:
   `mscluster48`, `mscluster65`, `mscluster46`, `mscluster44`, `mscluster75`,
-  `mscluster74`, `mscluster51`** (jobs 42115/42117/42420/43056,
+  `mscluster74`, `mscluster51`, `mscluster83`** (jobs 42115/42117/42420/43056,
   2026-08-10/2026-08-11/2026-08-12 — all show the
   identical signature: `nvidia-smi`: "No devices were found", torch: "CUDA
   initialization: CUDA unknown error"; the fail-fast check caught every one in
   under 2 minutes, no wasted compute). `mscluster44` was first seen as a
   transient one-off during P1-09 (2026-08-10) but recurred with the same exact
   signature on job 43056 (2026-08-12) — promoted from "transient" to confirmed
-  bad. `mscluster75` first flagged 2026-08-27/28 during P1-11 ("Unable to
-  determine the device handle for GPU0", excluded pre-emptively in
-  `infer_a4_lcm.slurm`/`infer_a5_full.slurm`'s own header comments ever since,
-  now centralised here). `mscluster74` hit 2026-09-14/15 (P1-11 H2A full
+  bad. **A second, distinct sub-signature — "Unable to determine the device
+  handle for GPU0" — has now recurred three times**: `mscluster75` (first
+  flagged 2026-08-27/28 during P1-11, excluded pre-emptively in `infer_a4_lcm.
+  slurm`/`infer_a5_full.slurm`'s own header comments ever since, now
+  centralised here), `mscluster51` (hit 2026-09-15, job 54802, P2-12 atypia-
+  classifier H2A rescoring — **but `score_atypia_classifier.py` has NO
+  fail-fast GPU check**, unlike `infer_p1_10_ddim_inversion.py`/`infer_
+  colour_lora.py`, so the job silently fell back to CPU instead of aborting;
+  not a correctness problem here since ResNet18 inference over ~2k crops on
+  CPU still finished in 4:34, but a real tooling gap worth closing before a
+  larger classifier-scoring run relies on GPU speed), and `mscluster83` (hit
+  2026-09-15, job 55036, P1-16 H2A identity-full run — fail-fast caught it
+  correctly within ~1.5 minutes, node-time only, no GPU compute wasted).
+  This specific sub-signature now has three independent hits and should be
+  treated as reliably recurring, same confidence level as the original four,
+  not a one-off. `mscluster74` hit 2026-09-14/15 (P1-11 H2A full
   held-out run, job 54460): `nvidia-smi` shows `ERR!` across every GPU field
   (fan/temp/power/ECC) with "No running processes found", torch's fail-fast
-  check correctly caught it (`ABORT: no GPU on this node`) within seconds — a
-  different nvidia-smi error string than the original four but the same
-  underlying category (GPU/CUDA hardware fault), not yet independently
-  corroborated by a second hit the way 44/65/48 were, but excluded
-  pre-emptively per this file's own standing policy. `mscluster51` hit
-  2026-09-15 (job 54802, P2-12 atypia-classifier H2A rescoring): same
-  "Unable to determine the device handle for GPU0"/"CUDA unknown error"
-  signature as `mscluster75` -- **but `score_atypia_classifier.py` has NO
-  fail-fast GPU check**, unlike `infer_p1_10_ddim_inversion.py`/`infer_
-  colour_lora.py`, so the job silently fell back to CPU instead of
-  aborting. Not a correctness problem here (ResNet18 inference over ~2k
-  crops on CPU still finished in 4:34, cheap enough that CPU fallback was
-  harmless), but a real tooling gap worth closing eventually: add the same
+  check correctly caught it (`ABORT: no GPU on this node`) within seconds --
+  a third, separate error signature, same underlying category (GPU/CUDA
+  hardware fault). Add the same
   `torch.cuda.is_available()` fail-fast pattern to `score_atypia_
   classifier.py`/`.slurm` so a future, larger classifier-scoring run
   doesn't silently CPU-crawl for hours the way heavy diffusion generation
   jobs are already guarded against. This is a recurring
   pattern, not a one-off — always pass
-  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51`
+  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83`
   on `bigbatch` GPU jobs, and add any new bad node hit to this list rather than
   re-discovering it. Corroborated 2026-08-11: `squeue`/`scontrol` show other
   users' CPU-only jobs currently running fine on all three of the originally-
