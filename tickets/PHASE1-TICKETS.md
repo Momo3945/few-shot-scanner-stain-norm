@@ -1307,12 +1307,21 @@ correctly within seconds (zero compute lost); added to `CLAUDE.md`'s
 confirmed-bad-node list alongside `mscluster75` (already excluded via the
 A4/A5 launchers' own comments but never centralised until now).
 Resubmitted as **job 54738**, landed on `mscluster49` with a confirmed-
-healthy GPU (normal `nvidia-smi` readings, no `ERR!`), currently running.
-`--time=10:00:00`, matching the original A2H equivalent's own budget (job
-44858). Still running -- not yet verified via the actual log (a job
-leaving the queue is not proof of success; will confirm from the `.out`
-tail once it completes, same discipline as every other job in this
-project).
+healthy GPU (normal `nvidia-smi` readings, no `ERR!`).
+
+**COMPLETED (2026-09-15), ~3.5-4h wall-clock -- well under the 10h budget
+and much faster than the original A2H run's near-full-budget completion
+(job 44858).** Verified via the actual outputs, not just queue absence:
+`eval_manifest.csv` has exactly **1488 data rows** (496 crops x 3 seeds);
+1488/1488 output crops and 496/496 reference crops on disk;
+`run_metadata.json` confirms `direction=H2A`, `source_mode=correct`,
+`inversion_fraction=1.0` -- matches the smoke-tested config exactly. No
+errors in the log, only benign warnings (offline HF cache fallback, LoRA
+prefix notice). **P1-11's H2A full held-out inference is DONE.** Next:
+structural/colour scoring (`score_p1_10_ablation.py`, cheap CPU, no code
+changes needed) and, eventually, feeding this into a genuine H2A P2-12
+atypia-classifier rescoring for P1-10/P1-11 -- not yet started, awaiting
+go-ahead.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
