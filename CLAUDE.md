@@ -70,7 +70,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   gate is a backstop, not the whole rule.
 - **Standard submit shape:**
   `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm && \`
-  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 \`
+  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74 \`
   `[-J job_name] [--time=HH:MM:SS] slurm/<script>.slurm <positional args>'`
   — always pass the bad-node `--exclude` list on `bigbatch` GPU jobs (see
   Cluster facts below); `-J` gives the job a readable name for log-matching;
@@ -133,23 +133,35 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Some `bigbatch` nodes come up GPU-less; GPU jobs must fail-fast if
   `torch.cuda.is_available()` is False (do not CPU-crawl — this has happened before
   and burned ~1 hour on job 3809). **Confirmed GPU-less/broken nodes on `bigbatch`:
-  `mscluster48`, `mscluster65`, `mscluster46`, `mscluster44`** (jobs
-  42115/42117/42420/43056, 2026-08-10/2026-08-11/2026-08-12 — all show the
-  identical signature: `nvidia-smi`: "No devices were found", torch: "CUDA
+  `mscluster48`, `mscluster65`, `mscluster46`, `mscluster44`, `mscluster75`,
+  `mscluster74`** (jobs 42115/42117/42420/43056, 2026-08-10/2026-08-11/2026-08-12 —
+  all show the identical signature: `nvidia-smi`: "No devices were found", torch: "CUDA
   initialization: CUDA unknown error"; the fail-fast check caught every one in
   under 2 minutes, no wasted compute). `mscluster44` was first seen as a
   transient one-off during P1-09 (2026-08-10) but recurred with the same exact
   signature on job 43056 (2026-08-12) — promoted from "transient" to confirmed
-  bad. This is a recurring pattern, not a one-off — always pass
-  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44` on `bigbatch` GPU
-  jobs, and add any new bad node hit to this list rather than re-discovering it.
-  Corroborated 2026-08-11: `squeue`/`scontrol` show other users' CPU-only jobs
-  currently running fine on all three of the originally-confirmed nodes (so the
-  hardware/node itself is up), and a different user's own job (42901, user
-  `ybassera`) independently carries `ExcNodeList=...,48,65,...` — i.e. someone
-  else has already found `mscluster48` and `mscluster65` bad for GPU work too.
-  This is specifically a GPU/CUDA fault on these nodes, not a general node
-  outage — CPU-only jobs are unaffected.
+  bad. `mscluster75` first flagged 2026-08-27/28 during P1-11 ("Unable to
+  determine the device handle for GPU0", excluded pre-emptively in
+  `infer_a4_lcm.slurm`/`infer_a5_full.slurm`'s own header comments ever since,
+  now centralised here). `mscluster74` hit 2026-09-14/15 (P1-11 H2A full
+  held-out run, job 54460): `nvidia-smi` shows `ERR!` across every GPU field
+  (fan/temp/power/ECC) with "No running processes found", torch's fail-fast
+  check correctly caught it (`ABORT: no GPU on this node`) within seconds — a
+  different nvidia-smi error string than the original four but the same
+  underlying category (GPU/CUDA hardware fault), not yet independently
+  corroborated by a second hit the way 44/65/48 were, but excluded
+  pre-emptively per this file's own standing policy. This is a recurring
+  pattern, not a one-off — always pass
+  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74`
+  on `bigbatch` GPU jobs, and add any new bad node hit to this list rather than
+  re-discovering it. Corroborated 2026-08-11: `squeue`/`scontrol` show other
+  users' CPU-only jobs currently running fine on all three of the originally-
+  confirmed nodes (so the hardware/node itself is up), and a different user's
+  own job (42901, user `ybassera`) independently carries
+  `ExcNodeList=...,48,65,...` — i.e. someone else has already found
+  `mscluster48` and `mscluster65` bad for GPU work too. This is specifically a
+  GPU/CUDA fault on these nodes, not a general node outage — CPU-only jobs are
+  unaffected.
 - **`mscluster40` (on `stampede`) is slow/contended for CPU-only jobs** — two
   otherwise-identical scoring jobs (41839, 41843) TIMEOUT'd at the 1hr limit on
   this node while every other run on `mscluster22` finished in ~21-22min
