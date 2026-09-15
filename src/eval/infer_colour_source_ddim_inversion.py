@@ -557,6 +557,7 @@ def main():
                 mw.writerow([s, "identity_vae_only", tag, c["slide"], c["frame"], c["x"], c["y"],
                             os.path.relpath(p, out_dir), os.path.relpath(ref_path, out_dir),
                             c["aperio_path"], "vae_only", args.mode, "", "", "", "", ""])
+                man.flush()
                 n_out += 1
 
                 out_base = run_img2img_baseline(c["src"], rec_ctrl_rgb, seed_val)
@@ -566,6 +567,7 @@ def main():
                             c["slide"], c["frame"], c["x"], c["y"],
                             os.path.relpath(p, out_dir), os.path.relpath(ref_path, out_dir),
                             c["aperio_path"], "img2img_baseline", args.mode, "", "", "", "", ""])
+                man.flush()
                 n_out += 1
 
                 out_inv, t_end, k_actual, n_rec = run_ddim_inversion(
@@ -577,6 +579,7 @@ def main():
                             os.path.relpath(p, out_dir), os.path.relpath(ref_path, out_dir),
                             c["aperio_path"], "ddim_inversion", args.mode, args.inversion_condition,
                             args.inversion_fraction, k_actual, t_end, n_rec])
+                man.flush()
                 n_out += 1
             else:  # translate
                 inv_ctrl_rgb = c["src"] if args.inversion_condition == "source" else None
@@ -590,6 +593,7 @@ def main():
                             os.path.relpath(p, out_dir), os.path.relpath(ref_path, out_dir),
                             c["aperio_path"], "ddim_inversion", args.mode, args.inversion_condition,
                             args.inversion_fraction, k_actual, t_end, n_rec])
+                man.flush()
                 n_out += 1
 
     man.close()
