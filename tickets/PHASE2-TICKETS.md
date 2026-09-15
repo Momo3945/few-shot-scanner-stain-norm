@@ -668,6 +668,19 @@ but colour recovery is **negative on every single held-out slide**
 (pooled Δlab -15.64, worse than A0-A5's own H2A colour regression).
 Full write-up: `tickets/PHASE1-TICKETS.md` P1-11.
 
+**Diffusion vs. classical on this metric specifically: diffusion is
+closer to harmless than classical, though neither genuinely wins.**
+Ranking all 24 A0-A5/classical configs by non-A06 recovery delta: best
+diffusion (A3@0.50) = **0.0000** (exact tie with doing nothing), best
+classical (Macenko) = **-0.0385** (a real loss); mean diffusion -0.0224
+vs. mean classical -0.0673; 17/21 diffusion configs outrank all three
+classical baselines; histogram matching is the clear worst performer
+(-0.1154). This runs **opposite** to the structural/colour verdict below
+(P2-11), where classical dominates -- a distinct, precise claim ("less
+harmful," not "clinically useful") that shouldn't be conflated with
+genuine utility. Full ranking table: `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md` §8.5.
+
 **P3-06/P3-07/P1-16 still have no valid H2A number** -- separate,
 expensive follow-on work (new training required, not just inference for
 P3-06/P3-07; P1-16 is a post-hoc fusion on top of P1-11 and could now be

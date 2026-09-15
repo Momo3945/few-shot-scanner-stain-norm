@@ -1314,6 +1314,23 @@ new P1-11 H2A output, though not yet done). Full write-up: `tickets/
 PHASE1-TICKETS.md` P1-11, `tickets/PHASE2-TICKETS.md` P2-09/P2-12,
 `tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
 
+**Diffusion vs. classical on this metric specifically: diffusion is
+closer to harmless than classical, though neither genuinely wins — and
+this runs opposite to the structural/colour verdict.** Ranking all 24
+A0-A5/classical configs by non-A06 recovery delta (recomputed directly
+from `atypia_classifier_scores_h2a_fixed/per_frame.csv`): best diffusion
+(A3@0.50) = **0.0000** (exact tie with doing nothing), best classical
+(Macenko) = **-0.0385** (a real loss); mean diffusion -0.0224 vs. mean
+classical -0.0673; **17 of 21 diffusion configs outrank all three
+classical baselines**; histogram matching is the clear worst performer
+(-0.1154). Where structure/colour show classical dominating (P2-11
+above), this metric shows the opposite ranking — a real, quantified
+asymmetry, not a restatement of the same finding. Stated precisely:
+diffusion does not achieve genuine clinical utility here (its best result
+ties the raw baseline, not beats it) — it is simply the *less harmful* of
+two non-working approaches on this one metric. That is a distinct claim
+from "no clinical utility" and the two should not be conflated.
+
 Also worth logging: job 54460 (the first attempt at the full P1-11 H2A
 run) hit a newly-discovered bad GPU node (`mscluster74`), and job 54802
 (atypia rescoring) hit another (`mscluster51`) — both added to

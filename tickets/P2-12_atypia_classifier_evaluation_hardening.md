@@ -839,6 +839,32 @@ but colour recovery is negative on every single held-out slide (pooled
 Full write-up: `tickets/PHASE1-TICKETS.md` P1-11, `tickets/
 PHASE2-TICKETS.md` P2-09.
 
+**Diffusion vs. classical on this metric specifically, ranked (2026-09-15,
+recomputed directly from `atypia_classifier_scores_h2a_fixed/per_frame.csv`,
+not from memory of the earlier pooled table): diffusion is closer to
+harmless than classical, even though neither is a genuine win.** All 24
+A0-A5/classical configurations ranked by non-A06 recovery delta:
+
+| | Best config | Non-A06 delta |
+|---|---|---|
+| Best diffusion | A3 @0.50 | **0.0000** (exact tie with doing nothing) |
+| Best classical | Macenko | **-0.0385** (a real loss) |
+| Mean, all diffusion (n=21) | — | -0.0224 |
+| Mean, all classical (n=3) | — | -0.0673 |
+
+**17 of 21 diffusion configurations outrank all three classical
+baselines** on this metric. Classical's average harm (-0.067) is roughly
+3x diffusion's average harm (-0.022); histogram matching is the clear
+worst performer (-0.115). This is a real, quantified asymmetry, and it
+runs the **opposite direction** from the structural/colour verdict
+(`tickets/PHASE2-TICKETS.md` P2-11, `docs/results/RESULTS_SUMMARY.md`),
+where classical dominates and diffusion is the weaker option. Stated
+precisely, not overstated: diffusion does not achieve genuine clinical
+utility here (its best result is a tie with the raw baseline, not an
+improvement) — but relative to classical, it is the less harmful choice
+on this specific metric, which is a distinct claim from "no clinical
+utility" and should not be conflated with it.
+
 **What remains open:** P3-06/P3-07/P1-16 still have no valid H2A
 clinical-utility number at all (§8's per-architecture cost breakdown —
 P3-06/P3-07 need genuine new SDXL training, not just inference; P1-16 is
