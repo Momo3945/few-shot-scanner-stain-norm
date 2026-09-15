@@ -26,6 +26,11 @@
 #   # SD1.5's; expect a different number, do not compare directly):
 #   sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 infer_colour_translation_sdxl.slurm vae_only "" 0 p3_06_vae_floor
 #
+#   # H2A (P3-06b/P3-07 H2A ticket): DIRECTION env var, not positional --
+#   # additive, defaults to A2H so every existing invocation above is unchanged:
+#   PAIRS_DIR=/datasets/mhoosen/stain-norm/pairs/train OVERFIT_N=8 DIRECTION=H2A \
+#     sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 infer_colour_translation_sdxl.slurm correct /datasets/mhoosen/stain-norm/lora/h2a_cond_r8_sdxl_overfit8/final 0 p3_06_h2a_ablation_correct
+#
 # Requires the LoRA/ControlNet checkpoint to already exist
 # (train_colour_translation_lora_sdxl.slurm) unless MODE=vae_only.
 #
@@ -77,6 +82,15 @@ if [[ -n "${CROP:-}" ]]; then
     CROP_ARGS="--crop ${CROP}"
 fi
 
+# DIRECTION (env var, not positional -- additive, defaults to the script's
+# own A2H default so every existing caller is unaffected): this script
+# never passed --direction at all until P3-06b/P3-07 H2A needed it (same
+# gap infer_p1_10_ddim_inversion.slurm had for SD1.5, patched the same way).
+DIRECTION_ARGS=""
+if [[ -n "${DIRECTION:-}" ]]; then
+    DIRECTION_ARGS="--direction ${DIRECTION}"
+fi
+
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
@@ -87,7 +101,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P3-06 (P1-10 on SDXL) -- Mode=$MODE  Checkpoint=$CHECKPOINT_DIR  Limit=$LIMIT  PairsArgs='${PAIRS_ARGS}'"
+echo "P3-06 (P1-10 on SDXL) -- Mode=$MODE  Checkpoint=$CHECKPOINT_DIR  Limit=$LIMIT  PairsArgs='${PAIRS_ARGS}'  DirectionArgs='${DIRECTION_ARGS}'"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed"
@@ -98,12 +112,12 @@ echo "------------------------------------------------------------------"
 cd "${CODE_DIR}/src/eval"
 if [[ "$MODE" == "vae_only" ]]; then
     if [[ -n "$PAIRS_ARGS" ]]; then
-        python infer_colour_translation_sdxl.py --vae-only ${PAIRS_ARGS} --out "${OUT_DIR}" --limit "${LIMIT}"
+        python infer_colour_translation_sdxl.py --vae-only ${PAIRS_ARGS} --out "${OUT_DIR}" --limit "${LIMIT}" ${DIRECTION_ARGS}
     else
         python infer_colour_translation_sdxl.py \
             --vae-only \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --max-crops-per-frame 4 ${CROP_ARGS}
+            --limit "${LIMIT}" --max-crops-per-frame 4 ${CROP_ARGS} ${DIRECTION_ARGS}
     fi
 else
     if [[ -z "$CHECKPOINT_DIR" || ! -f "${CHECKPOINT_DIR}/pytorch_lora_weights.safetensors" ]]; then
@@ -115,13 +129,13 @@ else
         python infer_colour_translation_sdxl.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
             --source-mode "${MODE}" ${PAIRS_ARGS} --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --steps 50
+            --limit "${LIMIT}" --steps 50 ${DIRECTION_ARGS}
     else
         python infer_colour_translation_sdxl.py \
             --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
             --source-mode "${MODE}" \
             --root "${MITOS_ROOT}" --heldout "${HELDOUT}" --out "${OUT_DIR}" \
-            --limit "${LIMIT}" --max-crops-per-frame 4 --steps 50 ${CROP_ARGS}
+            --limit "${LIMIT}" --max-crops-per-frame 4 --steps 50 ${CROP_ARGS} ${DIRECTION_ARGS}
     fi
 fi
 
