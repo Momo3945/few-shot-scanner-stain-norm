@@ -1317,11 +1317,54 @@ and much faster than the original A2H run's near-full-budget completion
 `run_metadata.json` confirms `direction=H2A`, `source_mode=correct`,
 `inversion_fraction=1.0` -- matches the smoke-tested config exactly. No
 errors in the log, only benign warnings (offline HF cache fallback, LoRA
-prefix notice). **P1-11's H2A full held-out inference is DONE.** Next:
-structural/colour scoring (`score_p1_10_ablation.py`, cheap CPU, no code
-changes needed) and, eventually, feeding this into a genuine H2A P2-12
-atypia-classifier rescoring for P1-10/P1-11 -- not yet started, awaiting
-go-ahead.
+prefix notice). **P1-11's H2A full held-out inference is DONE.**
+
+**Structural/colour result (2026-09-15, jobs 54801 + 54864,
+`score_p1_10_ablation.py` + `aggregate_p1_10_full.py`, unmodified,
+same methodology as the original A2H P1-11 result):**
+
+| Scope | n | SSIM | recovery Δlab |
+|---|---|---|---|
+| ALL | 1488 | 0.5477 | **-15.64** |
+| ALL excl. A06 | 1296 | 0.5694 | -16.05 |
+| A06 (outlier, z=101.75) | -- | 0.4013 | -12.84 |
+| A08 | -- | 0.5896 | -16.50 |
+| A09 | -- | 0.5288 | -14.89 |
+| A13 | -- | 0.5419 | -15.30 |
+| A16 | -- | 0.5905 | -16.74 |
+
+**Colour recovery is negative on every single slide, no exception** --
+worse than doing nothing, and a substantially bigger regression than
+A0-A5's own H2A colour numbers (-3.6 to -5.7 at strength 0.30). SSIM is
+solid (0.5477 pooled, 0.5694 excl-outliers) -- genuinely this project's
+strongest structural performer even under H2A, consistent with its A2H
+reputation -- but the colour-normalisation mechanism itself is clearly
+broken in this direction, same "structure survives, colour regresses"
+pattern already seen for P3-07 and the A0-A5 H2A ladder, just more severe
+here.
+
+**Atypia-classifier result (2026-09-15, job 54802, P2-12's hardened
+`score_atypia_classifier.py`, `--raw-hamamatsu-tag a0`):** frame-level
+recovery_delta = **-0.025** (95% CI [-0.075, +0.025], n=120 paired
+frames) -- crosses zero, not significant either way, and sits in the
+same weak/negative range as every A0-A5 H2A configuration (`tickets/
+PHASE2-TICKETS.md` P2-09's corrected-result note). Sanity-checked: this
+run's `raw_hamamatsu` accuracy (0.44167) matches the earlier A0-A5 H2A
+rescoring's exactly, confirming the shared baseline derivation is
+consistent across runs. Job ran on a newly-hit bad GPU node
+(`mscluster51`) but `score_atypia_classifier.py` has no fail-fast GPU
+check (unlike this project's diffusion-generation scripts) and silently
+fell back to CPU -- harmless here (4:34 total for ~2k crops), logged in
+`CLAUDE.md` as a tooling gap worth closing eventually, not urgent given
+the low cost at this scale.
+
+**Combined verdict: P1-10/P1-11 H2A extends P2-12's conclusion to this
+project's own best-performing architecture.** Even the configuration with
+this project's strongest SSIM/structural numbers shows no significant
+downstream-classifier benefit (-0.025, CI crosses zero) and a genuine,
+uniform colour-recovery regression under the direction the clinical-
+utility claim actually requires. `tickets/PHASE2-TICKETS.md` P2-09/P2-12
+updated accordingly.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 

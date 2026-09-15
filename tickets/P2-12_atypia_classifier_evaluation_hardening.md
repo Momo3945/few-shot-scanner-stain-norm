@@ -8,9 +8,12 @@ fixed via the real rerun itself, then re-verified (§8); **final corrected
 result: no configuration shows a genuine clinical-utility benefit under
 the correct direction — see §8.5.** P2-09's original "first positive
 result in the project" is reversed, not merely weakened, once measured
-correctly. **Still open:** P1-10/P1-11/P3-06/P3-07/P1-16 have no valid
-H2A number at all (§8) — separate, expensive follow-on work, not part of
-this ticket's closed scope.
+correctly. **Extended 2026-09-15: P1-10/P1-11 H2A trained, inferred, and
+scored too (§8) — same negative verdict holds for this project's own
+best-performing architecture** (recovery_delta -0.025, CI crosses zero;
+colour recovery negative on every slide). **Still open:** P3-06/P3-07/
+P1-16 have no valid H2A number at all (§8) — separate, expensive
+follow-on work, not part of this ticket's closed scope.
 
 **Source:** `docs/proposal_draft(6).tex` §"Clinical Utility" (the exact
 proposal text is quoted below); hardens `tickets/PHASE2-TICKETS.md` P2-09 and
@@ -824,14 +827,28 @@ echoes P3-07's own colour-recovery regression (`tickets/
 PHASE3-TICKETS.md`) — a recurring pattern worth a dedicated look elsewhere
 in this project, not scoped into P2-12.
 
-**What remains open:** P1-10/P1-11/P3-06/P3-07/P1-16 still have no valid
-H2A clinical-utility number at all (§8's per-architecture cost breakdown —
-all five need genuine new training, not just inference, to get one). Given
-this result, there is no evidence yet that funding that training would
-change the picture — but it is also not evidence that it wouldn't, since
-none of this project's actual best-performing configurations have been
-tested in the correct direction. That decision is separate, explicit
-follow-on work, not concluded by this ticket.
+**Update (2026-09-15): P1-10/P1-11 H2A training + full held-out inference
++ scoring now complete** (jobs 47810/48392 training, 48435-48438/54738
+inference smoke+full, 54801/54864/54802 scoring) — **extends this
+ticket's negative verdict to this project's own best-performing
+architecture.** Frame-level recovery_delta = -0.025 (95% CI [-0.075,
++0.025], n=120) — not significant, same weak/negative range as A0-A5.
+Structurally the strongest performer even under H2A (SSIM 0.5477 pooled),
+but colour recovery is negative on every single held-out slide (pooled
+Δlab -15.64) — a larger regression than A0-A5's own H2A colour numbers.
+Full write-up: `tickets/PHASE1-TICKETS.md` P1-11, `tickets/
+PHASE2-TICKETS.md` P2-09.
+
+**What remains open:** P3-06/P3-07/P1-16 still have no valid H2A
+clinical-utility number at all (§8's per-architecture cost breakdown —
+P3-06/P3-07 need genuine new SDXL training, not just inference; P1-16 is
+a post-hoc fusion on top of P1-11 and could now be attempted relatively
+cheaply against the new P1-11 H2A output, though that hasn't been done).
+Given the P1-10/P1-11 result above, there is now real evidence this
+negative pattern generalises beyond the cheap A0-A5 ladder to this
+project's actual best configuration — but P3-06/P3-07/P1-16 remain
+untested, separate, explicit follow-on work, not concluded by this
+ticket.
 
 ---
 

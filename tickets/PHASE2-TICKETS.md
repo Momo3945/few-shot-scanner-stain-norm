@@ -655,9 +655,24 @@ diffusion methods show negative colour recovery under H2A while classical
 baselines still recover colour well -- classical continues to beat
 diffusion on structure/colour even under the corrected direction,
 consistent with this project's established A2H-direction pattern (P2-11
-below). P1-10/P1-11/P3-06/P3-07/P1-16 still have no valid H2A number --
-separate, expensive follow-on work (new training required, not just
-inference), not concluded by this result either way.
+below).
+
+**Update (2026-09-15): P1-10/P1-11 H2A now scored too (jobs 54460/54738
+training+inference, 54801/54864 structural scoring, 54802 atypia-
+classifier scoring) -- extends the same negative verdict to this
+project's own best-performing architecture.** Frame-level recovery_delta
+= **-0.025** (95% CI [-0.075, +0.025], n=120) -- not significant, same
+weak/negative range as every A0-A5 config. Structurally P1-10/P1-11 is
+this project's strongest performer even under H2A (SSIM 0.5477 pooled),
+but colour recovery is **negative on every single held-out slide**
+(pooled Δlab -15.64, worse than A0-A5's own H2A colour regression).
+Full write-up: `tickets/PHASE1-TICKETS.md` P1-11.
+
+**P3-06/P3-07/P1-16 still have no valid H2A number** -- separate,
+expensive follow-on work (new training required, not just inference for
+P3-06/P3-07; P1-16 is a post-hoc fusion on top of P1-11 and could now be
+attempted cheaply against the new H2A output, but hasn't been), not
+concluded by this result either way.
 
 **Extension (2026-08-28): the same `atypia_r18` checkpoint (inference only,
 no retraining) re-scored on P1-10/P1-11/P1-16 (Phase 1) and P3-06/P3-07
@@ -901,7 +916,10 @@ rerun and fixed. **Final result: no configuration shows a genuine
 clinical-utility benefit under the correct direction** -- reverses P2-09's
 original claim, see the CORRECTED RESULT note under P2-09 above and
 `tickets/P2-12_atypia_classifier_evaluation_hardening.md` §8.5 for the
-full per-slide table. Still open: P1-10/P1-11/P3-06/P3-07/P1-16 have no
+full per-slide table. **Extended 2026-09-15: P1-10/P1-11 H2A trained,
+inferred, and scored too — same negative verdict for this project's own
+best architecture** (recovery_delta -0.025, CI crosses zero; colour
+recovery negative on every slide). Still open: P3-06/P3-07/P1-16 have no
 valid H2A number (separate, expensive follow-on work). Full ticket:
 `tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
 

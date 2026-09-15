@@ -1283,6 +1283,47 @@ table and methodology: `tickets/P2-12_atypia_classifier_evaluation_
 hardening.md` §8.5; status also updated in `tickets/PHASE2-TICKETS.md`
 P2-09 and P2-12.
 
+**Update (2026-09-15): P1-10/P1-11 H2A trained, inferred, and scored —
+extends the negative verdict to this project's own best-performing
+architecture.** Full pipeline: overfit-control training (job 47810,
+passed decisively, ~3x SSIM separation), full 4000-step training (job
+48392, ~21min wall-clock, val_loss converged to 0.0482), DDIM-inversion
+smoke test (jobs 48435-48438, passed even more decisively, 80/80 crops),
+full 496-crop x 3-seed held-out inference (job 54738, ~3.5-4h, well under
+the 10h budget), structural scoring (jobs 54801/54864), and atypia-
+classifier rescoring (job 54802, P2-12's hardened scorer,
+`--raw-hamamatsu-tag a0`).
+
+Frame-level recovery_delta = **-0.025** (95% CI [-0.075, +0.025], n=120
+paired frames) — crosses zero, not significant, same weak/negative range
+as every A0-A5 H2A configuration. Structurally, P1-10/P1-11 remains this
+project's strongest performer even under H2A (SSIM 0.5477 pooled, 0.5694
+excl. A06) — but **colour recovery is negative on every single held-out
+slide** (pooled Δlab **-15.64**, A06 -12.84 / A08 -16.50 / A09 -14.89 /
+A13 -15.30 / A16 -16.74) — a substantially larger regression than A0-A5's
+own H2A colour numbers (-3.6 to -5.7). Same "structure survives, colour
+regresses" pattern already seen for P3-07 and the A0-A5 ladder, just more
+severe here.
+
+**Bottom line: even this project's best-performing configuration shows no
+genuine clinical-utility benefit and a genuine colour-normalisation
+failure once measured in the direction that actually matters.** P3-06/
+P3-07/P1-16 still have no valid H2A number (P3-06/P3-07 need new SDXL
+training; P1-16 could now be attempted relatively cheaply on top of the
+new P1-11 H2A output, though not yet done). Full write-up: `tickets/
+PHASE1-TICKETS.md` P1-11, `tickets/PHASE2-TICKETS.md` P2-09/P2-12,
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
+
+Also worth logging: job 54460 (the first attempt at the full P1-11 H2A
+run) hit a newly-discovered bad GPU node (`mscluster74`), and job 54802
+(atypia rescoring) hit another (`mscluster51`) — both added to
+`CLAUDE.md`'s confirmed-bad-node list. The `mscluster51` case also
+surfaced a real tooling gap: `score_atypia_classifier.py` has no
+fail-fast GPU check (unlike this project's diffusion-generation scripts),
+so it silently fell back to CPU instead of aborting — harmless at this
+scale (4:34 for ~2k crops) but noted in `CLAUDE.md` as worth fixing
+before a larger run relies on GPU speed.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it
@@ -1290,6 +1331,84 @@ belongs to the same pixel-exact family and tracks SSIM rank-for-rank (every
 diffusion config scores *worse* on `de2000_mean` than the raw do-nothing
 baseline, same as SSIM). See the P2-11 follow-up above for the full table and
 the metric that *did* provide independent evidence (windowed LAB-Wasserstein).
+
+## Addendum (2026-08-30): P3-07b and the full cross-project per-slide comparison
+
+P3-07b (`docs/results/p3_07b_sdxl_1024_full96/`, `tickets/PHASE3-TICKETS.md`
+P3-07's P3-07b section) is a supplementary follow-up to P3-07's negative
+colour-recovery regression at native 1024 resolution — same architecture,
+same 4000 steps, same everything, except trained on all 96 non-overlapping
+A03/H03 1024 pairs (a strict superset of P3-07's capped 50) instead of 50.
+**⚠️ Supplementary only — NOT evidence for/against the proposal's formal
+≤50-pair H1 claim.** P3-07 remains the number that answers H1 as literally
+stated; P3-07b explains why P3-07 regressed and shows the regression is
+data-fixable, and must always be read alongside P3-07, never in place of it.
+
+| | P3-07 (≤50 pairs) | **P3-07b (96 pairs, supplementary)** |
+|---|---|---|
+| ALL SSIM | 0.4313 | **0.4416** |
+| ALL_excl_outliers SSIM | 0.4485 | **0.4591** |
+| ALL recovery Δlab | **−5.60** | **+1.74** |
+| ALL_excl_outliers recovery Δlab | −5.43 | +1.62 |
+
+Every slide flips sign (A06 −3.48→+2.55, A08 −5.54→+1.82, A09 −6.64→+1.31,
+A13 −4.81→+0.81, A16 −4.89→+2.00) — not a pooled-outlier artefact, and SSIM
+improves slightly rather than trading off. Only the training-pair count
+changed. Strong support for H3 (native-1024 colour learning was genuinely
+data-starved under the ≤50-pair budget, not an architectural ceiling — which
+is also why the D1-D5 diagnostic chase on P3-07 correctly found nothing
+fixable downstream of that: baseline artefact (D1), colour-LoRA mis-mapping
+(D2), RGB-vs-Canny conditioning (D3), ControlNet conditioning scale (D4),
+and colour-LoRA inference-time scale (D5) were all ruled out).
+
+**Full cross-project per-slide comparison** (every number below pulled
+directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
+in this folder, not re-derived) — the pooled `ALL` figures used throughout
+this document compress this real per-slide variation; posted here because
+`ALL`/`ALL_excl_outliers` alone can read as more uniform than any method
+actually is:
+
+**Recovery Δlab, per slide (higher = better; negative = worse than doing nothing):**
+
+| Method | A06 (outlier) | A08 | A09 | A13 | A16 |
+|---|---|---|---|---|---|
+| Macenko | +44.54 | +6.86 | +6.28 | **−8.59** | +6.72 |
+| Reinhard | +58.50 | +5.64 | +1.00 | −6.56 | −5.65 |
+| Histogram Matching | +69.12 | +0.33 | −4.51 | +3.59 | **−14.96** |
+| P1-10 (SD1.5 base) | +4.20 | +3.11 | +3.53 | +4.96 | +2.64 |
+| **P1-11** (SD1.5, DDIM-inversion) | **+21.72** | +7.15 | +9.68 | +5.37 | +7.11 |
+| **P1-16** (SD1.5, source fusion) | +11.25 | +6.94 | +9.29 | +5.01 | +7.27 |
+| P3-06 (SDXL@512) | +2.70 | +1.74 | +1.03 | +2.31 | +1.58 |
+| **P3-07** (SDXL@1024, ≤50 pairs) | **−3.48** | **−5.54** | **−6.64** | **−4.81** | **−4.89** |
+| **P3-07b** (SDXL@1024, 96 pairs, supp.) | +2.55 | +1.82 | +1.31 | +0.81 | +2.00 |
+
+**SSIM, per slide** (raw row = do-nothing structural reference):
+
+| Method | A06 | A08 | A09 | A13 | A16 |
+|---|---|---|---|---|---|
+| Raw (do nothing) | 0.627 | 0.793 | 0.727 | 0.675 | 0.759 |
+| Macenko | 0.479 | 0.705 | 0.587 | 0.572 | 0.679 |
+| Reinhard | 0.545 | 0.772 | 0.629 | 0.645 | 0.718 |
+| Histogram Matching | 0.562 | 0.731 | 0.619 | 0.645 | 0.652 |
+| P1-10 | 0.307 | 0.482 | 0.417 | 0.458 | 0.497 |
+| P1-11 | 0.373 | 0.537 | 0.477 | 0.498 | 0.527 |
+| **P1-16** | **0.617** | **0.787** | **0.727** | 0.669 | **0.759** |
+| P3-06 | 0.257 | 0.410 | 0.372 | 0.404 | 0.441 |
+| P3-07 | 0.313 | 0.457 | 0.396 | 0.431 | 0.481 |
+| P3-07b | 0.322 | 0.467 | 0.411 | 0.439 | 0.491 |
+
+**What the per-slide view shows that the pooled average hides:**
+classical methods aren't uniformly good — each has its own distinct weak
+slide (Macenko: A13, Reinhard: A13+A16, Histogram Matching: A09+A16), and
+their large A06 recovery numbers (+44 to +69) do most of the work in their
+pooled averages; drop A06 and their advantage over diffusion shrinks
+sharply. P3-07's regression is genuinely uniform (all five slides
+negative), and P3-07b's fix is equally uniform (all five flip positive) —
+neither is a single-slide artefact. P1-16 is the only method that beats
+raw SSIM on most slides (A08/A09/A16, ties on A06), which is the real basis
+for "beats classical on SSIM," not a pooled-average effect. P3-07b still
+trails P1-10/P1-11/P1-16 on every slide, both metrics — it restores
+viability, not the project's best result.
 
 ## Local file index
 
