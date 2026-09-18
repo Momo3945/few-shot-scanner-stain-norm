@@ -718,8 +718,46 @@ H2A (512) is comparatively lower-risk (its A2H point was already positive,
 +1.22) but could still land considerably weaker than its A2H counterpart,
 mirroring the ~60%-weaker-than-SD1.5 pattern P3-06 A2H already showed.
 
-**Next step:** submit the P3-06 H2A overfit-8 control (300 steps) —
-awaiting go-ahead.
+**Overfit-8 control, 300 steps (2026-09-15), job 55141, COMPLETED 11:16.**
+Mechanics correct, no NaN, checkpoint saved to
+`lora/h2a_cond_r8_sdxl_overfit8/final` (11.6M LoRA + 7.6M fresh ControlNet
+trainable params, 1.24B frozen backbone — matches the A2H run's param
+counts exactly, direction has no effect on model size as expected). Loss
+noisy, no clear trend (0.14–0.22 range) — the identical flat-plateau
+pattern P3-06's own A2H overfit control hit at 300 steps.
+
+**`infer_colour_translation_sdxl.slurm` needed a small additive patch**
+before the ablation could run against this checkpoint: it never passed
+`--direction` at all (same gap `infer_p1_10_ddim_inversion.slurm` had for
+SD1.5, patched the same way — additive `DIRECTION` env var, defaults empty/
+A2H, zero behaviour change for every existing caller). Patched and synced.
+
+**Source-conditioning ablation at 300 steps (jobs 55185/55194/55188
+correct/zero/shuffled, all COMPLETED cleanly; one resubmission needed —
+job 55187's first `zero` attempt landed on `mscluster50`, a node already
+in this file's confirmed-bad-node list that got left out of the exclude
+list used for this batch — an oversight, not a new cluster finding;
+resubmitted with the full current list and completed fine) — scored job
+55195: **FAILED, all three modes statistically identical** (SSIM
+0.0641±0.0010 for correct/zero/shuffled alike, LAB total within noise of
+each other, no consistent win-rate for `correct`).
+
+**Diagnosis: undertraining, not a genuine H2A-specific bug — exactly the
+pattern P3-06's own A2H overfit control hit at 300 steps** (this file,
+above: "Loss did not show a clear downward trend... this exact pattern
+already has precedent... diagnosed as under-training, not a broken
+mechanism... Extending to 2000 steps... resolved it there: a real downward
+trend appeared and the source-conditioning ablation then passed
+decisively"). The H2A ablation was run prematurely at 300 steps without
+first applying that already-established fix — the same mistake the
+precedent exists to prevent. Not yet re-run at 2000 steps.
+
+**Next step:** extend the H2A overfit control to 2000 steps (matching job
+45952's A2H config exactly: `OVERFIT_N=8`, `DIRECTION=H2A`, `STEPS=2000`,
+`--time=01:00:00` from job 45952's own 36:24 wall-clock), then re-run the
+source-conditioning ablation against the extended checkpoint before
+concluding anything about H2A source-conditioning working or not — awaiting
+go-ahead.
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
