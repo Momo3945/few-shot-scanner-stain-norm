@@ -752,12 +752,37 @@ decisively"). The H2A ablation was run prematurely at 300 steps without
 first applying that already-established fix — the same mistake the
 precedent exists to prevent. Not yet re-run at 2000 steps.
 
-**Next step:** extend the H2A overfit control to 2000 steps (matching job
-45952's A2H config exactly: `OVERFIT_N=8`, `DIRECTION=H2A`, `STEPS=2000`,
-`--time=01:00:00` from job 45952's own 36:24 wall-clock), then re-run the
-source-conditioning ablation against the extended checkpoint before
-concluding anything about H2A source-conditioning working or not — awaiting
-go-ahead.
+**Extended overfit-8 control, 2000 steps (2026-09-18), job 56471
+(resubmission of job 56363, which hit `mscluster45` — a bad node
+discovered by an unrelated concurrent job in the meantime, not a code
+issue; added to this file's exclude list, resubmitted clean), COMPLETED
+41:38.** No NaN, checkpoint saved to `lora/h2a_cond_r8_sdxl_overfit8/final`
+(overwrites the 300-step version). Loss noisy throughout (0.11–0.18 range),
+no strong visible trend — same as A2H's own extended run at this step
+count, per this project's standing guardrail not itself the success signal.
+
+**Source-conditioning ablation re-run at 2000 steps (jobs 56527/56529/56530
+correct/zero/shuffled, all COMPLETED cleanly; scored job 57096) — PASSES
+DECISIVELY:**
+
+| Mode | LAB total | SSIM | Win-rate |
+|---|---|---|---|
+| **correct** | **19.08 ± 0.33** | **0.1434 ± 0.0022** | **6/8** |
+| shuffled | 25.88 ± 0.16 | 0.0518 ± 0.0017 | 0/8 |
+| zero | 39.12 ± 0.36 | 0.0645 ± 0.0012 | 2/8 |
+
+`correct` beats `shuffled` by 2.77× and `zero` by 2.22× on SSIM, lowest LAB
+total of the three, wins the majority of crops — confirms the H2A
+ControlNet branch genuinely uses source conditioning, at the same margin
+this project's other ablations have cleared (P1-10's own SD1.5 overfit
+ablation: ~2.4×). **Confirms the diagnosis: the 300-step failure was
+undertraining, not a genuine H2A-specific problem.** Cleared to proceed to
+the full 4000-step training run.
+
+**Next step:** submit the full 4000-step H2A training run (`OVERFIT_N`
+unset, matching job 46025's A2H config: `DIRECTION=H2A`, rank 8, 4000
+steps, `lora/h2a_cond_r8_sdxl/`, expect ~1:25 wall-clock from the A2H
+precedent) — awaiting go-ahead.
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
