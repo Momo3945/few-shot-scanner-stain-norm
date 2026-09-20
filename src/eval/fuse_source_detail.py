@@ -252,6 +252,7 @@ def main():
                     os.path.relpath(out_path, out_dir),
                     os.path.relpath(ref_dst, out_dir),
                     r["aperio_path"]])
+        man.flush()
         n_out += 1
 
     man.close()
