@@ -779,10 +779,22 @@ ablation: ~2.4×). **Confirms the diagnosis: the 300-step failure was
 undertraining, not a genuine H2A-specific problem.** Cleared to proceed to
 the full 4000-step training run.
 
-**Next step:** submit the full 4000-step H2A training run (`OVERFIT_N`
-unset, matching job 46025's A2H config: `DIRECTION=H2A`, rank 8, 4000
-steps, `lora/h2a_cond_r8_sdxl/`, expect ~1:25 wall-clock from the A2H
-precedent) — awaiting go-ahead.
+**Full 4000-step training run (2026-09-21), job 57461** (resubmission of
+job 57179, which hit `mscluster57` — a bad node independently corroborated
+this same day by a concurrent job, added to CLAUDE.md's exclude list),
+**COMPLETED 1:25:36** — essentially identical wall-clock to job 46025's A2H
+run (1:25:50). Val loss converges cleanly and near-monotonically: 0.0699 ->
+0.0691 -> 0.0675 -> **0.0668 (best, final step)** — same clean-convergence
+pattern as A2H (0.0853 -> 0.0671), floor landing marginally lower.
+`lora/h2a_cond_r8_sdxl/{best,final}` both saved and real (checkpoints
+written throughout, not just at the end; `best` == `final` at the last
+step). **P3-06 H2A training is DONE.**
+
+**Next step:** full 496-crop x 3-seed held-out inference run (matching job
+46226's A2H config exactly: `source-mode=correct`, checkpoint
+`lora/h2a_cond_r8_sdxl/final`, `LIMIT=0` for all held-out frames,
+`DIRECTION=H2A`, default 3 seeds — `--seeds 0 1 2` is the script's own
+default, no override needed) — awaiting go-ahead.
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
