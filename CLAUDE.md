@@ -70,7 +70,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   gate is a backstop, not the whole rule.
 - **Standard submit shape:**
   `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm && \`
-  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50 \`
+  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57 \`
   `[-J job_name] [--time=HH:MM:SS] slurm/<script>.slurm <positional args>'`
   — always pass the bad-node `--exclude` list on `bigbatch` GPU jobs (see
   Cluster facts below); `-J` gives the job a readable name for log-matching;
@@ -158,9 +158,24 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   resubmission — same fast, correct abort, despite `mscluster76` having run a
   different job successfully earlier this session; the fault is intermittent
   per-node, not permanent, so a node working once does not clear it from
-  this list), and `mscluster50` (hit 2026-09-15, job 55142, P1-16 H2A
+  this list), `mscluster50` (hit 2026-09-15, job 55142, P1-16 H2A
   identity-full second resubmission — same fast, correct abort within
-  ~1:49). This specific sub-signature now has five independent hits and
+  ~1:49), and `mscluster45` (hit 2026-09-18, job 56368, P2-13
+  atypia_r18_v2 smoke test — `nvidia-smi`: "No devices were found",
+  identical "Unable to determine the device handle for GPU0" torch
+  warning, fail-fast caught it correctly), and `mscluster57` (hit
+  2026-09-20, job 57095, P2-13 atypia_r18_v2 rescoring — same
+  "Unable to determine the device handle for GPU0" signature, but
+  `score_atypia_classifier.py` has NO fail-fast GPU check (a
+  previously-documented gap, P2-12 §8's mscluster51 note), so the job
+  silently fell back to CPU instead of aborting rather than catching it
+  fast; ran fine on `mscluster57` earlier this project per P3-07's job
+  47298, confirming the fault is intermittent per-node, not permanent).
+  Independently corroborated same day: job 57179 (P3-06b/P3-07 H2A full
+  training run) also landed on `mscluster57` and hit the identical
+  signature — this time `train_colour_translation_lora_sdxl.py`'s own
+  fail-fast check caught it correctly within ~1 minute, no compute lost.
+  This specific sub-signature now has seven independent hits and
   should be treated as reliably recurring, same confidence level as the
   original four, not a one-off. `mscluster74` hit 2026-09-14/15 (P1-11 H2A full
   held-out run, job 54460): `nvidia-smi` shows `ERR!` across every GPU field
@@ -173,7 +188,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   doesn't silently CPU-crawl for hours the way heavy diffusion generation
   jobs are already guarded against. This is a recurring
   pattern, not a one-off — always pass
-  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50`
+  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57`
   on `bigbatch` GPU jobs, and add any new bad node hit to this list rather than
   re-discovering it. Corroborated 2026-08-11: `squeue`/`scontrol` show other
   users' CPU-only jobs currently running fine on all three of the originally-
