@@ -11,6 +11,10 @@
 #   sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 train_atypia_classifier.slurm                          # defaults below
 #   SMOKE=1 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 --time=00:30:00 -J atypia_smoke train_atypia_classifier.slurm
 #
+# P2-13 (atypia_r18_v2 variant -- additive, all default off/unchanged):
+#   AUGMENT=1 BALANCED_SAMPLING=1 MAX_CROPS_PER_FRAME=0 VAL_SLIDES=A17,A18,A19 \
+#     sbatch --exclude=... -J atypia_r18_v2 train_atypia_classifier.slurm <manifest> atypia_r18_v2
+#
 # Uses the plain stainnorm env -- torchvision already installed (0.20.1+cu121,
 # verified 2026-08-18), no new env needed. TORCH_HOME redirected to /datasets
 # (not the 50GB home dir) since ResNet18's ImageNet weights are not yet cached
@@ -42,6 +46,24 @@ SMOKE_FLAG=""
 if [[ "${SMOKE:-0}" == "1" ]]; then
     SMOKE_FLAG="--smoke"
 fi
+# P2-13: additive, opt-in-only overrides -- all unset by default, so the exact
+# invocation that produced the frozen atypia_r18/best.pt is unchanged.
+AUGMENT_FLAG=""
+if [[ "${AUGMENT:-0}" == "1" ]]; then
+    AUGMENT_FLAG="--augment"
+fi
+BALANCED_SAMPLING_FLAG=""
+if [[ "${BALANCED_SAMPLING:-0}" == "1" ]]; then
+    BALANCED_SAMPLING_FLAG="--balanced-sampling"
+fi
+MAX_CROPS_FLAG=""
+if [[ -n "${MAX_CROPS_PER_FRAME:-}" ]]; then
+    MAX_CROPS_FLAG="--max-crops-per-frame ${MAX_CROPS_PER_FRAME}"
+fi
+VAL_SLIDES_FLAG=""
+if [[ -n "${VAL_SLIDES:-}" ]]; then
+    VAL_SLIDES_FLAG="--val-slides ${VAL_SLIDES}"
+fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
@@ -72,7 +94,7 @@ python train_atypia_classifier.py \
     --root        "${DATA_DIR}" \
     --output-dir  "${OUT_DIR}" \
     --seed 0 \
-    ${SMOKE_FLAG}
+    ${SMOKE_FLAG} ${AUGMENT_FLAG} ${BALANCED_SAMPLING_FLAG} ${MAX_CROPS_FLAG} ${VAL_SLIDES_FLAG}
 
 echo "------------------------------------------------------------------"
 echo "Job $SLURM_JOB_ID finished. Best checkpoint in ${OUT_DIR}/best.pt"

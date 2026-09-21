@@ -27,6 +27,23 @@ Train/val split is BY SLIDE, not by crop, to avoid leaking crops from the same
 frame across the split (default: the two alphabetically-last training slides are
 held out for validation unless --val-slides is given explicitly).
 
+P2-13 (atypia_r18_v2 variant, does NOT touch the frozen P2-09/P2-12 atypia_r18
+baseline -- a new --output-dir is used for this): two additive, opt-in-only
+flags to test whether classifier quality was limiting P2-12's statistical
+power, motivated by P2-12 Sec.9's own observation that raw-Aperio sanity
+accuracy is "barely above chance". Both default to off, so the exact
+invocation that produced atypia_r18/best.pt is unchanged and reproducible.
+- --augment: train-only flip/90-rotation/mild-colour-jitter augmentation
+  (tissue has no canonical orientation, so flips/rotations are safe; crops
+  are cheap and augmentation multiplies effective training diversity without
+  new data). Validation crops are never augmented -- eval must stay
+  deterministic.
+- --balanced-sampling: WeightedRandomSampler (inverse class frequency) in
+  place of plain shuffling. Combined with the existing inverse-frequency
+  loss weighting below -- deliberately double-applying inverse-frequency
+  correction (sampling AND loss weight) is a real design choice, not an
+  oversight; if it over-corrects, --balanced-sampling can simply be left off.
+
 Usage
 -----
     # smoke test first:
@@ -79,6 +96,13 @@ def parse_args():
     ap.add_argument("--num-workers", type=int, default=2)
     ap.add_argument("--smoke", action="store_true",
                     help="5-step dry run: overrides train-steps/save-every for a quick env+loop check.")
+    ap.add_argument("--augment", action="store_true",
+                    help="P2-13: train-only flip/90-rotation/colour-jitter augmentation. Default off "
+                         "(matches the frozen atypia_r18 baseline invocation).")
+    ap.add_argument("--balanced-sampling", action="store_true",
+                    help="P2-13: WeightedRandomSampler (inverse class frequency) instead of plain "
+                         "shuffling for the train loader. Default off (matches the frozen atypia_r18 "
+                         "baseline invocation); combines with the existing loss class-weighting.")
     return ap.parse_args()
 
 
@@ -97,8 +121,9 @@ def main():
     import numpy as np
     import torch
     import torch.nn.functional as F
-    from torch.utils.data import Dataset, DataLoader
+    from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
     from torchvision.models import resnet18, ResNet18_Weights
+    from torchvision.transforms import ColorJitter
     from PIL import Image
 
     from registration import read_rgb
@@ -203,13 +228,19 @@ def main():
     mean = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
     std = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
 
+    # P2-13: train-only augmentation. Flips/90-rotations are safe (tissue has no
+    # canonical orientation); colour jitter is kept mild since this classifier's
+    # whole downstream purpose is scoring colour-normalised outputs.
+    color_jitter = ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1)
+
     class CropDataset(Dataset):
         # frame images are cached per-worker (small manifest, frames re-read across
         # crops of the same frame otherwise) -- simple dict cache keyed by path.
         _cache: dict = {}
 
-        def __init__(self, items):
+        def __init__(self, items, is_train):
             self.items = items
+            self.is_train = is_train  # never augment validation crops -- eval stays deterministic
 
         def __len__(self):
             return len(self.items)
@@ -222,15 +253,35 @@ def main():
                 if len(self._cache) < 64:  # small bound, avoid unbounded worker memory growth
                     self._cache[path] = rgb
             crop = rgb[y:y + args.crop, x:x + args.crop]
-            img = Image.fromarray(crop).resize((args.resize, args.resize), Image.LANCZOS)
+            img = Image.fromarray(crop)
+            if self.is_train and args.augment:
+                if random.random() < 0.5:
+                    img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                if random.random() < 0.5:
+                    img = img.transpose(Image.FLIP_TOP_BOTTOM)
+                k = random.randint(0, 3)
+                if k:
+                    img = img.rotate(90 * k)
+                img = color_jitter(img)
+            img = img.resize((args.resize, args.resize), Image.LANCZOS)
             arr = torch.from_numpy(np.asarray(img, dtype=np.float32) / 255.0).permute(2, 0, 1)
             arr = (arr - mean) / std
             return arr, label
 
-    train_loader = DataLoader(CropDataset(train_items), batch_size=args.batch_size,
-                              shuffle=True, num_workers=args.num_workers,
+    train_sampler = None
+    train_shuffle = True
+    if args.balanced_sampling:
+        # inverse class frequency per-crop -- reuses the same class_counts already
+        # computed for the loss weight tensor above (P2-13 §"--balanced-sampling").
+        sample_weights = [1.0 / max(class_counts.get(it[3], 1), 1) for it in train_items]
+        train_sampler = WeightedRandomSampler(sample_weights, num_samples=len(train_items),
+                                              replacement=True)
+        train_shuffle = False  # sampler and shuffle are mutually exclusive in DataLoader
+
+    train_loader = DataLoader(CropDataset(train_items, is_train=True), batch_size=args.batch_size,
+                              shuffle=train_shuffle, sampler=train_sampler, num_workers=args.num_workers,
                               drop_last=(len(train_items) >= args.batch_size), pin_memory=True)
-    val_loader = (DataLoader(CropDataset(val_items), batch_size=args.batch_size,
+    val_loader = (DataLoader(CropDataset(val_items, is_train=False), batch_size=args.batch_size,
                              shuffle=False, num_workers=args.num_workers, pin_memory=True)
                  if val_items else None)
 

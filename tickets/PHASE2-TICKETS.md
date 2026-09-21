@@ -964,6 +964,24 @@ colour-recovery numbers for any of these methods — those remain valid.
 
 ---
 
+## P2-13 — Atypia-classifier quality improvements (`atypia_r18_v2`)
+
+**Status:** ✅ CLOSED, negative result (2026-09-20, jobs 56514/56528/57154).
+Trained a new sibling checkpoint (`atypia_r18_v2`, train-only augmentation
++ class-balanced sampling + more crops/frame + a validation split covering
+all 3 classes) to test whether classifier quality was limiting P2-12's
+statistical power (§9: raw-Aperio sanity accuracy "barely above chance").
+**Result: `atypia_r18_v2` is worse than the frozen `atypia_r18` on every
+held-out sanity metric — raw_hamamatsu accuracy dropped from 0.442 to
+0.192 (below random 3-class guessing), raw_aperio macro-F1 dropped from
+0.326 to 0.270. No change to the project's citable result: `atypia_r18/
+best.pt` remains the classifier behind P2-12 §8.5's H2A table.** Full
+write-up and leading hypothesis (colour-jitter + doubled inverse-frequency
+correction plausibly hurting Hamamatsu-domain generalisation
+specifically): `tickets/P2-13_atypia_classifier_quality_improvements.md`.
+
+---
+
 **Reminder (CLAUDE.md):** always report both the pooled `ALL` aggregate and the
 robust-outlier-excluded aggregate. A06 is a confirmed genuine colour-gap outlier —
 never let it silently dominate a headline number.
