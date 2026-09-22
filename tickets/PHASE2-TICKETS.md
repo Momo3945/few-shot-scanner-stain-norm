@@ -681,11 +681,17 @@ harmful," not "clinically useful") that shouldn't be conflated with
 genuine utility. Full ranking table: `tickets/
 P2-12_atypia_classifier_evaluation_hardening.md` §8.5.
 
-**P3-06/P3-07/P1-16 still have no valid H2A number** -- separate,
-expensive follow-on work (new training required, not just inference for
-P3-06/P3-07; P1-16 is a post-hoc fusion on top of P1-11 and could now be
-attempted cheaply against the new H2A output, but hasn't been), not
-concluded by this result either way.
+**P3-06/P3-07 still have no valid H2A number** -- separate, expensive
+follow-on work (new training required, not just inference), not
+concluded by this result either way. **P1-16 H2A is now done (2026-09-22,
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md` §8.5,
+`tickets/PHASE1-TICKETS.md` P1-16's H2A extension): frame-level
+recovery_delta = 0.0 (95% CI [-0.025, +0.025], n=120), an exact tie with
+raw_hamamatsu -- essentially unchanged from P1-11's own pre-fusion H2A
+result despite a large, genuine structural/colour improvement from
+fusion (SSIM 0.548→0.730, Δlab -15.64→-5.34). The clinical-utility
+negative pattern now holds across every H2A configuration tested,
+including this fusion refinement of the project's best architecture.
 
 **Extension (2026-08-28): the same `atypia_r18` checkpoint (inference only,
 no retraining) re-scored on P1-10/P1-11/P1-16 (Phase 1) and P3-06/P3-07
@@ -932,8 +938,13 @@ original claim, see the CORRECTED RESULT note under P2-09 above and
 full per-slide table. **Extended 2026-09-15: P1-10/P1-11 H2A trained,
 inferred, and scored too — same negative verdict for this project's own
 best architecture** (recovery_delta -0.025, CI crosses zero; colour
-recovery negative on every slide). Still open: P3-06/P3-07/P1-16 have no
-valid H2A number (separate, expensive follow-on work). Full ticket:
+recovery negative on every slide). **Extended 2026-09-22: P1-16's
+raw-source-detail/colour-residual fusion on top of P1-11's H2A output
+also scored** -- recovery_delta 0.0 (CI [-0.025,+0.025], n=120), an exact
+tie with raw_hamamatsu, despite a large structural/colour improvement
+from fusion (SSIM 0.548→0.730, Δlab -15.64→-5.34). Still open: P3-06/
+P3-07 have no valid H2A number (separate, expensive follow-on work
+requiring new training). Full ticket:
 `tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
 
 **Motivation:** before treating P2-09's results (the original 26-method

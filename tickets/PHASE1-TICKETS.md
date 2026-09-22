@@ -2127,6 +2127,65 @@ caveats: `tickets/PHASE2-TICKETS.md` P2-09's Extension section.
 `tickets/P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid
 clinical-utility evidence until P2-12 lands.**
 
+**H2A extension (2026-09-15/22, correct clinical-utility direction, 4-step
+pipeline on the same full-496-crop held-out set as P1-11's own H2A run):**
+
+1. **Identity-mode DDIM-inversion, full held-out (job 56480, COMPLETED
+   4:28:46 on `mscluster52`, needed 5 submission attempts — two bad-node
+   ABORTs, one `--time=02:00:00` timeout that lost 1309/1488 completed
+   crops to an unflushed manifest, one genuine silent-hang recovered by
+   cancel+resubmit; see `CLAUDE.md`'s bad-node list and commit `fd90b14`
+   for the manifest-flush fix this forced on
+   `infer_colour_source_ddim_inversion.py`):** wrote 4464 rows (496 crops
+   × 3 seeds × 3 output types — `vae_only`/`img2img_baseline`/
+   `ddim_inversion`), `DIRECTION=H2A`, `CHECKPOINT_DIR=lora/h2a_cond_r8/
+   best`. Output: `eval/p1_10_ddim_inversion/h2a_identity_inv100_full/`.
+2. **Fusion, F3 σ=8 β=0.50 (job 57180, COMPLETED 13:39, retry after job
+   57111 hit `fuse_source_detail.py`'s own version of the same unflushed-
+   manifest bug at its `--time=00:30:00` default — fixed in commit
+   `53bb38a`):** 1488/1488 crops fused, 0 skipped — every crop/seed from
+   the identity-full manifest paired cleanly against the existing
+   `h2a_translate_inv100_correct_full` manifest. Output:
+   `eval/p1_16_fusion/h2a_f3_s8_b0.50_full/`.
+3. **Structural/colour scoring (job 57193, COMPLETED 21:40, unmodified
+   `score_outputs.slurm`):**
+
+   | Scope | n | SSIM | recovery Δlab |
+   |---|---|---|---|
+   | ALL | 1488 | 0.73044 | -5.3379 |
+   | ALL excl. A06 | -- | 0.74741 | -- |
+   | A06 (outlier) | -- | 0.616 | -2.7218 |
+   | A08 | -- | 0.788 | -5.8972 |
+   | A09 | -- | 0.728 | -5.3098 |
+   | A13 | -- | 0.672 | -4.5664 |
+   | A16 | -- | 0.761 | -6.3184 |
+
+   Compared directly against P1-11's own (pre-fusion) H2A DDIM-inversion
+   result already in this file (SSIM 0.5477 ALL, Δlab -15.64 ALL, negative
+   on every slide): fusion lifts SSIM by **+0.183 absolute (~33%
+   relative)** and shrinks the colour-recovery regression to **roughly a
+   third of its size on every single slide**, including the A06 outlier
+   (-12.84 → -2.72). Still net-negative everywhere (colour recovery
+   remains worse than doing nothing), but a large, consistent structural
+   and colour improvement from fusion — expected, since F3 re-injects the
+   raw source's untouched high-frequency detail.
+4. **Atypia-classifier rescoring (job 57598, COMPLETED 4:53, P2-12's
+   hardened `score_atypia_classifier.py`, `RAW_HAMAMATSU_TAG=a0`,
+   `TAG_DIRECTION="a0=A2H p1_16_fusion/h2a_f3_s8_b0.50_full=H2A"` since
+   `fuse_source_detail.py` writes no `run_metadata.json`; first attempt,
+   job 57457, aborted cleanly for lacking the `a0=A2H` half of that
+   override — no compute lost):** frame-level recovery_delta = **0.0**
+   (95% CI [-0.025, +0.025], n=120 paired frames) — an exact tie with
+   `raw_hamamatsu` (integrity-checked: 0.44167, matching the known value
+   exactly). Essentially unchanged from P1-11's own pre-fusion result
+   (-0.025, 95% CI [-0.075, +0.025], n=120) — **both solidly inside the
+   "no genuine effect" band.**
+
+**Combined verdict: fusion's benefit is real but structural/colour-only.**
+It does not change P1-11/P2-12's clinical-utility conclusion — the
+downstream atypia classifier is indifferent to the fusion, tying the raw
+baseline exactly rather than showing any recovery.
+
 ## P1-14 — VAE Reconstruction Benchmark: Stock SD1.5 vs `sd-vae-ft-mse`
 
 **Status:** ✅ CLOSED/POSITIVE (2026-08-28) -- Stage A and Stage B both

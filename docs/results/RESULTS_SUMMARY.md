@@ -1308,11 +1308,35 @@ severe here.
 **Bottom line: even this project's best-performing configuration shows no
 genuine clinical-utility benefit and a genuine colour-normalisation
 failure once measured in the direction that actually matters.** P3-06/
-P3-07/P1-16 still have no valid H2A number (P3-06/P3-07 need new SDXL
-training; P1-16 could now be attempted relatively cheaply on top of the
-new P1-11 H2A output, though not yet done). Full write-up: `tickets/
-PHASE1-TICKETS.md` P1-11, `tickets/PHASE2-TICKETS.md` P2-09/P2-12,
-`tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
+P3-07 still have no valid H2A number (need new SDXL training). Full
+write-up: `tickets/PHASE1-TICKETS.md` P1-11, `tickets/PHASE2-TICKETS.md`
+P2-09/P2-12, `tickets/P2-12_atypia_classifier_evaluation_hardening.md`.
+
+**Update (2026-09-22): P1-16's raw-source-detail/colour-residual fusion
+(F3, σ=8, β=0.50) rerun on top of the H2A output above — tests whether
+fusion's post-hoc detail restoration changes the negative verdict.**
+4-step pipeline: identity-full DDIM-inversion on the H2A checkpoint (job
+56480, 4464 rows), fusion (job 57180, 1488/1488 crops), structural
+scoring (job 57193), atypia rescoring (job 57598, P2-12's hardened
+scorer, `--raw-hamamatsu-tag a0`, `--tag-direction a0=A2H p1_16_fusion/
+h2a_f3_s8_b0.50_full=H2A`).
+
+Fusion delivers a large, genuine structural/colour improvement — SSIM
+0.5477 → **0.7304** pooled (+0.183 absolute, ~33% relative), colour
+regression Δlab -15.64 → **-5.34** pooled (roughly a third the size, on
+every single slide including the A06 outlier: -12.84→-2.72). But frame-
+level atypia recovery_delta is **0.0** (95% CI [-0.025, +0.025], n=120) —
+an exact tie with `raw_hamamatsu`, essentially unchanged from the
+pre-fusion -0.025 result and still solidly inside the "no genuine effect"
+band.
+
+**Bottom line: fusion's benefit is real but structural/colour-only — it
+does not translate into any downstream clinical-utility gain.** The
+negative atypia-classifier verdict now holds across every H2A
+configuration tested to date, including the project's best architecture
+and its post-hoc fusion refinement. P3-06/P3-07 remain the only untested
+configurations. Full write-up: `tickets/PHASE1-TICKETS.md` P1-16,
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md` §8.5.
 
 **Diffusion vs. classical on this metric specifically: diffusion is
 closer to harmless than classical, though neither genuinely wins — and

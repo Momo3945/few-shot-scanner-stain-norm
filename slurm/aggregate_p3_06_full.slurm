@@ -8,6 +8,11 @@
 #
 # Submit with no args:
 #   sbatch aggregate_p3_06_full.slurm
+#
+# TAG (env var, not positional -- additive, defaults to p3_06_full_heldout
+# so every existing invocation above is unchanged): P3-06b/P3-07 H2A needs
+# a separate summary dir, e.g.:
+#   TAG=p3_06_h2a_full_heldout sbatch aggregate_p3_06_full.slurm
 # =====================================================================
 
 #SBATCH --job-name=agg_p3_06_full
@@ -24,9 +29,10 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-PER_CROP=${DATA_ROOT}/eval/p3_06_full_heldout_summary/per_crop.csv
+TAG=${TAG:-p3_06_full_heldout}
+PER_CROP=${DATA_ROOT}/eval/${TAG}_summary/per_crop.csv
 BASELINE=${DATA_ROOT}/pairs/baseline_metrics/baseline_summary.csv
-OUT=${DATA_ROOT}/eval/p3_06_full_heldout_summary/eval_summary_final.csv
+OUT=${DATA_ROOT}/eval/${TAG}_summary/eval_summary_final.csv
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
 conda activate stainnorm

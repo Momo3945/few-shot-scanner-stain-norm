@@ -865,16 +865,24 @@ improvement) — but relative to classical, it is the less harmful choice
 on this specific metric, which is a distinct claim from "no clinical
 utility" and should not be conflated with it.
 
-**What remains open:** P3-06/P3-07/P1-16 still have no valid H2A
-clinical-utility number at all (§8's per-architecture cost breakdown —
-P3-06/P3-07 need genuine new SDXL training, not just inference; P1-16 is
-a post-hoc fusion on top of P1-11 and could now be attempted relatively
-cheaply against the new P1-11 H2A output, though that hasn't been done).
-Given the P1-10/P1-11 result above, there is now real evidence this
-negative pattern generalises beyond the cheap A0-A5 ladder to this
-project's actual best configuration — but P3-06/P3-07/P1-16 remain
-untested, separate, explicit follow-on work, not concluded by this
-ticket.
+**What remains open:** P3-06/P3-07 still have no valid H2A clinical-utility
+number at all (§8's per-architecture cost breakdown — need genuine new
+SDXL training, not just inference). **P1-16 H2A is now done** (2026-09-22,
+`tickets/PHASE1-TICKETS.md` P1-16's H2A extension, 4-step pipeline: fresh
+identity-full DDIM inversion job 56480, F3 σ=8 β=0.50 fusion job 57180,
+structural scoring job 57193, atypia rescoring job 57598) — frame-level
+recovery_delta = **0.0** (95% CI [-0.025, +0.025], n=120), an exact tie
+with `raw_hamamatsu`, essentially unchanged from P1-11's own pre-fusion
+H2A result (-0.025, 95% CI [-0.075, +0.025]). Fusion delivered a large,
+genuine structural/colour improvement (SSIM 0.548→0.730, Δlab -15.64→
+-5.34, both P1-16's own ticket) but **did not move the atypia-classifier
+verdict at all** — the downstream clinical-utility metric is indifferent
+to fusion. Given the P1-10/P1-11 result plus this P1-16 extension, this
+negative pattern now generalises beyond the cheap A0-A5 ladder across
+every H2A configuration tested to date, including the project's best
+structural architecture and its post-hoc fusion refinement. P3-06/P3-07
+remain the only untested configurations, separate, explicit follow-on
+work, not concluded by this ticket.
 
 ---
 
