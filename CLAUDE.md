@@ -203,6 +203,14 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   this node while every other run on `mscluster22` finished in ~21-22min
   (2026-08-10). Use `--exclude=mscluster40` if a `stampede` job runs
   suspiciously long.
+- **`mscluster38` (on `stampede`) showed the same slow/contended signature**
+  (2026-09-22, P3-06b/P3-07 H2A scoring, job 58265): TIMEOUT'd at the
+  script's default `--time=00:30:00` scoring 1488 crops, while the
+  identical-scale A2H scoring job (46360, same script/resolution/crop
+  count) completed in 21:53 on a different node. Single occurrence so far
+  (same confidence level as `mscluster40`/`mscluster61` before their
+  second corroborating hit) — exclude pre-emptively alongside `mscluster40`
+  on any `stampede` job that seems to be running suspiciously long.
 - **`mscluster61` (on `bigbatch`) showed the same slow/contended signature for
   a GPU job** (2026-08-27/28, P3-07 D2, job 47330): measured throughput 42.4s
   per SDXL 50-step-DDIM 1024 output vs 17.5s/output for the identical script
