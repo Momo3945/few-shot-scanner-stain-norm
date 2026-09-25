@@ -1371,7 +1371,10 @@ architecture regardless of direction or resolution. Going straight to
 2000 steps for the overfit control this time rather than repeating that
 cycle.
 
-**Overfit-8 control, 2000 steps, job 59739, submitted 2026-09-25.**
+**Overfit-8 control, 2000 steps.** First attempt (job 59739) hit
+`mscluster62` (bad node, independently corroborated the same day by a
+concurrent P3-07c job) — fail-fast caught it correctly within 36s, no
+compute lost. Resubmitted as **job 60008** with the updated exclude list.
 `PAIRS_DIR=/datasets/mhoosen/stain-norm/pairs/train_1024 RESOLUTION=1024
 OVERFIT_N=8 DIRECTION=H2A`, `--time=01:15:00` (from job 46512's own
 53:59 wall-clock for the equivalent A2H@1024 2000-step run).
