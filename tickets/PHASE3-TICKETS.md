@@ -1350,6 +1350,50 @@ clinical-utility evidence until P2-12 lands and a genuine H→A rerun
 exists (nontrivial for P3-07 specifically — needs fresh SDXL training,
 per P2-12 §11, since H→A was never trained for this architecture).
 
+## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
+**Status:** 🔄 IN PROGRESS (started 2026-09-25).
+**Source:** the 1024px, ≤50-pair follow-on to P3-06b/P3-07 H2A (above),
+completing the same H2A extension for P3-07's resolution variant, per
+this section's own scope note ("P3-07 H2A ... remains a separate,
+not-yet-started follow-on"). Same clinical-utility motivation as P3-06 H2A
+(P2-12 §0/§11's A→H-only gap) and same "no new code" situation —
+`train_colour_translation_lora_sdxl.py`/`infer_colour_translation_sdxl.py`
+already take `--direction H2A`; only `PAIRS_DIR=pairs/train_1024
+RESOLUTION=1024` needs adding on top of the H2A override, both already
+proven independently (P3-07 A2H uses the resolution override, P3-06 H2A
+uses the direction override).
+
+**Learning applied from precedent, before running anything:** both P3-06
+H2A (this file, above) and P3-07's own A2H overfit control needed
+escalation from 300 to 2000 steps before the source-conditioning ablation
+passed — the 300-step attempt is an established dead end for this
+architecture regardless of direction or resolution. Going straight to
+2000 steps for the overfit control this time rather than repeating that
+cycle.
+
+**Overfit-8 control, 2000 steps, job 59739, submitted 2026-09-25.**
+`PAIRS_DIR=/datasets/mhoosen/stain-norm/pairs/train_1024 RESOLUTION=1024
+OVERFIT_N=8 DIRECTION=H2A`, `--time=01:15:00` (from job 46512's own
+53:59 wall-clock for the equivalent A2H@1024 2000-step run).
+
+**Next steps (staged, each gated on explicit confirmation):** source-
+conditioning ablation (correct/zero/shuffled) against the 2000-step
+checkpoint → full 4000-step training (`lora/h2a_cond_r8_sdxl_1024/`,
+expect ~4:59 from job 46552's A2H@1024 figure) → full 496x3-seed held-out
+inference at `--crop 1024` (expect ~5:45 from job 47029's A2H@1024
+figure) → score (expect ~1:06 from job 47975) + aggregate.
+
+**Outcome-risk note (carried over from this ticket's original scoping):**
+P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
+only rescued by P3-07b's supplementary 96-pair run (+1.74, outside H1's
+≤50-pair scope). P3-06 H2A's result (colour recovery flips *stronger*
+positive under H2A, opposite of SD1.5's collapse) suggests H2A may not
+simply inherit P3-07 A2H's negative-recovery problem — but this is
+untested at 1024 specifically, and the ≤50-pair data-scarcity mechanism
+P3-07b diagnosed for A2H could behave differently (or the same) under
+H2A. Report the real result either way, don't assume it mirrors either
+precedent.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or
