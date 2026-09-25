@@ -790,11 +790,44 @@ pattern as A2H (0.0853 -> 0.0671), floor landing marginally lower.
 written throughout, not just at the end; `best` == `final` at the last
 step). **P3-06 H2A training is DONE.**
 
-**Next step:** full 496-crop x 3-seed held-out inference run (matching job
-46226's A2H config exactly: `source-mode=correct`, checkpoint
-`lora/h2a_cond_r8_sdxl/final`, `LIMIT=0` for all held-out frames,
-`DIRECTION=H2A`, default 3 seeds — `--seeds 0 1 2` is the script's own
-default, no override needed) — awaiting go-ahead.
+**Full 496-crop x 3-seed held-out inference (2026-09-21), job 57599**
+(resubmission of job 57179 — same `mscluster57` hit as training, see
+above), **COMPLETED 2:32:55** — essentially identical wall-clock to job
+46226's A2H run (2:33:51). 1488 output crops written (496 locations x 3
+seeds), manifest verified (1489 rows = 1488 + header).
+
+**Scoring (jobs 58265 FAILED/TIMEOUT on `mscluster38` — a new slow/
+contended `stampede` node, added to CLAUDE.md; resubmitted as job 58459
+with `--time=01:00:00` and the exclusion, COMPLETED 26:09) + aggregation
+(job 58469, COMPLETED 0:52) — FINAL RESULT:**
+
+| Scope | n | SSIM | recovery Δlab |
+|---|---|---|---|
+| ALL | 1488 | 0.3555 | **+9.47** |
+| ALL excl. A06 | 1296 | 0.3728 | +8.08 |
+| A06 (outlier, z=31.5) | 192 | 0.2386 | +18.85 |
+| A08 | 336 | 0.3797 | +6.98 |
+| A09 | 288 | 0.3300 | +10.43 |
+| A13 | 192 | 0.3565 | +8.35 |
+| A16 | 480 | 0.4002 | +7.33 |
+
+**This is the OPPOSITE of SD1.5's H2A pattern.** P1-10/P1-11's SD1.5 H2A
+result reversed sign decisively vs its own A2H point (+2.89 -> **-15.64**,
+negative on every slide, no exceptions — `tickets/PHASE1-TICKETS.md`
+P1-11). SDXL H2A does the reverse: colour recovery is positive on **every
+single slide**, no exceptions, and *stronger* than SDXL's own A2H point
+(+1.22 -> **+9.47**, roughly 7-8x). SSIM stays close to the A2H figure
+(0.3920 -> 0.3555, a modest ~9% relative dip, not a collapse) — unlike
+SD1.5, where SSIM actually *improved* under H2A (0.4485 -> 0.5477) while
+colour collapsed. The two backbones show genuinely divergent, not merely
+weaker/stronger, H2A behaviour — this is a real finding, not noise (A06
+alone is z=31.5, an extreme outlier by this project's own robust-flagging
+convention, but every non-outlier slide is independently positive too, so
+the pooled number isn't A06-driven).
+
+**Status: P3-06 H2A (512) is DONE, complete result above.** P3-07 H2A
+(1024, ≤50 pairs) remains a separate, not-yet-started follow-on per this
+section's original staged sequence — not started, awaiting go-ahead.
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
 **Status:** 🔄 IN PROGRESS (2026-08-25).
