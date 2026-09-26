@@ -1380,12 +1380,17 @@ OVERFIT_N=8 DIRECTION=H2A`. **COMPLETED 57:18** — close to job 46512's own
 53:59 (A2H@1024, same step count). Checkpoint saved to
 `lora/h2a_cond_r8_sdxl_1024_overfit8/final`, no NaN.
 
-**Next steps (staged, each gated on explicit confirmation):** source-
-conditioning ablation (correct/zero/shuffled) against the 2000-step
-checkpoint → full 4000-step training (`lora/h2a_cond_r8_sdxl_1024/`,
-expect ~4:59 from job 46552's A2H@1024 figure) → full 496x3-seed held-out
-inference at `--crop 1024` (expect ~5:45 from job 47029's A2H@1024
-figure) → score (expect ~1:06 from job 47975) + aggregate.
+**Source-conditioning ablation at 2000 steps, 1024px (jobs 60646/60647/60648
+correct/zero/shuffled, all COMPLETED cleanly, 24 crops each; scored job
+60739, pending).**
+
+**Next steps (staged, each gated on explicit confirmation):** confirm
+ablation passes decisively (bar to clear: correct beats both controls by
+~2-3x SSIM, matching every prior ablation in this project) → full
+4000-step training (`lora/h2a_cond_r8_sdxl_1024/`, expect ~4:59 from job
+46552's A2H@1024 figure) → full 496x3-seed held-out inference at
+`--crop 1024` (expect ~5:45 from job 47029's A2H@1024 figure) → score
+(expect ~1:06 from job 47975) + aggregate.
 
 **Outcome-risk note (carried over from this ticket's original scoping):**
 P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
