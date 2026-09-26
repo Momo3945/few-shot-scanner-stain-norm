@@ -1463,6 +1463,80 @@ atypia-classifier result (-0.025) has NOT been rerun at f=0.25 -- still
 reflects the f=1.00 checkpoint's outputs, flagged as an open follow-up,
 not claimed as reversed.
 
+---
+
+### Future work: literature-informed ideas to close the classical-baseline
+### SSIM gap further (2026-09-27, none started yet)
+
+Prompted by a correctness audit of the classical baselines and metrics
+(confirmed: Macenko/Reinhard/histogram-matching are all standard, verified
+implementations, `target-image` drawn only from training data, SSIM/LAB
+computation correct -- high classical SSIM is an expected property of
+pure colour-remap methods against a correctly-registered target, not a
+bug) plus a literature survey of other diffusion-based stain-transfer
+papers (StainFuser, StainDiff, HistDiST, and a broader stain-normalisation
+review). This project's own finding -- classical wins on structure,
+diffusion needs P1-16's post-hoc fusion to catch up -- is consistent with
+the published literature, not an anomaly; the one paper found that beats a
+classical baseline (Vahadane) on SSIM with a similar ControlNet-style
+architecture (StainFuser, arXiv 2403.09302: SSIM 0.875 vs 0.844) does so
+on 2,097,152 training images against this project's ~50-pair few-shot
+budget -- a >40,000x data-scale gap.
+
+Ideas below, ordered easiest/cheapest to hardest, none implemented yet --
+proposals for a future session, not commitments:
+
+1. **Sweep `--controlnet-scale` upward** (near-zero cost, inference-only,
+   no retraining). Already an exposed CLI flag on
+   `infer_colour_source_ddim_inversion.py`, defaults to 1.0. Forces the
+   structural conditioning harder during denoising -- same "trade
+   structure against colour" lever already proven to work in the opposite
+   direction via the H2A fraction fix above. Track paired SSIM/LAB the
+   same way.
+2. **Genuine self-ensembling** (StainDiff's technique -- cheap, but needs
+   a real fix first, not just averaging what already exists). This
+   project's DDIM inversion at `eta=0` is fully deterministic -- the 3
+   "seeds" per crop currently produce numerically identical outputs, so
+   naively averaging them does nothing. Would need `eta>0` in the forward
+   `DDIMScheduler.step()` call to inject genuine per-seed stochasticity
+   first (a small, contained code change to `reconstruct()`), then average
+   multiple truly-different outputs.
+3. **Post-hoc detail fusion on any remaining un-fused configs** (mostly
+   already done). This is P1-16's own technique, already the project's
+   best result (SSIM 0.729, beats classical) and already applied to the
+   H2A checkpoint (0.5477->0.7304, `tickets/PHASE1-TICKETS.md` P1-16). Not
+   a new idea -- listed here only as "check for any remaining un-fused
+   configuration before trying anything more expensive."
+4. **Cycle-consistency training constraint** (moderate -- real code change
+   + retraining, but contained scope). StainDiff's approach: add a loss
+   term that translates then inverts back and penalises drift from the
+   original. Modifies the training loop (`train_colour_translation_lora.py`),
+   needs a retrain, but should get the same mandatory overfit-control
+   check every new architecture change in this project already goes
+   through before a full run.
+5. **v-prediction + zero-SNR + trailing-timestep scheduling** (significant
+   -- full retrain, real architecture change). HistDiST's own fix for
+   structural/brightness bias -- this project's code comments already flag
+   that it deliberately does NOT use these settings (a genuine, identified
+   gap, not an oversight). Not an inference-time swap on the existing
+   epsilon-trained checkpoint: changes the training objective itself, so
+   needs a full retrain, and every downstream script that does manual DDIM
+   math (inversion, guidance combination) would need re-deriving for
+   v-prediction.
+6. **Scale up training data** (hardest, likely out of scope for this
+   project's few-shot framing). StainFuser's actual answer -- millions of
+   images vs. this project's ~50. Full-scale replication is impractical
+   for a few-shot honours thesis, but a middle ground exists: `hist_lora_
+   pool/` already has more MITOS/PanNuke/TCGA patches available than the
+   50 pairs currently used for the colour LoRA (used elsewhere for A5's
+   warm-start) -- worth checking whether a modestly larger pair budget (a
+   few hundred, not millions) moves SSIM directionally, without abandoning
+   the few-shot framing entirely.
+
+**Recommended starting point if this thread gets picked up again:** #1
+(ControlNet-scale sweep) -- essentially free, and directly tests the same
+mechanism already proven to work via the H2A fraction fix.
+
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
 **Status:** 🔄 IN PROGRESS (2026-08-22) -- data-driven follow-up, not from
