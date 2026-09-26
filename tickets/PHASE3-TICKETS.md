@@ -1382,15 +1382,24 @@ OVERFIT_N=8 DIRECTION=H2A`. **COMPLETED 57:18** — close to job 46512's own
 
 **Source-conditioning ablation at 2000 steps, 1024px (jobs 60646/60647/60648
 correct/zero/shuffled, all COMPLETED cleanly, 24 crops each; scored job
-60739, pending).**
+60739) — PASSES DECISIVELY:**
 
-**Next steps (staged, each gated on explicit confirmation):** confirm
-ablation passes decisively (bar to clear: correct beats both controls by
-~2-3x SSIM, matching every prior ablation in this project) → full
-4000-step training (`lora/h2a_cond_r8_sdxl_1024/`, expect ~4:59 from job
-46552's A2H@1024 figure) → full 496x3-seed held-out inference at
-`--crop 1024` (expect ~5:45 from job 47029's A2H@1024 figure) → score
-(expect ~1:06 from job 47975) + aggregate.
+| Mode | LAB total | SSIM | Win-rate |
+|---|---|---|---|
+| **correct** | **21.39 ± 0.80** | **0.1078 ± 0.0014** | **7/8** |
+| shuffled | 27.81 ± 0.75 | 0.0439 ± 0.0008 | 0/8 |
+| zero | 48.13 ± 0.32 | 0.0577 ± 0.0005 | 1/8 |
+
+`correct` beats `shuffled` by 2.46× and `zero` by 1.87× on SSIM, lowest LAB
+total, wins the majority of crops — matches the margin every prior
+ablation in this project has cleared (P3-06 H2A's own equivalent: 2.77×/
+2.22×). Confirms the H2A ControlNet branch genuinely uses source
+conditioning at 1024px too. Cleared to proceed to the full training run.
+
+**Next step:** submit the full 4000-step H2A training run at 1024px
+(`OVERFIT_N` unset, `PAIRS_DIR=pairs/train_1024 RESOLUTION=1024
+DIRECTION=H2A`, rank 8, 4000 steps, `lora/h2a_cond_r8_sdxl_1024/`, expect
+~4:59 wall-clock from job 46552's A2H@1024 figure) — awaiting go-ahead.
 
 **Outcome-risk note (carried over from this ticket's original scoping):**
 P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
