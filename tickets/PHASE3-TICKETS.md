@@ -1376,8 +1376,9 @@ cycle.
 concurrent P3-07c job) — fail-fast caught it correctly within 36s, no
 compute lost. Resubmitted as **job 60008** with the updated exclude list.
 `PAIRS_DIR=/datasets/mhoosen/stain-norm/pairs/train_1024 RESOLUTION=1024
-OVERFIT_N=8 DIRECTION=H2A`, `--time=01:15:00` (from job 46512's own
-53:59 wall-clock for the equivalent A2H@1024 2000-step run).
+OVERFIT_N=8 DIRECTION=H2A`. **COMPLETED 57:18** — close to job 46512's own
+53:59 (A2H@1024, same step count). Checkpoint saved to
+`lora/h2a_cond_r8_sdxl_1024_overfit8/final`, no NaN.
 
 **Next steps (staged, each gated on explicit confirmation):** source-
 conditioning ablation (correct/zero/shuffled) against the 2000-step
