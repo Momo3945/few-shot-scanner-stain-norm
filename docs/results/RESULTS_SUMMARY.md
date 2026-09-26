@@ -1365,6 +1365,31 @@ so it silently fell back to CPU instead of aborting — harmless at this
 scale (4:34 for ~2k crops) but noted in `CLAUDE.md` as worth fixing
 before a larger run relies on GPU speed.
 
+**Update (2026-09-26): the -15.64 pooled colour-recovery figure above was
+diagnosed and substantially improved, not overturned.** Investigation
+traced it to the DDIM-inversion `f=1.00` (full-inversion) default, carried
+over from A2H without re-sweeping — full inversion discards the original
+pixel signal before redenoising, letting the H2A colour-LoRA's bias run
+unconstrained (visually confirmed: the f=1.00 output was *more*
+saturated/magenta than even the raw Hamamatsu source, moving away from
+Aperio's paler target). A fraction sweep (smoke scale, jobs 55196-55201)
+found colour improves monotonically as the fraction drops, with no SSIM
+cost; re-verified at full scale (job 58266/58464/59740, `f=0.25`): pooled
+recovery Δlab improves from -15.64 to **-6.19** (SSIM also improves
+slightly, 0.5477→0.5553), every slide improving by roughly half to
+two-thirds. No bug found in the scoring/aggregation pipeline (independently
+re-verified: the metric is a symmetric distance, so reusing the A2H
+baseline file is valid; the fraction-handling code correctly anchors
+reconstruction to the actual inversion stopping point). Recovery is still
+net negative, so this does **not** reverse the clinical-utility verdict
+above — but the atypia-classifier recovery_delta (-0.025) has not been
+rerun against the f=0.25 outputs; P1-16's fusion precedent (a similarly-
+sized colour improvement above that moved the classifier delta not at
+all) suggests a rescore may show the same pattern, but that is not yet
+confirmed for this setting. Full write-up: `tickets/PHASE1-TICKETS.md`
+P1-11's diagnostic follow-up, `tickets/
+P2-12_atypia_classifier_evaluation_hardening.md`.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

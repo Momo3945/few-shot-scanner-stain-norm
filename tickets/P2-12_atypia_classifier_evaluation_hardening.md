@@ -839,6 +839,25 @@ but colour recovery is negative on every single held-out slide (pooled
 Full write-up: `tickets/PHASE1-TICKETS.md` P1-11, `tickets/
 PHASE2-TICKETS.md` P2-09.
 
+**Update (2026-09-26): the -15.64 pooled colour figure above was diagnosed
+and substantially improved, NOT overturned.** Investigation (full detail:
+`tickets/PHASE1-TICKETS.md` P1-11's diagnostic follow-up) found the
+DDIM-inversion `f=1.00` (full-inversion) default, carried over from A2H
+without re-sweeping, was letting the H2A colour-LoRA's bias run
+unconstrained. A fraction sweep + full-scale re-verification (job
+58266/58464/59740) found `f=0.25` improves pooled recovery Δlab from
+-15.64 to **-6.19** (SSIM also improves slightly, 0.5477->0.5553) — no bug
+found in the scoring/aggregation pipeline, confirmed by independent code
+review and direct visual/pixel-level inspection of output crops. Recovery
+is still net negative, so this does **not** reverse the "no significant
+clinical-utility benefit" verdict above — but the atypia-classifier
+recovery_delta (-0.025) has NOT been rerun against the f=0.25 outputs yet.
+Worth noting the precedent below: P1-16's own H2A colour-residual fusion
+achieved a similarly-sized colour improvement (-15.64→-5.34) and moved the
+classifier delta not at all (stayed an exact tie at 0.0) — suggestive that
+a f=0.25 rescore may show the same pattern, but not yet confirmed for this
+specific checkpoint/setting, so not claimed as reversed.
+
 **Diffusion vs. classical on this metric specifically, ranked (2026-09-15,
 recomputed directly from `atypia_classifier_scores_h2a_fixed/per_frame.csv`,
 not from memory of the earlier pooled table): diffusion is closer to

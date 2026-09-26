@@ -1358,13 +1358,110 @@ fell back to CPU -- harmless here (4:34 total for ~2k crops), logged in
 `CLAUDE.md` as a tooling gap worth closing eventually, not urgent given
 the low cost at this scale.
 
-**Combined verdict: P1-10/P1-11 H2A extends P2-12's conclusion to this
-project's own best-performing architecture.** Even the configuration with
-this project's strongest SSIM/structural numbers shows no significant
-downstream-classifier benefit (-0.025, CI crosses zero) and a genuine,
-uniform colour-recovery regression under the direction the clinical-
-utility claim actually requires. `tickets/PHASE2-TICKETS.md` P2-09/P2-12
-updated accordingly.
+**Combined verdict (superseded below by the fraction-sweep diagnostic --
+still valid as the f=1.00 characterisation): P1-10/P1-11 H2A extends
+P2-12's conclusion to this project's own best-performing architecture.**
+Even the configuration with this project's strongest SSIM/structural
+numbers shows no significant downstream-classifier benefit (-0.025, CI
+crosses zero) and a genuine, uniform colour-recovery regression under the
+direction the clinical-utility claim actually requires. `tickets/
+PHASE2-TICKETS.md` P2-09/P2-12 updated accordingly.
+
+---
+
+### Diagnostic follow-up (2026-09-16/26): why does colour regress despite
+### strong structure, and is it a bug?
+
+**Question raised:** the -15.64 pooled recovery Δlab is a large, uniform
+regression (every slide negative, no exception) alongside this
+architecture's best-ever SSIM (0.5477) -- worth confirming this is a real
+model behaviour, not a scoring or pipeline bug, before accepting it as a
+finding.
+
+**Code review (2026-09-26), specifically checking for bugs before writing
+this up:**
+- `recovery_delta`'s formula (`aggregate_p1_10_full.py`) is `baseline_lab -
+  method_lab`, and the baseline comes from `pairs/baseline_metrics/
+  baseline_summary.csv` -- the SAME file used for A2H. This is valid, not a
+  direction mixup: the underlying metric (`metrics.py`'s `lab_wasserstein`,
+  `scipy.stats.wasserstein_distance`) is a mathematically symmetric
+  distance, so the "raw, do-nothing" distance between an Aperio crop and
+  its registered Hamamatsu pair is identical regardless of which one is
+  labelled "source" -- confirmed empirically too: the aggregation's A06
+  baseline (94.84) matches `baseline_summary.csv`'s own recorded A06 value
+  (94.84) exactly.
+- P2-12 §0 explicitly documents that its direction bug (classifier trained
+  on Aperio only) does NOT affect these SSIM/LAB metrics, which "compare a
+  method's output against the real target of whichever direction it was
+  generated in... internally consistent regardless of A2H vs H2A" -- ruled
+  out as the cause.
+- `infer_colour_source_ddim_inversion.py`'s `invert()`/`reconstruct()`
+  fraction handling reviewed line-by-line: `t_end` (where inversion stops)
+  and `reconstruct()`'s forward-schedule cutoff are both derived from the
+  SAME resolved scheduler config via `.from_config(pipe.scheduler.config)`,
+  so the two grids align correctly; a lower `--inversion-fraction`
+  genuinely retains more of the original latent signal before redenoising,
+  not an accidental shortcut. No bug found here either.
+
+**Visual/pixel-level check (job-sourced crops, A08_00A/A16_00A, viewed
+directly, not just aggregate metrics):** the H2A f=1.00 output is visibly
+*more* saturated/magenta than even the raw Hamamatsu source -- moving away
+from the real Aperio target's paler look, not toward it. Per-channel means
+confirm it quantitatively (A08: G channel needs to rise from 130.9 toward
+target 151.8, but the f=1.00 output falls to 119.0 -- the wrong direction
+and a larger absolute gap than doing nothing).
+
+**Hypothesis and fix tested:** full inversion (`f=1.00`) discards the
+original pixel signal entirely before redenoising, letting whatever colour
+bias the H2A colour-LoRA has run unconstrained. A lower fraction anchors
+the output closer to the input. Tested a fraction sweep (`f=0.25/0.50/
+0.75/1.00`, identity + translate modes, smoke scale `LIMIT=20`, jobs
+55196-55201, scored by jobs 57466-57473 after an initial pooled-scoring
+mistake was caught and corrected -- source_mode alone doesn't distinguish
+fraction, so each fraction needed its own scoring call, not one combined
+call):
+
+| Fraction | translate SSIM | translate LAB | identity SSIM | identity LAB |
+|---|---|---|---|---|
+| f=1.00 | 0.4343 | 95.95 | 0.6421 | 18.32 |
+| f=0.75 | 0.4338 | 93.33 | 0.6522 | 12.33 |
+| f=0.50 | 0.4362 | 90.02 | 0.6595 | 8.59 |
+| f=0.25 | **0.4388** | **89.21** | **0.6666** | **7.78** |
+
+Monotonic: colour improves and SSIM holds/slightly improves as fraction
+decreases, with identity-mode LAB converging toward the pure-VAE-
+reconstruction floor (7.66) -- confirms the mechanism directly.
+
+**Confirmed at full scale (job 58266, all 5 slides x 3 seeds, f=0.25,
+COMPLETED 01:48:00; scored by job 58464; aggregated by job 59740 via
+`aggregate_p1_10_h2a_full.slurm`'s new non-breaking `RUN_TAG` override):**
+
+| | f=1.00 (original) | f=0.25 (fixed) | Δ |
+|---|---|---|---|
+| SSIM (ALL) | 0.5477 | **0.5553** | +0.0076 |
+| recovery Δlab (ALL) | -15.64 | **-6.19** | +9.45 |
+| recovery Δlab (excl. A06) | -16.05 | **-6.06** | +9.99 |
+
+Every individual slide's recovery improved by roughly half to two-thirds
+(A06 -12.84->-7.04, A08 -16.50->-6.53, A09 -14.89->-5.39, A13
+-15.30->-7.07, A16 -16.74->-5.73). Visually re-confirmed on the same
+A08/A16 crops: f=0.25's output sits much closer to the raw Hamamatsu
+source's colour (B-channel mean essentially matches the real Aperio
+target now, 184.7 vs 183.2 target for A08, versus f=1.00's 200.7
+overshoot) rather than overshooting past it.
+
+**Revised verdict:** the negative colour recovery under H2A is real but
+was substantially amplified by an unexamined `f=1.00` default carried over
+from A2H without re-sweeping -- not purely an architectural/direction
+limitation. The fix roughly halves to thirds the regression and holds up
+under full-scale re-verification, but recovery is still net negative
+(-6.19, not positive) -- **this does not reverse P2-12's clinical-utility
+conclusion**, which was already correctly qualified as "no significant
+benefit," not "actively harmful"; it does mean the -15.64 number should no
+longer be cited as this architecture's ceiling under H2A. The
+atypia-classifier result (-0.025) has NOT been rerun at f=0.25 -- still
+reflects the f=1.00 checkpoint's outputs, flagged as an open follow-up,
+not claimed as reversed.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 

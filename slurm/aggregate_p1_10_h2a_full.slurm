@@ -29,9 +29,13 @@ set -euo pipefail
 
 CODE_DIR=/home-mscluster/mhoosen/stain-norm
 DATA_ROOT=/datasets/mhoosen/stain-norm
-PER_CROP=${DATA_ROOT}/eval/p1_10_ddim_inversion/h2a_translate_inv100_correct_full_summary/per_crop.csv
+# RUN_TAG override (non-breaking): lets this launcher target any H2A full-run
+# summary dir, not just the original f=1.00 one -- added for the f=0.25
+# fraction-sweep follow-up run.
+RUN_TAG=${RUN_TAG:-h2a_translate_inv100_correct_full}
+PER_CROP=${DATA_ROOT}/eval/p1_10_ddim_inversion/${RUN_TAG}_summary/per_crop.csv
 BASELINE=${DATA_ROOT}/pairs/baseline_metrics/baseline_summary.csv
-OUT=${DATA_ROOT}/eval/p1_10_ddim_inversion/h2a_translate_inv100_correct_full_summary/eval_summary_final.csv
+OUT=${DATA_ROOT}/eval/p1_10_ddim_inversion/${RUN_TAG}_summary/eval_summary_final.csv
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
 conda activate stainnorm
