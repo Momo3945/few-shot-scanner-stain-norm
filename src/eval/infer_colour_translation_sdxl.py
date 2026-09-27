@@ -385,6 +385,7 @@ def main():
                         c["slide"], c["frame"], c["x"], c["y"],
                         os.path.relpath(out_path, out_dir), os.path.relpath(ref_path, out_dir),
                         c["aperio_path"]])
+            man.flush()
             n_out += 1
 
     man.close()
