@@ -1493,6 +1493,83 @@ P3-07b diagnosed for A2H could behave differently (or the same) under
 H2A. Report the real result either way, don't assume it mirrors either
 precedent.
 
+### D1 — why is the A2H/H2A colour-recovery asymmetry backbone-dependent?
+
+**Question:** SDXL's H2A colour recovery is robustly positive regardless of
+resolution/pair-count (+9.47 @512, +9.20 @1024≤50pr) while its A2H recovery
+is fragile (+1.22 @512, -5.60 @1024≤50pr); SD1.5 shows the *opposite*
+asymmetry (A2H +2.89, H2A -15.64). Why?
+
+**Hypothesis tested:** each frozen pretrained backbone carries its own
+inherent generative colour bias (from pretraining, independent of any
+scanner fine-tuning) that sits closer to one real scanner's palette than
+the other — the direction whose TARGET already matches that bias would be
+easier/more robust; the direction fighting it would be fragile.
+
+**Method (2026-09-27, `src/eval/diagnose_direction_colour_bias.py`, job
+61016, no new training/inference — reuses the mandatory `zero`-mode
+source-conditioning ablation outputs that already exist for every trained
+checkpoint):** with the ControlNet's conditioning forced to zero, the
+output should reflect only the frozen backbone + trained colour LoRA's own
+default, not genuine source guidance. Computed each zero-mode output set's
+mean L\*a\*b\* (OpenCV convention) and compared it against the real,
+run-independent domain-wide mean L\*a\*b\* of Aperio and Hamamatsu (all 50
+`pairs/train` crops each side).
+
+| Backbone | Direction | mean L\*a\*b\* | dist→Aperio | dist→Hamamatsu | closer to | own TARGET |
+|---|---|---|---|---|---|---|
+| SD1.5 | A2H | [158.5, 169.1, 123.2] | 4.07 | 19.36 | **Aperio** | Hamamatsu — mismatch |
+| SD1.5 | H2A | [144.3, 178.3, 104.9] | 24.85 | 9.57 | **Hamamatsu** | Aperio — mismatch |
+| SDXL@512 | A2H | [149.8, 171.8, 119.6] | 8.61 | 10.53 | **Aperio** | Hamamatsu — mismatch |
+| SDXL@512 | H2A | [146.5, 166.7, 116.7] | 11.49 | 7.66 | **Hamamatsu** | Aperio — mismatch |
+| SDXL@1024 | A2H | [159.7, 156.3, 129.1] | 12.58 | 28.37 | **Aperio** | Hamamatsu — mismatch |
+| SDXL@1024 | H2A | [144.5, 173.9, 110.1] | 18.99 | 3.18 | **Hamamatsu** | Aperio — mismatch |
+
+(Real domain-to-domain LAB distance, for scale: 17.97.)
+
+**Result: the hypothesis is not supported — refuted, in fact, by a
+unanimous pattern that points to a different mechanism.** Every single
+combination's zero-mode output leans toward its own **SOURCE** domain,
+never its target, with no exception across either backbone or either
+resolution. This is not backbone-specific colour bias at all — it is
+consistent with something more basic: `zero` mode still runs a genuine
+img2img pass starting from the real source image's noised latent (only
+the ControlNet's *extra* 6-channel conditioning input is zeroed, not the
+img2img initialisation itself), so source colour survives partial
+denoising and dominates the output regardless of backbone or LoRA. This is
+a correction to how `zero` mode should be read: it isolates whether the
+*ControlNet branch specifically* affects output (its original, valid
+purpose, confirmed working by every ablation in this project), but it does
+**not** isolate "the backbone's colour-free default" — colour in `zero`
+mode is dominated by this img2img source-latent leak, not by an
+unconditioned generative prior.
+
+**Secondary observation, not a full explanation:** the margin by which
+each combo leans toward source varies substantially — SDXL@512 barely
+leans toward source at all (margins 1.92/3.83) while SD1.5 and SDXL@1024
+lean hard toward it (margins ~15.3–15.8, suspiciously similar to each
+other). This means SDXL@512's colour LoRA exerts comparatively more
+independent pull against the source-persistence effect than SD1.5's or
+SDXL@1024's does — plausibly relevant to *some* of the story, but it does
+not visibly track the actual recovery numbers in an obvious monotonic way
+(e.g. SDXL@512's own A2H recovery, +1.22, is barely better than its H2A
+recovery's *sign*, +9.47, despite both directions showing similarly small
+source-leak margins).
+
+**Honest conclusion: this diagnostic answers a real, useful question (what
+does `zero` mode's colour actually reflect?) but does not explain the
+backbone-dependent A2H/H2A asymmetry itself.** The asymmetry's real cause
+must lie in how strongly the *genuinely-conditioned* model (real
+ControlNet input + colour LoRA together, not the zero-mode control) pushes
+colour once source structure is actually supplied — something this
+zero-mode-based test cannot isolate, since real inference always starts
+from a real source image too. A cleaner test would need pure text-to-image
+generation (the fixed prompt + trained LoRA, from full noise, no img2img
+source at all) per backbone/direction, to see the model's actual
+colour-free default — **not yet run**, would need new inference (small,
+cheap generations, but genuinely new compute, not a reuse of existing
+outputs) and its own explicit go-ahead before submitting.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or
