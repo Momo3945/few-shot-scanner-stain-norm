@@ -1545,9 +1545,28 @@ proposals for a future session, not commitments:
    with essentially no colour cost, and wins **80/80 crops** against its
    own individual members at every eta tested (confirms averaging
    genuinely helps, not luck). At eta=1.0 individual samples are too
-   degraded for averaging to fully recover. **Next: a finer eta sweep near
-   0.1-0.3 to find the actual peak (not yet tested below 0.3), then
-   full-scale verification at whichever eta wins.**
+   degraded for averaging to fully recover.
+
+   **Finer sweep (2026-09-27), peak located: jobs 60930-60933, scored by
+   60967-60970:**
+
+   | eta | ensemble SSIM | ensemble LAB |
+   |---|---|---|
+   | 0.0 (baseline) | 0.4015 | 62.73 |
+   | 0.1 | 0.4204 | 62.57 |
+   | 0.15 | 0.4324 | 62.47 |
+   | 0.2 | 0.4416 | 62.40 |
+   | 0.25 | 0.4473 | **62.39** (LAB minimum) |
+   | **0.3** | **0.4496** (SSIM peak) | 62.42 |
+   | 0.5 | 0.4381 | 63.05 |
+   | 1.0 | 0.3556 | 66.89 |
+
+   SSIM rises monotonically to a peak at eta=0.3, LAB falls monotonically
+   to a minimum at eta=0.25, then both degrade past that point -- the two
+   optima essentially coincide (0.25-0.3), confirming this is a real,
+   well-resolved peak, not noise. `ensemble` beats its own `member`s on
+   80/80 crops at every eta tested. **eta=0.3 is the recommended setting
+   -- next: full-scale (496-crop x 3-seed) verification.**
 3. **Post-hoc detail fusion on any remaining un-fused configs** (mostly
    already done). This is P1-16's own technique, already the project's
    best result (SSIM 0.729, beats classical) and already applied to the
