@@ -1396,10 +1396,20 @@ ablation in this project has cleared (P3-06 H2A's own equivalent: 2.77×/
 2.22×). Confirms the H2A ControlNet branch genuinely uses source
 conditioning at 1024px too. Cleared to proceed to the full training run.
 
-**Next step:** submit the full 4000-step H2A training run at 1024px
-(`OVERFIT_N` unset, `PAIRS_DIR=pairs/train_1024 RESOLUTION=1024
-DIRECTION=H2A`, rank 8, 4000 steps, `lora/h2a_cond_r8_sdxl_1024/`, expect
-~4:59 wall-clock from job 46552's A2H@1024 figure) — awaiting go-ahead.
+**Full 4000-step training run at 1024px (2026-09-26), job 60745,
+`mscluster58`, COMPLETED 1:48:16** — notably faster than job 46552's
+A2H@1024 figure (4:58:52, `mscluster81`) despite identical config; likely
+node-speed variance (different node, ~3x per-step difference — plausible
+given this project's own documented node-speed spread, e.g. mscluster61's
+2.4x slowdown), not a truncated run. Verified genuine: all 4000 steps
+present in the log, val_loss converges cleanly 0.0663 -> **0.0631 (best,
+final step)**. `lora/h2a_cond_r8_sdxl_1024/{best,final}` both saved and
+real. **P3-07 H2A training is DONE.**
+
+**Next step:** full 496-crop x 3-seed held-out inference run at
+`--crop 1024` (matching job 47029's A2H@1024 config exactly:
+`source-mode=correct`, checkpoint `lora/h2a_cond_r8_sdxl_1024/final`,
+`LIMIT=0`, `DIRECTION=H2A`, default 3 seeds) — awaiting go-ahead.
 
 **Outcome-risk note (carried over from this ticket's original scoping):**
 P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
