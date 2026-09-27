@@ -1429,10 +1429,14 @@ present in the log, val_loss converges cleanly 0.0663 -> **0.0631 (best,
 final step)**. `lora/h2a_cond_r8_sdxl_1024/{best,final}` both saved and
 real. **P3-07 H2A training is DONE.**
 
-**Next step:** full 496-crop x 3-seed held-out inference run at
-`--crop 1024` (matching job 47029's A2H@1024 config exactly:
-`source-mode=correct`, checkpoint `lora/h2a_cond_r8_sdxl_1024/final`,
-`LIMIT=0`, `DIRECTION=H2A`, default 3 seeds) — awaiting go-ahead.
+**Full 496-crop x 3-seed held-out inference run at 1024px (2026-09-27),
+job 60752, `mscluster58`, COMPLETED 5:53:50** — close to job 47029's
+A2H@1024 figure (5:44:54). 1488 output crops written (496 locations x 3
+seeds), manifest verified (1489 rows = 1488 + header).
+
+**Next step:** score (job pending, `--time=02:00:00` since 1024px crops
+take ~4x longer to score than 512px per this project's own established
+pattern) + aggregate — awaiting go-ahead.
 
 **Outcome-risk note (carried over from this ticket's original scoping):**
 P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
