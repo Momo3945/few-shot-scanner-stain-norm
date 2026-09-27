@@ -113,7 +113,25 @@ Sources: [paper](https://arxiv.org/abs/2506.05127), [GitHub](https://github.com/
 
 ## PXC-00 — Access, licensing disclosure, and model fetch
 
-**Status:** TODO — not started, first blocker.
+**Status:** ✅ DONE (2026-09-27, job 61028). All three models fetched and
+verified with real byte sizes, not exit codes (`slurm/fetch_pixcell_models.slurm`):
+`StonyBrook-CVLab/PixCell-256` (2.3G), `StonyBrook-CVLab/PixCell-1024`
+(2.3G), `MahmoodLab/UNI2-h` (2.6G) — all under
+`/datasets/mhoosen/hf_cache/hub/`. **UNI2-h succeeded on the first attempt,
+no institutional-email gating hit encountered** — a valid HF token already
+existed at `/datasets/mhoosen/hf_cache/token` (dated 2026-08-21, from
+earlier SD3.5-probe gated-access work, per `PROBE-SD35-TICKETS.md` PR-00)
+and evidently already carries UNI2-h approval. (An earlier `hf auth
+whoami` check that session reported "Not logged in" — that was checking
+the *default* `~/.cache/huggingface/token` location without `HF_HOME`
+exported; the real token lives under this project's canonical
+`HF_HOME=/datasets/mhoosen/hf_cache`, which every actual download script
+already exports correctly — a false alarm, not a real gap.) Licensing
+caveat (CC BY-NC-ND on both PixCell and UNI2-h) still applies as documented
+above regardless of access already working — non-commercial thesis use is
+fine, don't publish derivative weights without checking with your
+supervisor first.
+
 **Description:**
 1. Confirm you have (or can register) an institutional email eligible for
    UNI2-h's gated access — request access at
