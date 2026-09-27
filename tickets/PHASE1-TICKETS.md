@@ -1486,13 +1486,30 @@ budget -- a >40,000x data-scale gap.
 Ideas below, ordered easiest/cheapest to hardest, none implemented yet --
 proposals for a future session, not commitments:
 
-1. **Sweep `--controlnet-scale` upward** (near-zero cost, inference-only,
-   no retraining). Already an exposed CLI flag on
-   `infer_colour_source_ddim_inversion.py`, defaults to 1.0. Forces the
-   structural conditioning harder during denoising -- same "trade
-   structure against colour" lever already proven to work in the opposite
-   direction via the H2A fraction fix above. Track paired SSIM/LAB the
-   same way.
+1. ~~**Sweep `--controlnet-scale` upward**~~ **TRIED (2026-09-27) -- NEGATIVE,
+   closed.** Added a non-breaking `CONTROLNET_SCALE` env-var override to
+   `infer_p1_10_ddim_inversion.slurm` (unset -> 1.0, identical to every
+   prior invocation) and swept 1.0/1.2/1.5 on P1-11 A2H (translate,
+   `f=1.00`, `source-mode=correct`, smoke scale `LIMIT=20`, jobs
+   60746/60747, scored by 60750/60751):
+
+   | ControlNet scale | SSIM | LAB total | windowed LAB |
+   |---|---|---|---|
+   | 1.0 (control) | **0.4015** | **62.73** | **63.41** |
+   | 1.2 | 0.3838 | 64.49 | 65.12 |
+   | 1.5 | 0.3655 | 66.51 | 67.09 |
+
+   Both SSIM and LAB got monotonically WORSE as scale increased -- the
+   opposite of the hypothesised "trade colour for structure." Not a
+   structure/colour trade-off at all, a straightforward regression on
+   everything. Read: ControlNet's residual injection is trained/calibrated
+   at `conditioning_scale=1.0`; pushing above that is out-of-distribution
+   for the additive signal and destabilises the UNet's features rather
+   than more faithfully enforcing structure -- a known general property of
+   ControlNet architectures, not specific to this checkpoint. **Verdict:
+   `controlnet-scale=1.0` is already the right setting; this lever has no
+   headroom in the direction hoped for.** Not worth re-trying without a
+   new hypothesis for why a different value would behave differently.
 2. **Genuine self-ensembling** (StainDiff's technique -- cheap, but needs
    a real fix first, not just averaging what already exists). This
    project's DDIM inversion at `eta=0` is fully deterministic -- the 3

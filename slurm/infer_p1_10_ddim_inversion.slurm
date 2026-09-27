@@ -84,6 +84,14 @@ export HF_HOME=/datasets/mhoosen/hf_cache
 CHECKPOINT_DIR=${CHECKPOINT_DIR:-${DATA_ROOT}/lora/a2h_cond_r8/best}
 DIRECTION=${DIRECTION:-A2H}
 
+# CONTROLNET_SCALE override (non-breaking, unset -> 1.0, identical to every
+# prior invocation): added for the literature-informed SSIM follow-up
+# (tickets/PHASE1-TICKETS.md P1-11 "Future work" #1) -- forces the
+# structural ControlNet conditioning harder during denoising, the same
+# "trade structure against colour" lever already proven to work via the
+# H2A inversion-fraction fix, just a different mechanism.
+CONTROLNET_SCALE=${CONTROLNET_SCALE:-1.0}
+
 # PAIRS_DIR=1 (env var, not positional -- mirrors infer_p1_10_differential_
 # diffusion.slurm's own convention): evaluate against P1-10's internal
 # training-domain validation pairs instead of held-out frames -- needed for
@@ -102,6 +110,10 @@ LIMIT=${4:-20}
 FRACTION_TAG=$(echo "$FRACTION" | tr -d '.')
 DEFAULT_TAG="${MODE}_inv${FRACTION_TAG}"
 if [[ "$MODE" == "translate" ]]; then DEFAULT_TAG="${DEFAULT_TAG}_${SOURCE_MODE}"; fi
+if [[ "${CONTROLNET_SCALE}" != "1.0" && "${CONTROLNET_SCALE}" != "1" ]]; then
+    CN_TAG=$(echo "$CONTROLNET_SCALE" | tr -d '.')
+    DEFAULT_TAG="${DEFAULT_TAG}_cn${CN_TAG}"
+fi
 OUT_TAG=${5:-$DEFAULT_TAG}
 # Comma-separated, NOT space-separated: a space-containing single shell
 # argument (e.g. "0 1 2") does not survive ssh's argv-rejoin-then-remote-
@@ -131,7 +143,7 @@ python -c "from diffusers import DDIMInverseScheduler" \
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION"
+echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION  ControlNetScale=$CONTROLNET_SCALE"
 echo "Checkpoint=$CHECKPOINT_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -145,7 +157,7 @@ python infer_colour_source_ddim_inversion.py \
     --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
     ${DATA_FLAGS} --out "${OUT_DIR}" \
     --mode "${MODE}" --source-mode "${SOURCE_MODE}" --direction "${DIRECTION}" \
-    --inversion-fraction "${FRACTION}" \
+    --inversion-fraction "${FRACTION}" --controlnet-scale "${CONTROLNET_SCALE}" \
     --limit "${LIMIT}" --max-crops-per-frame 4 \
     --seeds ${SEEDS} \
     --debug-inversion
