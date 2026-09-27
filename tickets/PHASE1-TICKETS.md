@@ -1510,14 +1510,44 @@ proposals for a future session, not commitments:
    `controlnet-scale=1.0` is already the right setting; this lever has no
    headroom in the direction hoped for.** Not worth re-trying without a
    new hypothesis for why a different value would behave differently.
-2. **Genuine self-ensembling** (StainDiff's technique -- cheap, but needs
-   a real fix first, not just averaging what already exists). This
-   project's DDIM inversion at `eta=0` is fully deterministic -- the 3
-   "seeds" per crop currently produce numerically identical outputs, so
-   naively averaging them does nothing. Would need `eta>0` in the forward
-   `DDIMScheduler.step()` call to inject genuine per-seed stochasticity
-   first (a small, contained code change to `reconstruct()`), then average
-   multiple truly-different outputs.
+2. ~~**Genuine self-ensembling**~~ **TRIED (2026-09-27) -- POSITIVE, the
+   first genuine IMPROVEMENT (not just a regression-fix) found in this
+   whole future-work list.** New standalone script `src/eval/infer_colour_
+   source_ddim_inversion_ensemble.py` (does not touch the validated
+   original -- same precedent as P1-15's alt-decoder script) threads a
+   `--eta` flag through the RECONSTRUCTION pass only (never inversion --
+   `DDIMInverseScheduler` has no `eta` parameter, inversion is only
+   well-defined at eta=0), with a per-seed `torch.Generator` for
+   reproducible stochasticity. `--seeds` is the ensemble membership; each
+   crop gets its per-seed member outputs saved plus one pixel-wise mean
+   across all members. Sanity-verified first (job 60755, eta=0, 1 crop):
+   output trajectory matched the original validated script exactly (4
+   decimal places at step 50/50) -- confirms the eta=0 code path is truly
+   identical, not just similar. New dedicated scorer launcher
+   `slurm/score_p1_11_ensemble.slurm` (same precedent as
+   `score_p1_15_alt_decoder.slurm` -- the generic P1-11 scorer hardcodes
+   the wrong eval-dir prefix for this script's own `eval/p1_11_ensemble/`
+   output location).
+
+   Smoke test (P1-11 A2H, `f=1.00`, `source-mode=correct`, `LIMIT=20`,
+   3-member ensemble, jobs 60759-60761, scored by 60794-60796):
+
+   | eta | single member SSIM | **ensemble SSIM** | ensemble LAB | vs. eta=0 baseline (SSIM 0.4015, LAB 62.73) |
+   |---|---|---|---|---|
+   | 0.3 | 0.3672 +/- 0.0015 | **0.4496** | 62.42 | **+0.048 SSIM, LAB ~flat** |
+   | 0.5 | 0.3419 +/- 0.0039 | **0.4381** | 63.05 | **+0.037 SSIM, LAB ~flat** |
+   | 1.0 | 0.2764 +/- 0.0097 | **0.3556** | 66.89 | -0.046 SSIM, LAB worse |
+
+   Individual members degrade monotonically as eta increases (more noise
+   = more deviation from a good trajectory), but averaging 3 members
+   recovers far more than the noise cost at moderate eta -- the ensemble
+   beats even the deterministic eta=0 baseline outright at eta=0.3/0.5,
+   with essentially no colour cost, and wins **80/80 crops** against its
+   own individual members at every eta tested (confirms averaging
+   genuinely helps, not luck). At eta=1.0 individual samples are too
+   degraded for averaging to fully recover. **Next: a finer eta sweep near
+   0.1-0.3 to find the actual peak (not yet tested below 0.3), then
+   full-scale verification at whichever eta wins.**
 3. **Post-hoc detail fusion on any remaining un-fused configs** (mostly
    already done). This is P1-16's own technique, already the project's
    best result (SSIM 0.729, beats classical) and already applied to the
