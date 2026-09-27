@@ -66,15 +66,21 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "train"))
 
 VAE_REPOS = {
-    "stock": ("stable-diffusion-v1-5/stable-diffusion-v1-5", "vae"),
-    "ft_mse": ("stabilityai/sd-vae-ft-mse", None),
+    "stock": ("stable-diffusion-v1-5/stable-diffusion-v1-5", "vae", "float16"),
+    "ft_mse": ("stabilityai/sd-vae-ft-mse", None, "float16"),
+    # PXC-02 Part A: PixCell reuses this VAE verbatim (16-channel latent) --
+    # bf16, not fp16, matching this project's own SD3.5-probe lesson that
+    # SD3.5-family weights need bf16 (see PROBE-SD35-TICKETS.md PR-01/PR-02).
+    # Not part of --vae both (that flag is specifically the stock/ft_mse
+    # paired comparison) -- select directly with --vae sd35_pixcell.
+    "sd35_pixcell": ("stabilityai/stable-diffusion-3.5-large", "vae", "bfloat16"),
 }
 
 
 def parse_args():
     ap = argparse.ArgumentParser(
         description="P1-14: pure VAE self-reconstruction benchmark, stock vs sd-vae-ft-mse.")
-    ap.add_argument("--vae", choices=["stock", "ft_mse", "both"], default="both")
+    ap.add_argument("--vae", choices=["stock", "ft_mse", "both", "sd35_pixcell"], default="both")
     ap.add_argument("--stage", choices=["internal", "heldout"], required=True)
     ap.add_argument("--pairs-dir", default=None, help="Stage internal: e.g. pairs/train.")
     ap.add_argument("--root", default=None, help="Stage heldout: dataset root.")
@@ -136,15 +142,18 @@ def main():
     # since neither VAE's cached config explicitly serialises it).
     # ------------------------------------------------------------------
     vaes = {}
+    vae_dtypes = {}
     vae_info = {}
     for name in vae_names:
-        repo, subfolder = VAE_REPOS[name]
+        repo, subfolder, dtype_name = VAE_REPOS[name]
+        dtype = getattr(torch, dtype_name)
         kwargs = {"subfolder": subfolder} if subfolder else {}
-        vae = AutoencoderKL.from_pretrained(repo, torch_dtype=torch.float16, **kwargs).to(device)
+        vae = AutoencoderKL.from_pretrained(repo, torch_dtype=dtype, **kwargs).to(device)
         vae.eval()
         vaes[name] = vae
+        vae_dtypes[name] = dtype
         info = {
-            "repo": repo, "subfolder": subfolder,
+            "repo": repo, "subfolder": subfolder, "dtype_requested": dtype_name,
             "diffusers_version": diffusers.__version__,
             "latent_channels": vae.config.latent_channels,
             "block_out_channels": list(vae.config.block_out_channels),
@@ -160,13 +169,15 @@ def main():
     with open(out_dir / "vae_config_inspection.json", "w") as fh:
         json.dump(vae_info, fh, indent=2)
 
-    def encode_decode(vae, rgb_uint8):
+    def encode_decode(vae, rgb_uint8, dtype=torch.float16):
         """Deterministic self-reconstruction: encode via .mode() (never
         .sample()), decode, return uint8 RGB. Same normalisation/scaling
-        convention as infer_colour_translation.py's --vae-only branch."""
+        convention as infer_colour_translation.py's --vae-only branch.
+        dtype must match the VAE's own loaded dtype (float16 for stock/
+        ft_mse, bfloat16 for sd35_pixcell -- see VAE_REPOS)."""
         scaling = vae.config.scaling_factor
         arr = torch.from_numpy(rgb_uint8.astype(np.float32) / 127.5 - 1.0).permute(2, 0, 1)
-        arr = arr.unsqueeze(0).to(device, dtype=torch.float16)
+        arr = arr.unsqueeze(0).to(device, dtype=dtype)
         with torch.no_grad():
             latents = vae.encode(arr).latent_dist.mode() * scaling
             decoded = vae.decode(latents / scaling).sample
@@ -258,7 +269,7 @@ def main():
             for c in crops:
                 for domain in domains:
                     original = c[domain]
-                    recon = encode_decode(vae, original)
+                    recon = encode_decode(vae, original, dtype=vae_dtypes[name])
                     m = score_aligned_pair(recon, original)
                     scores[name][domain].append(m)
                     pc_w.writerow([name, domain, c["tag_id"], c["slide"], c["frame"], c["x"], c["y"],

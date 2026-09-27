@@ -152,7 +152,45 @@ supervisor first.
 
 ## PXC-01 — LoRA training time + peak VRAM measurement (mirrors PR-01)
 
-**Status:** BLOCKED on PXC-00.
+**Status:** 🔄 IN PROGRESS — PXC-01a (wiring probe) ✅ DONE (2026-09-27,
+job 61121, `src/eval/probe_pixcell_pipeline.py`), PXC-01b (real LoRA
+training) not yet started.
+
+**PXC-01a result — the documented API works, with two real bugs found
+and fixed en route (both via direct primary-source reads, not guessing):**
+1. `timm.create_model("hf-hub:MahmoodLab/UNI2-h", pretrained=True)` with no
+   extra kwargs crashes inside timm's own position-embedding resampler
+   (`shape '[1, 15, 15, -1]' is invalid for input of size 391680`) — this
+   cluster's timm (1.0.30) does not auto-populate UNI2-h's required
+   architecture kwargs from `hf-hub:` loading alone. Fixed by passing
+   UNI2-h's own documented `timm_kwargs` explicitly (`reg_tokens=8`,
+   `dynamic_img_size=True`, `mlp_layer=timm.layers.SwiGLUPacked`,
+   `act_layer=torch.nn.SiLU`, plus the standard ViT-H/14 dims) — confirmed
+   correct via UNI2-h's own HF README, not trial-and-error.
+2. `guidance_scale=1.5` (PixCell's own documented default) requires an
+   explicit `negative_uni_embeds` — the pipeline's own `check_inputs()`
+   refuses to silently default one. Fixed via the pipeline's own
+   documented `get_unconditional_embedding()` helper (confirmed by
+   directly reading the cached pipeline source on the cluster, not
+   guessing a zero-tensor substitute).
+
+**Resolves this project's real unknowns going in:** UNI2-h embedding for a
+single 224×224 image is `(1, 1536)`, reshaped to `(1, 1, 1536)` — confirmed
+to match `caption_num_tokens=1` read directly from the loaded transformer's
+own config (not assumed). Full pipeline (UNI2-h → PixCell-256, 20 steps,
+guidance 1.5) completes in **3.34s**, peak VRAM **4.03 GB** — dramatically
+cheaper than SD3.5's own probe result (17.77 GB), confirming the
+cheap-compute expectation stated below.
+
+**Qualitative sanity check (same-domain, zero fine-tuning — conditioning
+on the source Aperio crop's own embedding, no A→H translation intent
+yet):** the generated 256×256 output visually preserves the source
+crop's tissue architecture, gland/nuclear positions, and overall colour
+strikingly well for a purely embedding-conditioned generation — more
+structure-preserving than expected going in for a "lossy 1536-dim
+summary." Purely qualitative; PXC-02 Part B (below) is the real
+quantitative measurement against a registered target.
+
 **Description:** Train an A→H LoRA on the same ≤50 A03/H03 crop pairs,
 using UNI2-h embeddings extracted from the *source* (Aperio) crop as the
 conditioning input, target = the Hamamatsu crop, following the
@@ -166,7 +204,69 @@ compute cost, independent of the harder question below.
 
 ## PXC-02 — Structural-fidelity floor check (the real open question — do this before anything else past PXC-01)
 
-**Status:** BLOCKED on PXC-00/01.
+**Status:** 🔄 IN PROGRESS — Part A done (2026-09-27, job 61089), Part B
+blocked on PXC-01a's wiring probe.
+
+**Part A result — PixCell's VAE-only self-reconstruction floor is
+dramatically higher than every other backbone in this project's own
+VAE floor:** extended `src/eval/benchmark_vae_reconstruction.py` with a
+`sd35_pixcell` VAE entry (PixCell's own VAE, verbatim
+`stabilityai/stable-diffusion-3.5-large`, bf16 — additive, `stock`/`ft_mse`
+untouched), ran `--stage heldout --limit 2` (8 real held-out Aperio crops,
+A06 slide, zero denoising, deterministic `.mode()` encode):
+
+| VAE | Self-reconstruction SSIM |
+|---|---|
+| SD1.5 stock (P1-10's own floor) | 0.5393 |
+| SD1.5 `sd-vae-ft-mse` (P1-14) | ~0.618 (pooled, Stage B) |
+| **SD3.5 / PixCell's VAE (this check)** | **0.7732** |
+
+This is the single most encouraging PixCell number so far: the 4-channel
+VAE ceiling that has capped *every* SD1.5/SDXL structural-fidelity result
+in this project (P1-10 established 0.5393 as a hard architectural floor
+no post-hoc fix could exceed) simply may not apply the same way here — a
+16-channel latent reconstructs real histopathology crops far more
+faithfully to begin with. This is necessary, not sufficient: it says
+nothing yet about whether embedding-conditioned *generation* (Part B, not
+just passive encode/decode) can get anywhere near this new, higher
+ceiling — that is exactly what Part B measures next.
+
+**Part B result — decisive, and negative: embedding-only conditioning does
+not preserve enough structure for this project's registered-pair metrics.**
+Ran `src/eval/floor_check_pixcell.py` (job 61123) — 8 real held-out crops
+(A06, 256×256, zero fine-tuning), generated from each crop's own UNI2-h
+embedding, scored against the real registered Hamamatsu target:
+
+| Comparison | SSIM | LAB total |
+|---|---|---|
+| vs. real registered Hamamatsu target | **0.0451** | 78.22 |
+| vs. raw Aperio source (sanity) | **0.0363** | 15.94 |
+
+**Both SSIM values are noise-level** — far below even SD1.5's own
+already-low img2img floor (0.27–0.46), and nowhere near the 0.7732 VAE-only
+ceiling Part A just measured for this same backbone. The generation is not
+even closer to its own source (0.0363) than to the target (0.0451) —
+consistent with a single 1536-dim global embedding carrying no
+pixel/nucleus-position information at all, only a coarse semantic/style
+summary. **This matches this ticket's own pre-stated decisive criterion
+exactly** ("if this comes back catastrophically low... that's a decisive,
+cheap answer the embedding-only paradigm doesn't fit this project's
+evaluation methodology at all"). The earlier PXC-01a qualitative
+single-crop check *looked* structurally similar by eye (generic
+"pink H&E tissue, similar density" resemblance) — this quantitative,
+registered-pair result shows that visual impression was not real
+pixel-level structural correspondence.
+
+**Consequence for PXC-03:** a source-conditioning ControlNet build (feeding
+the actual source RGB into the denoising process, not just its embedding)
+is now a *precondition* for any usable structural number from this
+backbone, not an optional refinement — exactly the scope decision this
+ticket flagged in advance. This is the real go/no-go point for the whole
+probe: PXC-03 is a genuinely large new build (a first-of-its-kind
+source-conditioning branch for a DiT, this project's third such build
+after SD1.5/SDXL) — worth an explicit decision before starting, not an
+automatic next step.
+
 **Description:** Before investing in any source-conditioning ControlNet
 build, check the cheapest possible thing first, mirroring P1-10's own
 "VAE-only floor" methodology and P1-14's VAE-swap benchmark: **encode a

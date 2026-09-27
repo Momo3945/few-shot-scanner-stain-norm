@@ -22,6 +22,13 @@
 #   # skips the expensive scoring pass, e.g. after Stage B already ran):
 #   QUALITATIVE_SLIDES="A06 A08" sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44 \
 #     benchmark_vae_reconstruction.slurm heldout both p1_14_stage_b_qualitative
+#
+# PXC-02 Part A (tickets/PROBE-PIXCELL-TICKETS.md): PixCell's own VAE
+# (SD3.5's, bf16) -- additive VAE choice, LIMIT env var (unset/0 = full
+# heldout set, unchanged default) for a cheap first check instead of the
+# full 496-crop run:
+#   LIMIT=2 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62 \
+#     benchmark_vae_reconstruction.slurm heldout sd35_pixcell pxc_02a_vae_floor
 # =====================================================================
 
 #SBATCH --job-name=p1_14_vae_bench
@@ -47,6 +54,10 @@ OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
 QUAL_FLAG=""
 if [[ -n "${QUALITATIVE_SLIDES:-}" ]]; then
     QUAL_FLAG="--qualitative-only --qualitative-slides ${QUALITATIVE_SLIDES}"
+fi
+LIMIT_FLAG=""
+if [[ -n "${LIMIT:-}" ]]; then
+    LIMIT_FLAG="--limit ${LIMIT}"
 fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
@@ -79,7 +90,7 @@ else
         --root "${DATA_ROOT}/mitos_heldout" \
         --heldout "${DATA_ROOT}/pairs/heldout_frames.csv" \
         --max-crops-per-frame 4 \
-        --out "${OUT_DIR}" ${QUAL_FLAG}
+        --out "${OUT_DIR}" ${QUAL_FLAG} ${LIMIT_FLAG}
 fi
 
 echo "------------------------------------------------------------------"
