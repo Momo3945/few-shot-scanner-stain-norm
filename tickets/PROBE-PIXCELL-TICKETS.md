@@ -1,0 +1,195 @@
+# Auxiliary Probe — PixCell Feasibility (proposed, NOT yet in scope)
+
+**⚠️ This is not in `docs/proposal.tex` at all — unlike the SD3.5 probe (which
+has its own dedicated, explicitly descopable proposal section,
+`sec:sd35_probe`), PixCell has no proposal citation whatsoever.** Per this
+project's own ticket rule ("every ticket cites the proposal section it comes
+from... if something doesn't map to the proposal, it should be noted as such
+rather than given an ID implying it's proposal-scoped"), this file is
+**extracurricular exploration, not graded scope**, until/unless: (a) the
+proposal is formally amended to add it (the same way `sec:sd35_probe` was
+presumably added), or (b) you decide to run it purely as an informal
+side-investigation not claimed as thesis evidence. Do not report anything
+from this file as answering the project's main research questions or as
+part of the Phase 1–3 success criteria without that decision being made
+explicitly first. Ticket IDs below use `PXC-` (not `P#-`) specifically to
+avoid implying proposal-scoped status.
+
+**Recommendation, stated up front:** technically feasible as a bounded
+probe, same shape as the SD3.5 one (PR-00→PR-05) — but with one materially
+bigger unknown than SD3.5 had (see PXC-02 below) and two licensing/access
+hurdles to clear first (PXC-00). Worth doing only if you've decided this is
+worth the extra time on top of the already-substantial completed Phase 1–3
+work and the in-progress SD3.5 probe/H2A follow-ups — not a quick add-on.
+
+---
+
+## What PixCell actually is (verified 2026-09-27, not assumed from the pasted table)
+
+Sources: [paper](https://arxiv.org/abs/2506.05127), [GitHub](https://github.com/cvlab-stonybrook/PixCell), [PixCell-256](https://huggingface.co/StonyBrook-CVLab/PixCell-256), [PixCell-1024](https://huggingface.co/StonyBrook-CVLab/PixCell-1024), [PixCell-256-Cell-ControlNet](https://huggingface.co/StonyBrook-CVLab/PixCell-256-Cell-ControlNet), [UNI2-h](https://huggingface.co/MahmoodLab/UNI2-h).
+
+- **Architecture:** DiT (PixArt-Σ-family transformer), **~0.6B params** —
+  notably *smaller* than SD3.5's ~8B transformer, in the same ballpark as
+  SD1.5's ~860M UNet. Good news for VRAM/compute (SD3.5's probe needed
+  17.77GB peak on a 24GB 3090; PixCell should need considerably less).
+- **VAE: confirmed 16-channel, literally `stabilityai/stable-diffusion-3.5-large`'s
+  VAE component, loaded separately** — matches the pasted table exactly.
+  Not SD1.5/SDXL's 4-channel VAE family at all.
+- **Conditioning — the single biggest difference the pasted table
+  understates: no text encoder, no text prompt at all.** PixCell conditions
+  purely on **UNI2-h SSL image embeddings** (a 681M-param pathology
+  foundation vision transformer from MahmoodLab, 1536-dim output) extracted
+  from a reference image. There is nothing equivalent to this project's
+  fixed prompt `"H&E stained histopathology tissue"` — "what to generate"
+  is entirely determined by which image's embedding you feed in.
+- **No native img2img/strength dial, confirmed.** Generation is
+  embedding-conditioned sampling from noise (DPM-Solver, ~20 steps
+  default), not "encode a real image to a latent, add noise at a chosen
+  strength, partially denoise" the way SD1.5/SDXL/SD3.5 img2img works here.
+  "Virtual staining" (their own closest analog to this project's A→H task,
+  demonstrated for H&E→IHC) works by conditioning on the *source* image's
+  UNI2-h embedding and generating a *new* image — it is not verified
+  whether/how well this preserves exact pixel-level structure the way this
+  project's registered-pair SSIM/PSNR/MAE metrics need. **This is the real
+  open question — see PXC-02.**
+- **LoRA fine-tuning: confirmed supported**, with an existing example for
+  a task conceptually close to this project's own (`virtual_staining/
+  train_lora.py`, H&E→IHC stain transfer via LoRA + reference embeddings)
+  — the closest thing to precedent code for an A→H-style colour-domain LoRA
+  on this backbone.
+- **ControlNet: one released variant exists** (`PixCell-256-Cell-ControlNet`),
+  but it conditions on a **cell-segmentation mask**, not Canny edges or
+  HoVer-Net boundaries directly, and it requires the UNI2-h embedding
+  **simultaneously** (dual conditioning: mask for spatial layout, embedding
+  for content/style) — not a drop-in replacement for this project's
+  Canny-ControlNet convention, but real, working proof that a ControlNet
+  branch can be trained on this DiT at all (mock training code is in the
+  repo) — meaningfully lowers the risk of building a fresh
+  source-RGB-conditioned branch (the same idea P1-10/P3-06/P3-07 each
+  built from scratch for their own backbone), since there's now a working
+  reference implementation to fork from instead of zero precedent.
+- **No LCM-equivalent distillation** — confirmed, matches the pasted
+  table. Same caveat this project's own SD3.5 probe ticket already states
+  for that model: does not answer the LCM-LoRA research question. Default
+  20-step DPM-Solver is already fast on a 0.6B model, partially offsetting
+  this.
+- **Resolutions released: 256×256 and 1024×1024 only** — no 512, unlike
+  the pasted table's framing this matters for consistency with this
+  project's existing 512 crop grid (P3-06/P1-10 etc.) — would need to
+  either downsample 1024 outputs or accept a resolution mismatch when
+  comparing against existing results.
+- **Diffusers integration is via a *custom remote-code* pipeline**
+  (`trust_remote_code=True`, `custom_pipeline="StonyBrook-CVLab/PixCell-pipeline"`),
+  not a class in mainline `diffusers` — same general risk category as any
+  community pipeline (less battle-tested, needs the pipeline's Python file
+  fetched from the Hub at least once, which matters for this cluster's
+  usual `HF_HUB_OFFLINE=1` convention after first fetch).
+- **Licensing — a real, concrete difference from every other backbone in
+  this project (SD1.5/SDXL: permissive Apache/OpenRAIL-ish; SD3.5: gated
+  but standard commercial-ish EULA):**
+  - PixCell model weights: **CC BY-NC-ND 4.0** ("No Derivatives") —
+    non-commercial academic use is clearly fine for a thesis, but the "ND"
+    clause is a real question mark around publishing/redistributing a
+    *fine-tuned* checkpoint publicly (e.g. a GitHub release or public HF
+    upload attached to the thesis). Keeping any fine-tuned checkpoint
+    private/local for internal evaluation only avoids the ambiguity;
+    worth a one-line disclosure in the thesis either way, and worth
+    checking with your supervisor before publishing any derivative weights.
+  - The PixCell *code* repo itself is separately licensed CC BY-NC 4.0
+    (derivatives permitted, non-commercial) — the code/training-script
+    license is fine; it's specifically the released *weights* license that
+    carries the ND restriction.
+  - UNI2-h (the embedding model PixCell depends on for every image, both
+    training-data prep and generation) is **also CC BY-NC-ND 4.0**, same
+    caveat.
+- **Access: PixCell's own weights are NOT gated** (confirmed — no
+  "agree to access" banner on either HF repo) — but **UNI2-h IS gated, and
+  the request specifically requires an institutional email** (a personal
+  Gmail-type address is auto-denied per MahmoodLab's own stated policy) —
+  a real prerequisite blocker, same shape as PR-00's SD3.5 gated-repo
+  hurdle, needing manual account-level action before any code can run.
+
+---
+
+## PXC-00 — Access, licensing disclosure, and model fetch
+
+**Status:** TODO — not started, first blocker.
+**Description:**
+1. Confirm you have (or can register) an institutional email eligible for
+   UNI2-h's gated access — request access at
+   `https://huggingface.co/MahmoodLab/UNI2-h` with that email set as your
+   HF account's primary email (this is an account-level action, same as
+   PR-00's SD3.5 approval — cannot be scripted).
+2. Once approved, fetch (via `sbatch`, per this project's standing rule —
+   never a bare-`ssh` download): `MahmoodLab/UNI2-h`,
+   `StonyBrook-CVLab/PixCell-1024` (or `-256` for a cheaper first probe),
+   and — if PXC-02 below looks promising — `StonyBrook-CVLab/PixCell-256-Cell-ControlNet`
+   for reference. Verify with real byte sizes, not exit codes, per this
+   project's own hard-won `hf cache scan` discipline.
+3. Note the CC BY-NC-ND terms (both PixCell and UNI2-h) explicitly in the
+   thesis if this probe is reported at all — non-commercial academic use
+   is fine, but flag it rather than silently omit it, and don't publish
+   any fine-tuned PixCell/UNI2-h-derived checkpoint publicly without
+   checking the ND clause with your supervisor first.
+
+## PXC-01 — LoRA training time + peak VRAM measurement (mirrors PR-01)
+
+**Status:** BLOCKED on PXC-00.
+**Description:** Train an A→H LoRA on the same ≤50 A03/H03 crop pairs,
+using UNI2-h embeddings extracted from the *source* (Aperio) crop as the
+conditioning input, target = the Hamamatsu crop, following the
+`virtual_staining/train_lora.py` pattern as the starting point (adapt, not
+copy verbatim — that script targets IHC-from-H&E, not scanner colour).
+Record wall-clock + peak VRAM, same measurement discipline as PR-01.
+**Expectation, not yet verified:** given PixCell's 0.6B params (smaller
+than SD3.5's 8B), this should be markedly cheaper than SD3.5's 17.77GB/
+13.3min-per-1000-steps result — a genuine reason for optimism on pure
+compute cost, independent of the harder question below.
+
+## PXC-02 — Structural-fidelity floor check (the real open question — do this before anything else past PXC-01)
+
+**Status:** BLOCKED on PXC-00/01.
+**Description:** Before investing in any source-conditioning ControlNet
+build, check the cheapest possible thing first, mirroring P1-10's own
+"VAE-only floor" methodology and P1-14's VAE-swap benchmark: **encode a
+held-out registered crop through PixCell's VAE (= SD3.5's VAE) and decode
+it immediately with zero denoising** — what SSIM ceiling does that alone
+impose? Then, separately, run PixCell's actual embedding-conditioned
+generation (condition on the source crop's own UNI2-h embedding, generate
+fresh, no source-RGB path at all) and measure SSIM/PSNR/MAE against the
+registered target with **zero fine-tuning** — this tells you, before
+building any custom machinery, whether embedding-only conditioning is even
+in the right ballpark for this project's pixel-exact metrics, or whether
+it structurally cannot preserve nucleus-level positions the way img2img
+does (a real possibility, since a 1536-dim embedding is a lossy
+content summary, not the source pixels). **If this comes back catastrophically
+low** (materially worse than SD1.5's own already-low img2img SSIM floor,
+~0.27–0.46 range), that's a decisive, cheap answer that the embedding-only
+paradigm doesn't fit this project's evaluation methodology at all, and the
+source-conditioning ControlNet build (PXC-03) would need to happen before
+any usable number exists — worth knowing before, not after, that build.
+
+## PXC-03 — Source-conditioning ControlNet build (only if PXC-02 motivates it)
+
+**Status:** BLOCKED on PXC-02's result.
+**Description:** If PXC-02 shows embedding-only conditioning can't hold
+structure, build a fresh source-RGB-conditioned branch for PixCell's DiT —
+conceptually the same idea as P1-10 (SD1.5) and P3-06/P3-07 (SDXL), but
+this would be the **third from-scratch implementation of that idea, for a
+third backbone family (DiT, not UNet)** — real new engineering, not a
+port. `PixCell-256-Cell-ControlNet`'s existence (and its repo's mock
+training code) is a working reference to fork from, which meaningfully
+de-risks this vs. building from zero, but it's still the single largest
+scope item in this whole probe. Canny/HoVer-Net boundary maps already
+generated for P2-08 are directly reusable as the condition image, per the
+pasted table's own (correct) observation.
+
+## PXC-04 — Report outcome
+
+**Status:** BLOCKED on PXC-01/02(/03).
+**Description:** Same discipline as PR-05 — write up feasible/infeasible
+as a short, clearly-scoped note. Given PXC-00's proposal-scope caveat
+above, this explicitly **cannot** be framed as a fourth ablation condition
+or as evidence for/against the main research questions unless the
+proposal itself is amended first — report it as informal exploratory
+follow-up work at most, distinct from the graded Phase 1–3 results.

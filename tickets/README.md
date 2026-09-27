@@ -10,6 +10,10 @@ traceable back to the graded document rather than drifting over time.
 - `PHASE2-TICKETS.md` — evaluation (colour, structural, clinical, cycle, CAMELYON17)
 - `PHASE3-TICKETS.md` — SDXL portability transfer (blocked on Phase 1 decision gate)
 - `PROBE-SD35-TICKETS.md` — auxiliary SD3.5 feasibility probe (lowest priority, descopable)
+- `PROBE-PIXCELL-TICKETS.md` — **not in the proposal at all** (unlike the SD3.5
+  probe, which has its own dedicated proposal section) — extracurricular
+  exploration only, not graded scope, unless/until the proposal is amended.
+  Uses `PXC-` IDs specifically to avoid implying proposal-scoped status.
 
 ## Status legend
 - `TODO` — not started
