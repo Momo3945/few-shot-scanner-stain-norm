@@ -73,7 +73,7 @@ def main():
     local_only = not args.online
 
     import torch
-    from diffusers import AutoencoderKL, StableDiffusionPipeline, StableDiffusionXLPipeline
+    from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type != "cuda":
@@ -91,12 +91,16 @@ def main():
     else:
         model = args.model or "stabilityai/stable-diffusion-xl-base-1.0"
         print(f"Loading frozen SDXL text2img pipeline ({model}), LoRA-only (no ControlNet) ...")
-        # VAE forced to fp32 -- SDXL's official VAE NaNs under fp16 (same
-        # precedent as every other SDXL script in this project).
-        vae = AutoencoderKL.from_pretrained(model, subfolder="vae", torch_dtype=torch.float32,
-                                            local_files_only=local_only)
+        # Whole pipeline in fp32, not the usual mixed fp16+fp32-VAE split every
+        # other SDXL script in this project uses: StableDiffusionXLPipeline's
+        # own __call__ (this diffusers version) doesn't cast latents to
+        # self.vae.dtype before decode the way the img2img variant does, so a
+        # separately-fp32 VAE under a fp16 pipeline crashes ("Input type Half
+        # and bias type float should be the same" -- confirmed via job 61101's
+        # traceback). Fine here: this is a one-off 24-sample diagnostic, not a
+        # real eval run needing fp16 speed/VRAM.
         pipe = StableDiffusionXLPipeline.from_pretrained(
-            model, vae=vae, torch_dtype=torch.float16, local_files_only=local_only)
+            model, torch_dtype=torch.float32, local_files_only=local_only)
 
     # weight_name must be explicit: diffusers normally auto-detects it via a Hub
     # API call, unavailable under HF_HUB_OFFLINE=1 (set above deliberately).
