@@ -1427,6 +1427,28 @@ fixable downstream of that: baseline artefact (D1), colour-LoRA mis-mapping
 (D2), RGB-vs-Canny conditioning (D3), ControlNet conditioning scale (D4),
 and colour-LoRA inference-time scale (D5) were all ruled out).
 
+**Update (2026-09-27): P3-07c pushes the same overlap-based fallback
+further (144 pairs via `--overlap 0.5`) — more improvement, not a
+plateau.** Same architecture/steps/resolution, only the crop-generation
+mechanism changed again (`tickets/P3-07c_sdxl_overlap_pair_expansion.md`):
+
+| | P3-07 (≤50) | P3-07b (96) | **P3-07c (144)** | SD1.5 P1-10 |
+|---|---|---|---|---|
+| ALL SSIM | 0.4313 | 0.4416 | **0.4457** | 0.4485 |
+| ALL_excl_outliers SSIM | 0.4485 | 0.4591 | **0.4617** | 0.4695 |
+| ALL recovery Δlab | −5.60 | +1.74 | **+1.85** | +2.89 |
+
+Every slide stays positive (A06 +3.42, A08 +1.86, A09 +1.47, A13 +0.55,
+A16 +1.97) — on 3 of 5 slides (A06/A08/A09) P3-07c's own Δlab already
+exceeds SD1.5 P1-10's, though pooled it remains slightly behind. SDXL's
+pooled SSIM is now within 0.003 of SD1.5's best result. The marginal gain
+is shrinking (+0.11 pooled Δlab for +48 pairs, vs P3-07b's +7.34-unit
+jump for the prior +46 pairs) — reinforces the data-starvation diagnosis
+rather than merely repeating it: more data keeps helping, with
+diminishing but still real returns, not a hard ceiling. **Same
+supplementary status as P3-07b — not evidence for/against the formal
+≤50-pair H1 claim.**
+
 **Full cross-project per-slide comparison** (every number below pulled
 directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
 in this folder, not re-derived) — the pooled `ALL` figures used throughout
@@ -1447,6 +1469,7 @@ actually is:
 | P3-06 (SDXL@512) | +2.70 | +1.74 | +1.03 | +2.31 | +1.58 |
 | **P3-07** (SDXL@1024, ≤50 pairs) | **−3.48** | **−5.54** | **−6.64** | **−4.81** | **−4.89** |
 | **P3-07b** (SDXL@1024, 96 pairs, supp.) | +2.55 | +1.82 | +1.31 | +0.81 | +2.00 |
+| **P3-07c** (SDXL@1024, 144 pairs, supp.) | **+3.42** | +1.86 | +1.47 | +0.55 | +1.97 |
 
 **SSIM, per slide** (raw row = do-nothing structural reference):
 
@@ -1462,6 +1485,7 @@ actually is:
 | P3-06 | 0.257 | 0.410 | 0.372 | 0.404 | 0.441 |
 | P3-07 | 0.313 | 0.457 | 0.396 | 0.431 | 0.481 |
 | P3-07b | 0.322 | 0.467 | 0.411 | 0.439 | 0.491 |
+| P3-07c | 0.336 | 0.467 | 0.417 | 0.437 | 0.495 |
 
 **What the per-slide view shows that the pooled average hides:**
 classical methods aren't uniformly good — each has its own distinct weak

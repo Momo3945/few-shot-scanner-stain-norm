@@ -1350,6 +1350,29 @@ clinical-utility evidence until P2-12 lands and a genuine H→A rerun
 exists (nontrivial for P3-07 specifically — needs fresh SDXL training,
 per P2-12 §11, since H→A was never trained for this architecture).
 
+## P3-07c — SDXL @1024, overlap-expanded pair count (144 pairs)
+
+**Status:** ✅ CLOSED, positive result (2026-09-27, jobs 58267/58465
+training, 59736/59858/59738 ablation, 60645/60742/60749 full held-out
+run+score+aggregate). Full ticket: `tickets/P3-07c_sdxl_overlap_pair_
+expansion.md`.
+
+**Motivation:** direct follow-up to P3-07b — does pushing the pair count
+further via the proposal's overlap fallback (`--overlap 0.5`, 144 pairs vs
+P3-07b's 96 non-overlapping) close more of the remaining gap to SD1.5's
+P1-10, or does correlated data plateau? **Result: every slide stays
+positive, both SSIM and colour recovery improve further over P3-07b (not
+a plateau or regression)** — ALL SSIM 0.4457 (P3-07b 0.4416, SD1.5 P1-10
+0.4485 — SDXL now within 0.003), ALL recovery Δlab +1.85 (P3-07b +1.74,
+SD1.5 P1-10 +2.89). On 3 of 5 slides (A06 +3.42, A08 +1.86, A09 +1.47)
+P3-07c's own Δlab already exceeds P1-10's, though pooled it remains
+slightly behind. The marginal gain per pair is shrinking (+0.11 pooled
+Δlab for +48 pairs, vs P3-07b's +7.34-unit jump for the prior +46 pairs)
+— reinforces, not just repeats, the P3-07b data-starvation diagnosis:
+more data keeps helping, with diminishing returns, not a hard ceiling.
+**Same status as P3-07b: supplementary, NOT evidence for/against the
+formal ≤50-pair H1 claim.**
+
 ## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
 **Status:** 🔄 IN PROGRESS (started 2026-09-25).
 **Source:** the 1024px, ≤50-pair follow-on to P3-06b/P3-07 H2A (above),
