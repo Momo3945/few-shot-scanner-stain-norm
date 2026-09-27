@@ -39,6 +39,16 @@ validated for this project's domain-transfer + ControlNet setup. Treat
 every one of these as a free variable for your own curiosity poking, not
 as an authoritative choice.
 
+**Memory note (found empirically, job 60753, 2026-09-27):** Prodigy's
+D-adaptation bookkeeping needs extra full-sized per-parameter buffers
+(p0/s) beyond AdamW's usual exp_avg/exp_avg_sq -- at slice_p=1 (full
+precision) this OOM'd at step 4 on a 24GB RTX 3090 running the identical
+architecture that fits fine under AdamW (GPU already at 23.49/23.55 GiB
+even in the validated P3-07c run). --prodigy-slice-p (default 11, upstream's
+own suggested value for large models) computes those buffers on only every
+Nth flattened parameter entry instead of the full tensor -- an approximation
+to standard Prodigy, but the only way this fits in memory at all here.
+
 Usage
 -----
     # smoke test (env/loop check only):
@@ -169,6 +179,15 @@ def parse_args():
     ap.add_argument("--no-prodigy-use-bias-correction", dest="prodigy_use_bias_correction",
                     action="store_false")
     ap.add_argument("--prodigy-safeguard-warmup", action="store_true", default=False)
+    ap.add_argument("--prodigy-slice-p", type=int, default=11,
+                    help="Prodigy's own documented memory-saving knob: compute its D-adaptation "
+                         "statistics (p0/s buffers) on only every Nth flattened parameter entry "
+                         "instead of the full tensor. 1 = full precision, no savings -- empirically "
+                         "OOMs on this project's 24GB RTX 3090 at this SDXL+ControlNet size (job "
+                         "60753, OOM at step 4, GPU already at 23.49/23.55 GiB even under the "
+                         "validated AdamW run). ~11 is upstream's own suggested default for large "
+                         "models -- an approximation to standard Prodigy, not exact, but the only "
+                         "way this fits in memory at all. Set to 1 only if you have more VRAM to spare.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--prompt", default="H&E stained histopathology tissue")
     ap.add_argument("--save-every", type=int, default=250)
@@ -404,13 +423,18 @@ def main():
         trainable, lr=args.lr, betas=(args.prodigy_beta1, args.prodigy_beta2),
         weight_decay=args.prodigy_weight_decay, d_coef=args.prodigy_d_coef,
         decouple=args.prodigy_decouple, use_bias_correction=args.prodigy_use_bias_correction,
-        safeguard_warmup=args.prodigy_safeguard_warmup,
+        safeguard_warmup=args.prodigy_safeguard_warmup, slice_p=args.prodigy_slice_p,
     )
     print(f"Optimizer: Prodigy (lr scale={args.lr}, d_coef={args.prodigy_d_coef}, "
           f"weight_decay={args.prodigy_weight_decay}, decouple={args.prodigy_decouple}, "
           f"use_bias_correction={args.prodigy_use_bias_correction}, "
-          f"safeguard_warmup={args.prodigy_safeguard_warmup}) -- everything else "
-          f"identical to train_p3_07c_lora_sdxl.py.")
+          f"safeguard_warmup={args.prodigy_safeguard_warmup}, slice_p={args.prodigy_slice_p}) -- "
+          f"everything else identical to train_p3_07c_lora_sdxl.py.")
+    if args.prodigy_slice_p > 1:
+        print(f"  NOTE: slice_p={args.prodigy_slice_p} > 1 -- this is upstream's documented "
+              f"approximation to standard Prodigy (D-adaptation stats computed on every "
+              f"{args.prodigy_slice_p}th flattened param entry, not the full tensor), needed to "
+              f"fit in 24GB VRAM at this SDXL+ControlNet size. Not exact Prodigy.")
 
     amp_dtype = {"bf16": torch.bfloat16, "fp16": torch.float16, "no": None}[args.mixed_precision]
     scaler = torch.cuda.amp.GradScaler(enabled=(args.mixed_precision == "fp16"))

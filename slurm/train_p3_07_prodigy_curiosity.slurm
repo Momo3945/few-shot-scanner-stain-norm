@@ -24,9 +24,13 @@
 #     --time=00:30:00 -J p3_07_prodigy_smoke train_p3_07_prodigy_curiosity.slurm
 #
 # Env-var overrides (this project's standard non-breaking-change pattern):
-#   PAIRS_DIR=<path>   alternate pairs dir (default: train_1024_full96)
-#   OUT_TAG=<name>     alternate checkpoint dir name under lora/
-#   PRODIGY_LR=<val>   Prodigy's lr SCALE, not a literal step size (default 1.0)
+#   PAIRS_DIR=<path>     alternate pairs dir (default: train_1024_full96)
+#   OUT_TAG=<name>       alternate checkpoint dir name under lora/
+#   PRODIGY_LR=<val>     Prodigy's lr SCALE, not a literal step size (default 1.0)
+#   PRODIGY_SLICE_P=<n>  memory-saving approximation knob (default 11 -- REQUIRED
+#                        at n=1 on this hardware: job 60753's smoke test OOM'd at
+#                        step 4 with slice_p=1, GPU already at 23.49/23.55 GiB
+#                        even under the validated AdamW P3-07c run)
 # =====================================================================
 
 #SBATCH --job-name=p3_07_prodigy
@@ -49,6 +53,7 @@ STEPS=4000
 OUT_TAG=${OUT_TAG:-a2h_cond_r8_sdxl_1024_full96_prodigy}
 OUT_DIR=/datasets/mhoosen/stain-norm/lora/${OUT_TAG}
 PRODIGY_LR=${PRODIGY_LR:-1.0}
+PRODIGY_SLICE_P=${PRODIGY_SLICE_P:-11}
 export HF_HOME=/datasets/mhoosen/hf_cache
 
 SMOKE_FLAG=""
@@ -77,7 +82,7 @@ echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
 echo "Informal curiosity test: Prodigy optimizer swap on P3-07-family SDXL source-conditioning"
 echo "NOT a ticketed experiment -- see script docstring."
-echo "PairsDir=$DATA_DIR  Rank=$RANK  Steps=$STEPS  Resolution=$RESOLUTION  ProdigyLR=$PRODIGY_LR  Smoke='${SMOKE_FLAG}'"
+echo "PairsDir=$DATA_DIR  Rank=$RANK  Steps=$STEPS  Resolution=$RESOLUTION  ProdigyLR=$PRODIGY_LR  ProdigySliceP=$PRODIGY_SLICE_P  Smoke='${SMOKE_FLAG}'"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
@@ -95,6 +100,7 @@ python src/train/train_p3_07_prodigy_curiosity.py \
     --resolution  "${RESOLUTION}" \
     --output-dir  "${OUT_DIR}" \
     --lr          "${PRODIGY_LR}" \
+    --prodigy-slice-p "${PRODIGY_SLICE_P}" \
     --seed 0 \
     ${SMOKE_FLAG}
 
