@@ -1434,9 +1434,53 @@ job 60752, `mscluster58`, COMPLETED 5:53:50** — close to job 47029's
 A2H@1024 figure (5:44:54). 1488 output crops written (496 locations x 3
 seeds), manifest verified (1489 rows = 1488 + header).
 
-**Next step:** score (job pending, `--time=02:00:00` since 1024px crops
-take ~4x longer to score than 512px per this project's own established
-pattern) + aggregate — awaiting go-ahead.
+**Scoring (job 60929, COMPLETED 1:07:52) + aggregation (job 60971,
+COMPLETED 0:31) — FINAL RESULT:**
+
+| Scope | n | SSIM | recovery Δlab |
+|---|---|---|---|
+| ALL | 1488 | 0.3865 | **+9.20** |
+| ALL excl. A06 | 1296 | 0.4032 | +8.73 |
+| A06 (outlier, z=35.0) | 192 | 0.2736 | +12.37 |
+| A08 | 336 | 0.4196 | +7.64 |
+| A09 | 288 | 0.3456 | +11.10 |
+| A13 | 192 | 0.3903 | +7.84 |
+| A16 | 480 | 0.4315 | +8.44 |
+
+**Answers this section's own open question decisively: P3-07 H2A does
+NOT inherit P3-07 A2H's negative-recovery problem at ≤50 pairs.** Every
+slide is positive, no exceptions — the same pattern as P3-06 H2A (512px),
+not the -5.60-negative pattern P3-07's own A2H point showed at this exact
+pair count/resolution. This means the mechanism P3-07b diagnosed
+(insufficient training data at native 1024px causing colour-negative
+results under ≤50 pairs) is **specific to the A2H direction**, not a
+general property of native-1024/≤50-pair training — a genuine, informative
+cross-cutting finding, not something either prior result predicted on its
+own. SSIM (0.3865, 0.4032 excl-outliers) sits between P3-06 H2A's 0.3555
+and P3-07 A2H's own 0.4313 — comparable structural fidelity, no collapse.
+
+**Full comparison across every A2H/H2A x backbone x resolution combination
+run so far:**
+
+| | SSIM | recovery Δlab |
+|---|---|---|
+| SD1.5 A2H (P1-10) | 0.4485 | +2.89 |
+| SD1.5 H2A (P1-11) | 0.5477 | **-15.64** |
+| SDXL A2H, 512px (P3-06) | 0.3920 | +1.22 |
+| SDXL H2A, 512px (P3-06 H2A) | 0.3555 | **+9.47** |
+| SDXL A2H, 1024px, ≤50pr (P3-07) | 0.4313 | **-5.60** |
+| SDXL H2A, 1024px, ≤50pr (P3-07 H2A) | 0.3865 | **+9.20** |
+| SDXL A2H, 1024px, 96pr (P3-07b) | 0.4416 | +1.74 |
+
+**Status: P3-06b/P3-07 H2A is now fully DONE — both resolutions
+complete.** The overall pattern: SDXL's H2A colour recovery is
+consistently strong and positive regardless of resolution or pair count
+(+9.47 @512, +9.20 @1024≤50pr), while its A2H colour recovery is fragile
+and resolution/data-dependent (+1.22 @512, -5.60 @1024≤50pr, +1.74
+@1024·96pr). SD1.5 shows the opposite direction-asymmetry (A2H positive,
+H2A catastrophically negative). Worth flagging for the thesis discussion:
+direction-asymmetric colour behaviour is a real, backbone-dependent
+phenomenon in this architecture family, not an artefact of any single run.
 
 **Outcome-risk note (carried over from this ticket's original scoping):**
 P3-07's own A2H point at ≤50 pairs was already colour-negative (-5.60),
