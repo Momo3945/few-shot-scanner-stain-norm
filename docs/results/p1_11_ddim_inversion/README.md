@@ -70,3 +70,38 @@ raw Hamamatsu / real Aperio / f=1.00 / f=0.25 side by side).
 **Full narrative:** `tickets/PHASE1-TICKETS.md` P1-11's diagnostic
 follow-up section, `tickets/P2-12_atypia_classifier_evaluation_hardening.md`,
 `docs/results/RESULTS_SUMMARY.md`.
+
+---
+
+## Self-ensembling (2026-09-27/28) — strongest result in the future-work list
+
+**What this tests:** whether averaging multiple genuinely-different
+stochastic DDIM reconstructions (`eta>0`, a per-seed `torch.Generator`, new
+standalone script `infer_colour_source_ddim_inversion_ensemble.py` -- does
+not touch the validated original script) beats the single deterministic
+sample (`eta=0`) this project used everywhere until now.
+
+**Status:** ✅ CONFIRMED POSITIVE at full scale -- a genuine improvement,
+not a regression-fix. Smoke-scale sweep located a clear peak at
+`eta≈0.25-0.3`; full 496-crop x 3-seed verification at `eta=0.3`:
+
+| | P1-11 original baseline (eta=0) | eta=0.3 ensemble | Delta |
+|---|---|---|---|
+| SSIM (ALL) | 0.4960 | **0.5427** | **+0.0467** |
+| windowed LAB (ALL) | 26.01 | **24.64** | **-1.37 (better)** |
+
+**Ensemble wins 496/496 crops** against its own individual members, and
+every one of the 5 held-out slides (A06 included) improves on BOTH SSIM
+and colour simultaneously -- no trade-off anywhere. Closes roughly a
+third of the remaining gap to the weakest classical baseline (Macenko,
+SSIM 0.628), purely via an inference-time technique -- no retraining.
+
+**Files:** `eval/ensemble_eta03_full/summary.csv`, `per_crop.csv`,
+`paired_win_rate.csv` (full 496-crop result).
+
+**Not yet tested:** H2A direction, combining with P1-16's post-hoc fusion
+(both act on the same underlying output -- may or may not compound),
+ensemble sizes other than 3.
+
+**Full narrative:** `tickets/PHASE1-TICKETS.md` P1-11's future-work list
+(idea #2), `docs/results/RESULTS_SUMMARY.md`.

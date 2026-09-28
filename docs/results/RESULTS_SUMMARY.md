@@ -1390,6 +1390,33 @@ confirmed for this setting. Full write-up: `tickets/PHASE1-TICKETS.md`
 P1-11's diagnostic follow-up, `tickets/
 P2-12_atypia_classifier_evaluation_hardening.md`.
 
+**Update (2026-09-27/28): genuine self-ensembling confirmed as a real
+improvement to P1-11 A2H, not just a regression-fix -- the strongest
+single result from the literature-informed future-work list.** New
+standalone script (`infer_colour_source_ddim_inversion_ensemble.py`)
+threads `eta>0` through the DDIM reconstruction pass (never inversion,
+which has no `eta` parameter) so repeated seeds become genuinely
+different stochastic samples instead of the deterministic no-ops the
+original script's `eta=0` produces, then averages them. A smoke-scale
+sweep located a clear peak at `eta≈0.25-0.3` (SSIM rising monotonically
+to a max at 0.3, LAB falling to a minimum at 0.25, then both degrading
+past that point -- a real, well-resolved optimum). Full-scale (496-crop
+x 3-seed) verification at `eta=0.3`:
+
+| | P1-11 original baseline | eta=0.3 ensemble | Delta |
+|---|---|---|---|
+| SSIM (ALL) | 0.4960 | **0.5427** | **+0.0467** |
+| windowed LAB (ALL) | 26.01 | **24.64** | **-1.37 (better)** |
+
+Ensemble wins **496/496 crops** against its own individual members, and
+every one of the 5 held-out slides (including the A06 outlier) improves
+on BOTH SSIM and colour simultaneously -- a clean win with no trade-off
+anywhere. Closes roughly a third of the remaining gap to the weakest
+classical baseline (Macenko, SSIM 0.628), purely via an inference-time
+technique -- no retraining required. Not yet tested: H2A direction,
+combining with P1-16's post-hoc fusion, or ensemble sizes other than 3.
+Full write-up: `tickets/PHASE1-TICKETS.md` P1-11's future-work list.
+
 **Update (2026-08-10):** CIEDE2000 (`de2000_mean`) was added specifically to test
 whether a perceptual colour-difference metric would tell a different story than
 SSIM/PSNR/MAE. It doesn't — computed pixel-wise on the same registered pair, it

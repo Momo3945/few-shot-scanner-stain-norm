@@ -1510,9 +1510,10 @@ proposals for a future session, not commitments:
    `controlnet-scale=1.0` is already the right setting; this lever has no
    headroom in the direction hoped for.** Not worth re-trying without a
    new hypothesis for why a different value would behave differently.
-2. ~~**Genuine self-ensembling**~~ **TRIED (2026-09-27) -- POSITIVE, the
-   first genuine IMPROVEMENT (not just a regression-fix) found in this
-   whole future-work list.** New standalone script `src/eval/infer_colour_
+2. ~~**Genuine self-ensembling**~~ **TRIED AND CONFIRMED (2026-09-27/28) --
+   POSITIVE at full scale, the first genuine IMPROVEMENT (not just a
+   regression-fix) found in this whole future-work list.** New standalone
+   script `src/eval/infer_colour_
    source_ddim_inversion_ensemble.py` (does not touch the validated
    original -- same precedent as P1-15's alt-decoder script) threads a
    `--eta` flag through the RECONSTRUCTION pass only (never inversion --
@@ -1565,8 +1566,41 @@ proposals for a future session, not commitments:
    to a minimum at eta=0.25, then both degrade past that point -- the two
    optima essentially coincide (0.25-0.3), confirming this is a real,
    well-resolved peak, not noise. `ensemble` beats its own `member`s on
-   80/80 crops at every eta tested. **eta=0.3 is the recommended setting
-   -- next: full-scale (496-crop x 3-seed) verification.**
+   80/80 crops at every eta tested.
+
+   **Full-scale (496-crop x 3-seed, all 5 held-out slides) verification,
+   CONFIRMED POSITIVE (2026-09-27/28, job 60983 COMPLETED 03:43:12; scored
+   by job 61315 COMPLETED 00:28:49):**
+
+   | | P1-11 original baseline (eta=0, deterministic) | eta=0.3 ensemble | Delta |
+   |---|---|---|---|
+   | SSIM (ALL) | 0.4960 | **0.5427** | **+0.0467** |
+   | windowed LAB (ALL) | 26.01 | **24.64** | **-1.37 (better)** |
+
+   **Ensemble wins 496/496 crops** against its own individual members --
+   every single held-out crop, no exceptions. Per-slide (never let pooled
+   ALL stand alone):
+
+   | Slide | member SSIM | ensemble SSIM | member wLAB | ensemble wLAB |
+   |---|---|---|---|---|
+   | A06 (outlier) | 0.3410 | **0.4249** | 74.34 | **73.33** |
+   | A08 | 0.4984 | **0.5766** | 20.23 | **18.38** |
+   | A09 | 0.4337 | **0.5235** | 18.65 | **15.56** |
+   | A13 | 0.4721 | **0.5590** | 22.95 | **21.79** |
+   | A16 | 0.4935 | **0.5712** | 18.46 | **16.13** |
+   | ALL | 0.4606 | **0.5427** | 26.69 | **24.64** |
+   | ALL excl. A06 | 0.4783 | **0.5602** | 19.63 | **17.43** |
+
+   Every slide, including A06, improves on BOTH SSIM and colour
+   simultaneously -- a clean, uniform win with no trade-off anywhere.
+   **Verdict: self-ensembling (eta=0.3, 3-member) is a genuine, validated
+   improvement to P1-11 A2H, closing roughly a third of the remaining gap
+   to the weakest classical baseline (Macenko, SSIM 0.628) purely via an
+   inference-time technique -- no retraining required.** The single most
+   promising result in this entire future-work list. Not yet tested: H2A
+   direction, combining with P1-16's post-hoc fusion (may or may not
+   compound -- both act on the same underlying output, worth checking
+   before assuming additivity), or ensemble sizes other than 3.
 3. **Post-hoc detail fusion on any remaining un-fused configs** (mostly
    already done). This is P1-16's own technique, already the project's
    best result (SSIM 0.729, beats classical) and already applied to the
