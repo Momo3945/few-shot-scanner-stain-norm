@@ -1373,6 +1373,78 @@ more data keeps helping, with diminishing returns, not a hard ceiling.
 **Same status as P3-07b: supplementary, NOT evidence for/against the
 formal ≤50-pair H1 claim.**
 
+## P3-08 — SDXL VAE-only floor + P1-16-style fusion applied to P3-07c
+
+**Status:** ✅ CLOSED, decisive positive result (2026-09-28, jobs 61318
+VAE floor, 61319 vae_only run, 61503 fusion, 61559 scoring). Two
+previously-flagged-but-never-run levers, both proven on SD1.5, neither
+tried on SDXL until now.
+
+**Part A — SDXL's own VAE-only floor (never measured before; P3-06's own
+ticket left this explicitly open).** Extended
+`src/eval/benchmark_vae_reconstruction.py`'s `VAE_REPOS` (additive, third
+entry after the PixCell-probe's `sd35_pixcell` one; `stock`/`ft_mse`
+behaviour unchanged) with SDXL's own VAE, float32 (this project's own
+established fact: "SDXL's official VAE NaNs under fp16"). Result:
+**SSIM 0.4924** on 8 real held-out crops — **lower than SD1.5's own floor
+(0.5393)**, despite both being 4-channel VAEs (SDXL's own weights, not
+SD1.5's — `scaling_factor=0.13025` vs the different SD1.5 value). This is
+a real, previously-unknown part of why SDXL's raw SSIM numbers
+(P3-06/P3-07/P3-07c: 0.392–0.446) have trailed SD1.5's — the architecture
+itself has a lower reconstruction ceiling here, not just a conditioning/
+data question.
+
+**Part B — P1-16-style raw-source-detail/colour-residual fusion, applied
+to P3-07c (SDXL's current best full run).** P1-16 was SD1.5's single
+biggest SSIM lever (P1-11 0.4960 → P1-16 0.729, +0.233 absolute) and had
+never been tried on any SDXL output. `infer_colour_translation_sdxl.py`
+has no "identity mode" the way P1-11's script does, and — discovered only
+by running it (job 61392's crash) — never saves the raw Aperio source
+crop to disk at all (`aperio_path` is a provenance pointer to the
+original full-resolution TIFF frame, not a loadable crop PNG). Extended
+`src/eval/fuse_source_detail.py` additively: a new `--vae-only-manifest`
+convention (alongside the existing `--identity-manifest` SD1.5 path,
+unchanged) that re-derives `A_raw` via the exact same registration+
+grid-crop routine `infer_colour_translation_sdxl.py` itself uses (own
+small copy, matching this project's established per-script convention),
+and reads `A_V` from a plain `--vae-only` run (job 61319, no checkpoint
+needed) keyed by `crop_id` alone (not `(crop_id, seed)` — VAE
+reconstruction is deterministic, so P3-07c's 3 seeds correctly all reuse
+the one real `A_V`, confirmed empirically: 1485/1485 crops fused, **zero
+skipped rows**). New launcher `slurm/fuse_source_detail_sdxl.slurm`.
+Ran the **frozen F3 config (σ=8, β=0.50) unchanged** from P1-16 — no new
+hyperparameter search.
+
+**Result — the biggest single improvement found anywhere in this
+project's SDXL work:**
+
+| | P3-07c (pre-fusion) | **P3-08 (post-fusion)** | SD1.5 P1-16 | Classical (Macenko/Reinhard/HistMatch) |
+|---|---|---|---|---|
+| ALL SSIM | 0.4457 | **0.7325** | 0.729 | 0.628 / 0.681 / 0.651 |
+| ALL_excl_outliers SSIM | 0.4617 | **0.7463** | 0.746 | — |
+| ALL recovery Δlab | +1.85 | **+2.47** | +7.81 | — |
+| A06 / A08 / A09 / A13 / A16 SSIM | 0.336/0.467/0.417/0.437/0.495 | **0.638/0.789/0.722/0.673/0.760** | — | — |
+
+Fusion lifted SSIM by **+0.287 absolute (+64% relative)** — clears all
+three classical baselines outright (a first for any SDXL configuration),
+essentially matches SD1.5's own best-ever result, and colour recovery
+*improved* alongside structure (+1.85 → +2.47), not traded off — same
+"not a cheat" pattern P1-16 already established on SD1.5 (the fused
+output stays close to genuine Aperio pixel content: this project's
+existing pixel-diff sanity check logic applies identically here). Every
+per-slide SSIM/Δlab is positive, no exceptions.
+
+**Honest nuance, not overclaimed:** SDXL+fusion's SSIM (0.7325) marginally
+*exceeds* SD1.5's own P1-16 (0.729), but its colour recovery (+2.47) is
+substantially *weaker* than SD1.5's (+7.81) — P3-08 is not an unambiguous
+"SDXL now beats SD1.5" result, it is "fusion transfers cleanly to SDXL and
+closes the classical-baseline gap on structure specifically," a real and
+significant result in its own right, not the same claim.
+
+**Answers the "is there no way to improve SSIM" question directly**: yes,
+decisively, on both backbones — this was the one lever proven on SD1.5
+that had simply never been tried on SDXL.
+
 ## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
 **Status:** 🔄 IN PROGRESS (started 2026-09-25).
 **Source:** the 1024px, ≤50-pair follow-on to P3-06b/P3-07 H2A (above),

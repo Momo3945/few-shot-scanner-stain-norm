@@ -28,16 +28,33 @@ both against the SAME internal-validation crops/seeds) and joins their rows
 by (crop_id, seed) -- the exact columns P1-11's manifest already carries for
 this purpose.
 
-Inputs, each read ONLY from an existing P1-11 identity/translate run
-(generate them first with infer_colour_source_ddim_inversion.py if missing --
-this script itself runs no diffusion):
-  A_raw  = the identity-mode run's reference/<crop_id>.png (identity mode's
-           reference IS the untouched source crop -- see that script's own
-           `ref_img = c["src"] if args.mode == "identity" else c["ref"]`).
-  A_V    = the identity-mode run's method="vae_only" row's output_path (pure
-           VAE encode/decode of A_raw, no UNet).
-  H_pred = the translate-mode run's method="ddim_inversion", source_mode=
-           "correct" row's output_path (the actual A->H learned prediction).
+Inputs -- two supported conventions, controlled by which of
+--identity-manifest/--vae-only-manifest is passed (this script itself runs
+no diffusion in either case):
+
+  SD1.5/P1-11 convention (--identity-manifest, generate first with
+  infer_colour_source_ddim_inversion.py if missing):
+    A_raw  = the identity-mode run's reference/<crop_id>.png (identity
+             mode's reference IS the untouched source crop -- see that
+             script's own `ref_img = c["src"] if args.mode == "identity"
+             else c["ref"]`).
+    A_V    = the identity-mode run's method="vae_only" row's output_path
+             (pure VAE encode/decode of A_raw, no UNet).
+
+  P3-08/SDXL convention (--vae-only-manifest, added for backbones with no
+  "identity mode" -- e.g. infer_colour_translation_sdxl.py):
+    A_raw  = read directly from --translate-manifest's own aperio_path
+             column (always the true untouched Aperio crop, direction-
+             invariant -- no identity run needed at all).
+    A_V    = a separate plain --vae-only run's (no checkpoint needed)
+             source_mode=="vae_only" row's output_path.
+
+  Both conventions:
+  H_pred = the translate-mode run's method="ddim_inversion" (or no
+           "method" column at all -- some manifests in this project use a
+           simpler schema where every row in a single-source-mode run
+           already IS the prediction), source_mode="correct" row's
+           output_path (the actual A->H learned prediction).
 Real Hamamatsu ground truth is NEVER read by this script for fusion
 construction (only usable afterward, by the separate scoring step, per the
 ticket's "Hard Guardrail -- No Target Leakage").
@@ -69,11 +86,19 @@ Three variants (ticket's F1/F2/F3, LAB channels as (L, a, b)):
 
 Usage
 -----
+    # SD1.5/P1-11 convention:
     python fuse_source_detail.py \
         --identity-manifest <out>/p1_11_identity/eval_manifest.csv \
         --translate-manifest <out>/p1_11_translate_correct/eval_manifest.csv \
         --method f3 --sigma 8 --beta 0.75 \
         --out eval/p1_16_fusion/f3_sigma8_beta0.75
+
+    # P3-08/SDXL convention:
+    python fuse_source_detail.py \
+        --vae-only-manifest <out>/p3_07c_vae_only/eval_manifest.csv \
+        --translate-manifest <out>/p3_07c_full_heldout/eval_manifest.csv \
+        --method f3 --sigma 8 --beta 0.50 \
+        --out eval/p3_08_fusion/f3_s8_b0.50
 
 Dependencies: numpy, opencv-python-headless, scipy, scikit-image.
 Requires score_outputs.py (read_rgb_png) on the path (same folder).
@@ -136,14 +161,40 @@ FUSERS = {"f1": fuse_f1, "f2": fuse_f2, "f3": fuse_f3}
 
 def parse_args():
     ap = argparse.ArgumentParser(description="P1-16: raw-source-detail / learned colour-residual fusion.")
-    ap.add_argument("--identity-manifest", required=True,
+    ap.add_argument("--identity-manifest", default=None,
                     help="eval_manifest.csv from a P1-11 --mode identity run (same internal-"
                          "validation crops/seeds as --translate-manifest). Supplies A_raw "
-                         "(reference/) and A_V (method=vae_only output).")
+                         "(reference/) and A_V (method=vae_only output). SD1.5/P1-11 convention -- "
+                         "mutually exclusive with --vae-only-manifest (P3-08/SDXL convention, see "
+                         "that flag's help).")
+    ap.add_argument("--vae-only-manifest", default=None,
+                    help="P3-08/SDXL alternative to --identity-manifest: SDXL's "
+                         "infer_colour_translation_sdxl.py has no 'identity mode' and never saves "
+                         "the raw Aperio crop as its own file (only reference_path=Hamamatsu and "
+                         "output_path=generated/reconstructed are saved; aperio_path is a "
+                         "provenance pointer to the ORIGINAL full-resolution TIFF frame, not a "
+                         "loadable crop PNG -- confirmed empirically, job 61392). When this flag is "
+                         "given instead of --identity-manifest: A_raw is RE-DERIVED directly "
+                         "(registration + grid-crop, same routine as infer_colour_translation_sdxl.py/"
+                         "benchmark_vae_reconstruction.py's own --stage heldout gathering -- requires "
+                         "--aperio-root/--heldout-csv/--crop below), and A_V is read from THIS "
+                         "manifest's source_mode==vae_only rows (a plain infer_colour_translation_"
+                         "sdxl.py --vae-only run, no checkpoint needed).")
+    ap.add_argument("--aperio-root", default=None,
+                    help="P3-08/SDXL only: mitos_heldout dataset root, for re-deriving A_raw crops. "
+                         "Required with --vae-only-manifest.")
+    ap.add_argument("--heldout-csv", default=None,
+                    help="P3-08/SDXL only: heldout_frames.csv. Required with --vae-only-manifest.")
+    ap.add_argument("--crop", type=int, default=1024,
+                    help="P3-08/SDXL only: crop size, must match the translate/vae-only runs' own "
+                         "resolution (P3-07/P3-07c use 1024).")
+    ap.add_argument("--tissue-thresh", type=float, default=0.30)
+    ap.add_argument("--ecc-min", type=float, default=0.30)
     ap.add_argument("--translate-manifest", required=True,
                     help="eval_manifest.csv from a P1-11 --mode translate --source-mode correct "
-                         "run. Supplies H_pred (method=ddim_inversion output). Its own "
-                         "reference_path (real Hamamatsu) is NOT read by this script.")
+                         "run (or, for P3-08/SDXL, an infer_colour_translation_sdxl.py "
+                         "--source-mode correct run -- same manifest schema). Supplies H_pred. Its "
+                         "own reference_path (real Hamamatsu) is NOT read by this script.")
     ap.add_argument("--method", choices=["f1", "f2", "f3"], required=True)
     ap.add_argument("--sigma", type=float, default=4.0, help="Gaussian blur sigma (px). F2/F3.")
     ap.add_argument("--alpha", type=float, default=1.0, help="F2 high-frequency reinjection weight.")
@@ -158,6 +209,61 @@ def load_rows(manifest_path):
         return base, list(csv.DictReader(fh))
 
 
+def _rederive_aperio_crops(root, heldout_csv, crop, tissue_thresh, ecc_min):
+    """P3-08/SDXL only: reproduce infer_colour_translation_sdxl.py's own
+    A2H crop selection exactly (registration + grid tiling + both its
+    filters), since that script never saves the raw source crop to disk.
+    Returns {tag_id: rgb_uint8_array}, tag_id format
+    f"{slide}_{frame}_x{x}_y{y}" matching that script's own tag_id exactly.
+    A2H-only (matches every P3-06/P3-07/P3-07c run so far) -- src_frame is
+    the UNREGISTERED raw Aperio frame, per that script's own
+    `src_frame, ref_frame = (a_rgb, h_reg) if direction == "A2H" ...`.
+    """
+    from registration import read_rgb, register_h_to_a
+
+    def tissue_fraction(rgb):
+        a = rgb.astype(np.int16); mx = a.max(2); mn = a.min(2)
+        return float(((mx < 235) & ((mx - mn) > 12)).mean())
+
+    def grid_offsets(length, crop):
+        if length <= crop:
+            return [0]
+        offs = list(range(0, length - crop + 1, crop))
+        if offs[-1] != length - crop:
+            offs.append(length - crop)
+        return sorted(set(offs))
+
+    with open(heldout_csv, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    for r in rows:
+        r["aperio_path"] = r["aperio_path"].replace("\\", "/")
+        r["hamamatsu_path"] = r["hamamatsu_path"].replace("\\", "/")
+
+    out = {}
+    for r in rows:
+        a_rgb = read_rgb(Path(root) / r["aperio_path"])
+        h_rgb = read_rgb(Path(root) / r["hamamatsu_path"])
+        reg = register_h_to_a(a_rgb, h_rgb, ecc_min=ecc_min)
+        h_reg = reg.h_registered_rgb
+        H, W = a_rgb.shape[:2]
+        src_frame, ref_frame = a_rgb, h_reg  # A2H
+
+        crops_done = 0
+        for y in grid_offsets(H, crop):
+            for x in grid_offsets(W, crop):
+                src_c = src_frame[y:y + crop, x:x + crop]
+                ref_c = ref_frame[y:y + crop, x:x + crop]
+                if (ref_c.max(2) < 6).mean() > 0.10:
+                    continue
+                if tissue_fraction(src_c) < tissue_thresh:
+                    continue
+                tag = f"{r['aperio_slide']}_{r['frame_id']}_x{x}_y{y}"
+                out[tag] = src_c
+                crops_done += 1
+        print(f"  [A_raw re-derive] {r['aperio_slide']}_{r['frame_id']}: {crops_done} crops")
+    return out
+
+
 def main():
     args = parse_args()
     fuse = FUSERS[args.method]
@@ -166,26 +272,74 @@ def main():
     if args.method == "f3" and not (0.0 <= args.beta):
         raise SystemExit("--beta must be >= 0 for --method f3.")
 
-    id_base, id_rows = load_rows(args.identity_manifest)
+    if not args.identity_manifest and not args.vae_only_manifest:
+        raise SystemExit("Provide either --identity-manifest (SD1.5/P1-11 convention) or "
+                         "--vae-only-manifest (P3-08/SDXL convention) -- see their --help text.")
+    if args.identity_manifest and args.vae_only_manifest:
+        raise SystemExit("--identity-manifest and --vae-only-manifest are mutually exclusive "
+                         "(two different ways of supplying A_raw/A_V) -- pass only one.")
+
     tr_base, tr_rows = load_rows(args.translate_manifest)
 
     def is_vae_only(r):
         # Two manifest shapes exist for a vae_only row in this project: a
         # mixed-method infer_colour_source_ddim_inversion.py --mode identity
         # manifest (method=="vae_only", source_mode=="identity_vae_only"), or
-        # a dedicated infer_colour_translation.py --vae-only manifest (no
-        # "method" column at all, source_mode=="vae_only" directly). Accept
-        # either so a full-scale --vae-only run (e.g. the existing project-
-        # wide VAE-only floor check) can supply A_V without a new GPU job.
+        # a dedicated infer_colour_translation.py/infer_colour_translation_
+        # sdxl.py --vae-only manifest (no "method" column at all,
+        # source_mode=="vae_only" directly). Accept either so a full-scale
+        # --vae-only run (e.g. the existing project-wide VAE-only floor
+        # check) can supply A_V without a new GPU job.
         return r.get("method") == "vae_only" or r.get("source_mode") == "vae_only"
 
-    # A_raw + A_V: any row in the identity manifest carries the shared
-    # reference_path (= A_raw) for its crop_id (true for both manifest shapes
-    # above -- reference_path is always the untouched source crop when no
-    # real Hamamatsu target is involved); only vae_only rows carry A_V.
-    a_raw_by_crop = {r["crop_id"]: id_base / r["reference_path"] for r in id_rows}
-    a_vae_by_key = {(r["crop_id"], r["seed"]): id_base / r["output_path"]
-                    for r in id_rows if is_vae_only(r)}
+    if args.identity_manifest:
+        # SD1.5/P1-11 convention: A_raw + A_V both come from the identity
+        # manifest -- reference_path IS the untouched source crop under
+        # --mode identity (A->A), by construction of that special mode.
+        id_base, id_rows = load_rows(args.identity_manifest)
+        a_raw_by_crop = {r["crop_id"]: id_base / r["reference_path"] for r in id_rows}
+        a_vae_by_key = {(r["crop_id"], r["seed"]): id_base / r["output_path"]
+                        for r in id_rows if is_vae_only(r)}
+    else:
+        # P3-08/SDXL convention: no identity-mode run exists. A_raw comes
+        # directly from the TRANSLATE manifest's own aperio_path column
+        # (always the true Aperio crop, direction-invariant -- confirmed by
+        # direct read of infer_colour_translation_sdxl.py: written verbatim
+        # regardless of --direction, unlike reference_path). A_V comes from
+        # a separate plain --vae-only run's manifest.
+        #
+        # infer_colour_translation_sdxl.py's own --vae-only mode always
+        # writes exactly ONE seed (`seeds = [0] if args.vae_only else
+        # args.seeds` -- confirmed by direct read; also confirmed empirically,
+        # job 61319: "495 output crops ... x 1 seed(s)" against P3-07c's own
+        # 1485 = 495x3 seeds). This is semantically correct, not a shortfall
+        # -- VAE encode/decode has no randomness, so the SAME reconstruction
+        # is the right A_V for every one of H_pred's 3 seeds. Key by crop_id
+        # ONLY here (not (crop_id, seed), unlike the identity-manifest
+        # branch above) so every H_pred seed finds the one real A_V rather
+        # than being wrongly skipped for 2 of every 3 rows.
+        # A_raw is NOT retrievable from any saved file (confirmed empirically,
+        # job 61392: infer_colour_translation_sdxl.py never writes the raw
+        # source crop to disk, only reference_path=Hamamatsu and output_path;
+        # aperio_path is a provenance pointer to the original full-resolution
+        # TIFF frame, not a crop). Re-derive it directly, duplicating the
+        # EXACT same registration + grid-crop + filter routine
+        # infer_colour_translation_sdxl.py itself uses (own small copy, same
+        # convention already established by benchmark_vae_reconstruction.py)
+        # so the crop_id SET matches exactly -- a mismatch here would silently
+        # under-cover the fusion, not just misalign a few rows.
+        if not (args.aperio_root and args.heldout_csv):
+            raise SystemExit("--aperio-root and --heldout-csv are required with --vae-only-manifest "
+                             "(A_raw must be re-derived -- see that flag's --help).")
+        a_raw_by_crop = _rederive_aperio_crops(
+            args.aperio_root, args.heldout_csv, args.crop, args.tissue_thresh, args.ecc_min)
+        vae_base, vae_rows = load_rows(args.vae_only_manifest)
+        a_vae_by_crop_only = {r["crop_id"]: vae_base / r["output_path"]
+                              for r in vae_rows if is_vae_only(r)}
+        if not a_vae_by_crop_only:
+            raise SystemExit(f"--vae-only-manifest {args.vae_only_manifest} has no "
+                             f"source_mode==vae_only rows -- wrong file?")
+        a_vae_by_key = None  # signals the crop_id-only lookup path below
 
     # H_pred: translate-mode rows, method==ddim_inversion (or the column is
     # absent -- some existing full-scale translate-mode manifests in this
@@ -219,18 +373,25 @@ def main():
         if crop_id not in a_raw_by_crop:
             n_skipped += 1
             continue
-        a_raw_path = a_raw_by_crop[crop_id]
+        a_raw_entry = a_raw_by_crop[crop_id]
+        # P3-08/SDXL convention: a_raw_by_crop holds already-decoded ndarrays
+        # (re-derived, never saved to disk -- see _rederive_aperio_crops).
+        # SD1.5/identity-manifest convention: holds Path objects, unchanged.
+        a_raw_rgb = a_raw_entry if isinstance(a_raw_entry, np.ndarray) else read_rgb_png(a_raw_entry)
         h_pred_path = tr_base / r["output_path"]
-        a_raw_rgb = read_rgb_png(a_raw_path)
         h_pred_rgb = read_rgb_png(h_pred_path)
 
         kwargs = {"sigma": args.sigma, "alpha": args.alpha, "beta": args.beta}
         if args.method == "f3":
-            key = (crop_id, seed)
-            if key not in a_vae_by_key:
+            # crop_id-only lookup for the P3-08/SDXL convention (a_vae_by_key
+            # is None there -- see its construction above); (crop_id, seed)
+            # for the SD1.5/identity-manifest convention, unchanged.
+            a_vae_lookup = a_vae_by_crop_only if a_vae_by_key is None else a_vae_by_key
+            key = crop_id if a_vae_by_key is None else (crop_id, seed)
+            if key not in a_vae_lookup:
                 n_skipped += 1
                 continue
-            kwargs["a_vae_rgb"] = read_rgb_png(a_vae_by_key[key])
+            kwargs["a_vae_rgb"] = read_rgb_png(a_vae_lookup[key])
 
         fused = fuse(a_raw_rgb, h_pred_rgb, **kwargs)
         out_path = out_dir / "outputs" / f"{crop_id}_seed{seed}_{config_tag}.png"

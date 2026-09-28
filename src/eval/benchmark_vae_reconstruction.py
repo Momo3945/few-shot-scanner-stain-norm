@@ -74,13 +74,19 @@ VAE_REPOS = {
     # Not part of --vae both (that flag is specifically the stock/ft_mse
     # paired comparison) -- select directly with --vae sd35_pixcell.
     "sd35_pixcell": ("stabilityai/stable-diffusion-3.5-large", "vae", "bfloat16"),
+    # P3-08 (was P3-06's own open question, never measured until now):
+    # SDXL's own VAE-only floor -- float32, NOT fp16/bf16. This project's own
+    # hard-won, already-documented fact (P3-06/P3-07 script comments):
+    # "SDXL's official VAE NaNs under fp16 -- never fix this back." Not part
+    # of --vae both -- select directly with --vae sdxl.
+    "sdxl": ("stabilityai/stable-diffusion-xl-base-1.0", "vae", "float32"),
 }
 
 
 def parse_args():
     ap = argparse.ArgumentParser(
         description="P1-14: pure VAE self-reconstruction benchmark, stock vs sd-vae-ft-mse.")
-    ap.add_argument("--vae", choices=["stock", "ft_mse", "both", "sd35_pixcell"], default="both")
+    ap.add_argument("--vae", choices=["stock", "ft_mse", "both", "sd35_pixcell", "sdxl"], default="both")
     ap.add_argument("--stage", choices=["internal", "heldout"], required=True)
     ap.add_argument("--pairs-dir", default=None, help="Stage internal: e.g. pairs/train.")
     ap.add_argument("--root", default=None, help="Stage heldout: dataset root.")

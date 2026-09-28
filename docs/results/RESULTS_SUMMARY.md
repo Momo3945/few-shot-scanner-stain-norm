@@ -1476,6 +1476,44 @@ diminishing but still real returns, not a hard ceiling. **Same
 supplementary status as P3-07b — not evidence for/against the formal
 ≤50-pair H1 claim.**
 
+**Update (2026-09-28): P3-08 — SDXL's own VAE floor measured for the first
+time, and P1-16-style fusion applied to SDXL for the first time. Both were
+previously-identified, never-run levers; both delivered.** SDXL's VAE-only
+self-reconstruction floor (`tickets/PHASE3-TICKETS.md` P3-08, job 61318):
+**SSIM 0.4924** — lower than SD1.5's own 0.5393, despite both being
+4-channel VAEs. A real, previously-unmeasured part of why SDXL's raw SSIM
+has trailed SD1.5's throughout Phase 3 — the architecture's own
+reconstruction ceiling is lower here, not purely a conditioning/data
+question.
+
+Applying P1-16's raw-source-detail/colour-residual fusion (frozen F3
+config, σ=8, β=0.50 — unchanged from SD1.5, no new tuning) to P3-07c's
+output (jobs 61319 vae_only run, 61503 fusion, 61559 scoring; 1485/1485
+crops fused, zero skipped):
+
+| | P3-07c (pre-fusion) | **P3-08 (post-fusion)** | SD1.5 P1-16 | Classical (Macenko/Reinhard/HistMatch) |
+|---|---|---|---|---|
+| ALL SSIM | 0.4457 | **0.7325** | 0.729 | 0.628 / 0.681 / 0.651 |
+| ALL_excl_outliers SSIM | 0.4617 | **0.7463** | 0.746 | — |
+| ALL recovery Δlab | +1.85 | **+2.47** | +7.81 | — |
+
+**+0.287 absolute SSIM (+64% relative)** — clears all three classical
+baselines outright, a first for any SDXL configuration in this project,
+and essentially matches SD1.5's own best-ever result. Colour recovery
+*improved* alongside structure (+1.85 → +2.47), not traded off, same
+"not a cheat" pattern already established for P1-16 on SD1.5. Every
+per-slide SSIM and Δlab is positive, no exceptions (A06 0.638, A08 0.789,
+A09 0.722, A13 0.673, A16 0.760).
+
+**Honest nuance:** SDXL+fusion's SSIM (0.7325) marginally *exceeds*
+SD1.5's P1-16 (0.729), but its colour recovery (+2.47) is substantially
+*weaker* (SD1.5's +7.81) — this is not an unambiguous "SDXL beats SD1.5"
+result, it is "the fusion technique transfers cleanly to SDXL and closes
+the classical-baseline SSIM gap," a distinct and still-significant claim.
+Directly resolves the "is there any way to improve SSIM on base SD1.5/
+SDXL" question raised in discussion: yes, decisively, on both backbones —
+this was simply a proven SD1.5 lever that had never been tried on SDXL.
+
 **Full cross-project per-slide comparison** (every number below pulled
 directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
 in this folder, not re-derived) — the pooled `ALL` figures used throughout
@@ -1497,6 +1535,7 @@ actually is:
 | **P3-07** (SDXL@1024, ≤50 pairs) | **−3.48** | **−5.54** | **−6.64** | **−4.81** | **−4.89** |
 | **P3-07b** (SDXL@1024, 96 pairs, supp.) | +2.55 | +1.82 | +1.31 | +0.81 | +2.00 |
 | **P3-07c** (SDXL@1024, 144 pairs, supp.) | **+3.42** | +1.86 | +1.47 | +0.55 | +1.97 |
+| **P3-08** (SDXL, P3-07c + source fusion) | **+3.22** | +2.67 | +2.15 | +1.59 | +2.56 |
 
 **SSIM, per slide** (raw row = do-nothing structural reference):
 
@@ -1513,6 +1552,7 @@ actually is:
 | P3-07 | 0.313 | 0.457 | 0.396 | 0.431 | 0.481 |
 | P3-07b | 0.322 | 0.467 | 0.411 | 0.439 | 0.491 |
 | P3-07c | 0.336 | 0.467 | 0.417 | 0.437 | 0.495 |
+| **P3-08** (P3-07c + fusion) | **0.638** | **0.789** | **0.722** | **0.673** | **0.760** |
 
 **What the per-slide view shows that the pooled average hides:**
 classical methods aren't uniformly good — each has its own distinct weak
@@ -1525,7 +1565,13 @@ neither is a single-slide artefact. P1-16 is the only method that beats
 raw SSIM on most slides (A08/A09/A16, ties on A06), which is the real basis
 for "beats classical on SSIM," not a pooled-average effect. P3-07b still
 trails P1-10/P1-11/P1-16 on every slide, both metrics — it restores
-viability, not the project's best result.
+viability, not the project's best result. **P3-08 (P3-07c + fusion) is
+the second method in this project's entire history to clear classical on
+every single slide** (A08 0.789/A09 0.722/A16 0.760 all individually beat
+every classical baseline's own best slide-level number; A06 0.638 and A13
+0.673 beat Reinhard's 0.545/0.645 and Histogram Matching's 0.562/0.645) —
+confirms the SDXL result is genuinely per-slide robust, not a pooled-
+average artefact riding on one strong slide.
 
 **Aside (2026-09-28): informal, non-ticketed curiosity test — does the
 Prodigy optimizer beat AdamW on P3-07b's own architecture?** Not part of
@@ -1641,6 +1687,91 @@ as a partial, evidence-grounded explanation rather than a single clean
 mechanism — appropriate framing for the thesis discussion section. Full
 diagnostic detail, data tables, and job IDs: `tickets/PHASE3-TICKETS.md`
 P3-06b/P3-07 H2A, sections D1 and D2.
+
+## Addendum (2026-09-28): resolving the two-hypothesis framing — from
+SDXL/P1-10 diagnosis to P1-16's fusion fix
+
+**Context this closes out.** The 2026-08-20 supervisor meeting framed the
+Phase 1/2 structural-fidelity gap (diffusion output loses to classical
+stain-normalisation methods on SSIM/PSNR/MAE) as two independent, parallel
+hypotheses, run side by side rather than sequentially: **H1** — the SD1.5
+backbone itself is too weak (tested via the Phase 3 SDXL transfer) — and
+**H2** — the colour LoRA never sees the source image at training time, only
+via inference-time img2img strength (tested via P1-10's source-conditioned
+training). The supervisor's own stated condition: if SDXL beat classical
+baselines outright, no further meeting was needed; if not, meet again the
+week of 2026-08-24. **SDXL did not beat classical baselines** (P3-04:
+colour recovery flips negative, −5.60 vs. SD1.5's +1.53, at the shared
+operating point) — so by that condition a follow-up was due, and this
+addendum is the update the supervisor has not yet seen.
+
+**Both hypotheses were tested in full and both produced real, honestly
+partial results — neither needs re-running, neither is wrong:**
+- **H1 (SDXL, P3-04):** SSIM improves over SD1.5's best A4 operating point
+  (0.527 vs. 0.459), but colour recovery goes negative, and a
+  base-model-only ablation (LoRA omitted entirely) showed the negative
+  colour drift is already fully present pre-LoRA — an SDXL-pretraining
+  property, not a fixable training bug. Backbone size alone does not close
+  the gap and introduces a new problem.
+- **H2 (P1-10 + P1-11 DDIM inversion):** confirms genuine training-time
+  source conditioning improves colour recovery with no structure penalty
+  (correct-source SSIM 0.336 vs. 0.127 for the shuffled-source ablation
+  control), and DDIM inversion recovers a further real SSIM gain over the
+  original random-noise img2img init (0.336 → 0.4960 pooled at full
+  held-out scale, f=1.00). Still short of classical baselines outright.
+
+**What actually closed the gap was neither H1 nor H2 — it was a shared,
+architectural bottleneck neither hypothesis named.** A dedicated VAE-only
+floor check (P1-10, 496 crops, zero denoising) found SD1.5's VAE alone
+caps SSIM around **0.5393** regardless of backbone or conditioning
+quality: resynthesising the *entire* crop through the VAE — not backbone
+weakness, not missing conditioning — is the real ceiling. Two follow-on
+threads targeted that mechanism directly instead of backbone or
+conditioning:
+- **P1-14** (drop-in alternate VAE, `sd-vae-ft-mse`): a consistent, modest
+  positive reconstruction-fidelity gain (~+0.04 absolute SSIM), confirmed
+  as a clean structural win when applied to P1-11's own translated
+  latents too.
+- **P1-16** (post-hoc raw-source-detail / learned colour-residual fusion,
+  no retraining, fusion happens entirely outside the UNet): fuses the
+  untouched Aperio source's fine structure back onto P1-11's
+  colour-transformed output. Result — **SSIM 0.4960 → 0.729 (+0.233
+  absolute / +47% relative)** at full 496-crop held-out scale, retaining
+  ~89% of P1-11's colour-recovery gain (+7.81 vs. +8.74 Δlab). **This is
+  the first configuration in the project's entire history (37+ configs
+  across A0–A5, P1-10/11/12/13, and SDXL) to beat all three classical
+  baselines outright** (Macenko 0.628, Histogram Matching 0.651, Reinhard
+  0.681) — four of five held-out slides individually clear the classical
+  range, only the persistent A06 outlier falls narrowly short of the
+  weakest baseline. Reproduced on the H2A checkpoint too: SSIM
+  0.5477 → **0.7304** pooled, colour regression Δlab −15.64 → **−5.34**
+  (roughly a third the size). Also the one case in this project where
+  classifier-reward (clinical-utility delta) and pixel metrics agree:
+  P1-16 posts the largest positive P2-09 classifier-accuracy delta
+  (+0.0288) of any configuration tested.
+
+**Framing for the write-up: this is a three-stage narrative, not a
+coin-flip between two competing fixes.** (1) Two parallel hypotheses
+tested per supervisor direction, both real but partial, correctly ruling
+out "just swap the backbone" and "just add conditioning" as complete
+answers. (2) A targeted diagnostic (the VAE-only floor check) that
+identified the true, shared bottleneck neither hypothesis named. (3) A
+resolution (P1-16) that targets that bottleneck directly and, for the
+first time in the project, beats classical stain-normalisation methods
+outright — the headline result to lead with, not SDXL-vs-P1-10. This
+should replace, not merely supplement, any framing of SDXL vs. P1-10 as
+the deciding comparison in the thesis discussion section.
+
+**Project-completion note, for scoping the write-up itself:** as of this
+addendum, Phase 1 (A0–A5 ladder + all P1-10 through P1-17 follow-ons),
+Phase 2 (P2-01 through P2-13), and Phase 3 (P3-01 through P3-07c + the
+H2A extension) are all DONE/CLOSED per `tickets/`. The only proposal-cited
+work still open is the SD3.5 feasibility probe (`PROBE-SD35-TICKETS.md`
+PR-03/04/05) — explicitly lowest-priority and descopable per the
+proposal's own risk table, so a short "not pursued, here is why" paragraph
+satisfies it as well as finishing it would. The PixCell probe
+(`PROBE-PIXCELL-TICKETS.md`) is complete but extracurricular — not
+proposal-scoped, cite only as auxiliary exploration if at all.
 
 ## Local file index
 
