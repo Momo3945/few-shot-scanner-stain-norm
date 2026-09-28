@@ -14,6 +14,11 @@ traceable back to the graded document rather than drifting over time.
   probe, which has its own dedicated proposal section) — extracurricular
   exploration only, not graded scope, unless/until the proposal is amended.
   Uses `PXC-` IDs specifically to avoid implying proposal-scoped status.
+  **COMPLETE (2026-09-28):** cheapest LoRA training cost of any backbone
+  in this project, but zero-fine-tuning structural fidelity (SSIM 0.0451)
+  is decisively too low without a from-scratch source-conditioning
+  ControlNet build (not started — a real scope decision, not a default
+  next step). Full verdict in that file's own PXC-04 section.
 
 ## Status legend
 - `TODO` — not started
