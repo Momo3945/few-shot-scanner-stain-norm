@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: "Few-Shot Scanner Stain Normalisation"
+message: "If you use this work, please cite it as below."
+type: software
+authors:
+  - family-names: Hoosen
+    given-names: Muhammad
+    affiliation: "University of the Witwatersrand"
+abstract: >-
+  Diffusion-based, few-shot H&E stain normalisation across whole-slide
+  scanners (Aperio <-> Hamamatsu) using a frozen Stable Diffusion base
+  adapted with a colour LoRA, ControlNet, and LCM-LoRA, evaluated for colour
+  fidelity, structural safety, and clinical utility.
+repository-code: "https://github.com/Momo3945/few-shot-scanner-stain-norm"
+year: 2026

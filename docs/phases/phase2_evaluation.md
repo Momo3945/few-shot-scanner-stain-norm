@@ -1,18 +1,21 @@
 # Phase 2 — Evaluation
 
-**Documentation only.** This folder holds no code, configs, or results — see
-CLAUDE.md's "Layout" section for the canonical code location and the cluster
-`/datasets/mhoosen/stain-norm/` paths for real artifacts.
+**Documentation only.** This file holds no code, configs, or results — see
+[`CLAUDE.md`](../../CLAUDE.md)'s "Layout" section for the canonical code location and
+the cluster `/datasets/mhoosen/stain-norm/` paths for real artifacts.
 
 Colour fidelity, structural preservation, clinical utility, cycle consistency, and
 multi-centre generalisation.
 
-## Status (2026-08-08)
+## Status: ✅ complete
 
-Not started. Inference/scoring code (`infer_colour_lora.py`, `score_outputs.py`) now
-exists locally as of this reconciliation but has not yet been synced to the cluster or
-run against the 3 completed Phase-1 LoRA runs. No `eval/` directory exists yet under
-`/datasets/mhoosen/stain-norm/`.
+All evaluation tickets (P2-01 through P2-13) are done, including the negative
+results (the HoVer-Net/Lizard structural-safety gate and the CAMELYON17
+multi-centre check both failed their acceptance bars — reported as genuine
+findings, not hidden). See
+[`tickets/PHASE2-TICKETS.md`](../../tickets/PHASE2-TICKETS.md) for the
+per-ticket task board and [`docs/results/RESULTS_SUMMARY.md`](../results/RESULTS_SUMMARY.md)
+for the full numbers and narrative.
 
 ## Consumes
 

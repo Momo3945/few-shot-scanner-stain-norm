@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#495057"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="400" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="500" y="26" text-anchor="middle" font-size="15" font-weight="600" fill="#212529">Few-shot scanner stain normalisation — pipeline overview</text>
+
+  <!-- Pipeline boxes (row 1) -->
+  <!-- box 0: source crop -->
+  <rect x="20" y="60" width="168" height="72" rx="10" fill="#F1F3F5" stroke="#868E96" stroke-width="2"/>
+  <text x="104" y="90" text-anchor="middle" font-size="13" fill="#212529">Aperio source crop</text>
+  <text x="104" y="108" text-anchor="middle" font-size="11" fill="#495057">(&#8804;50 paired crops,</text>
+  <text x="104" y="122" text-anchor="middle" font-size="11" fill="#495057">few-shot training)</text>
+
+  <!-- box 1: SD1.5 + colour LoRA -->
+  <rect x="220" y="60" width="168" height="72" rx="10" fill="#EDF2FF" stroke="#4263EB" stroke-width="2"/>
+  <text x="304" y="90" text-anchor="middle" font-size="13" fill="#212529">Frozen SD1.5</text>
+  <text x="304" y="108" text-anchor="middle" font-size="12" fill="#212529">+ colour LoRA</text>
+  <text x="304" y="123" text-anchor="middle" font-size="11" fill="#495057">(A2H / H2A, r4 / r8)</text>
+
+  <!-- box 2: ControlNet -->
+  <rect x="420" y="60" width="168" height="72" rx="10" fill="#EDF2FF" stroke="#4263EB" stroke-width="2"/>
+  <text x="504" y="92" text-anchor="middle" font-size="13" fill="#212529">ControlNet</text>
+  <text x="504" y="110" text-anchor="middle" font-size="12" fill="#212529">(Canny edges)</text>
+  <text x="504" y="124" text-anchor="middle" font-size="11" fill="#495057">structure preservation</text>
+
+  <!-- box 3: LCM-LoRA / DDIM inversion -->
+  <rect x="620" y="60" width="168" height="72" rx="10" fill="#EDF2FF" stroke="#4263EB" stroke-width="2"/>
+  <text x="704" y="88" text-anchor="middle" font-size="13" fill="#212529">LCM-LoRA</text>
+  <text x="704" y="104" text-anchor="middle" font-size="12" fill="#495057">(fast preview)</text>
+  <text x="704" y="120" text-anchor="middle" font-size="12" fill="#212529">or DDIM inversion</text>
+  <text x="704" y="133" text-anchor="middle" font-size="11" fill="#495057">(quality reference)</text>
+
+  <!-- box 4: output -->
+  <rect x="820" y="60" width="160" height="72" rx="10" fill="#E6FCF5" stroke="#0CA678" stroke-width="2"/>
+  <text x="900" y="90" text-anchor="middle" font-size="13" fill="#212529">Hamamatsu-like</text>
+  <text x="900" y="108" text-anchor="middle" font-size="13" fill="#212529">output</text>
+  <text x="900" y="123" text-anchor="middle" font-size="11" fill="#495057">(+ source-detail fusion)</text>
+
+  <!-- arrows row 1 -->
+  <line x1="188" y1="96" x2="218" y2="96" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="388" y1="96" x2="418" y2="96" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="588" y1="96" x2="618" y2="96" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="788" y1="96" x2="818" y2="96" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- trunk from output down to branch line -->
+  <line x1="900" y1="132" x2="900" y2="200" stroke="#495057" stroke-width="2"/>
+  <!-- branch horizontal -->
+  <line x1="240" y1="200" x2="900" y2="200" stroke="#495057" stroke-width="2"/>
+  <!-- branch drops with arrowheads -->
+  <line x1="240" y1="200" x2="240" y2="248" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="200" x2="500" y2="248" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="760" y1="200" x2="760" y2="248" stroke="#495057" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- evaluation boxes (row 2) -->
+  <rect x="130" y="250" width="220" height="90" rx="10" fill="#FFF4E6" stroke="#E8590C" stroke-width="2"/>
+  <text x="240" y="280" text-anchor="middle" font-size="13" font-weight="600" fill="#212529">Colour fidelity</text>
+  <text x="240" y="300" text-anchor="middle" font-size="11" fill="#495057">LAB-histogram Wasserstein</text>
+  <text x="240" y="316" text-anchor="middle" font-size="11" fill="#495057">vs. real paired target</text>
+
+  <rect x="390" y="250" width="220" height="90" rx="10" fill="#FFF4E6" stroke="#E8590C" stroke-width="2"/>
+  <text x="500" y="280" text-anchor="middle" font-size="13" font-weight="600" fill="#212529">Structural safety</text>
+  <text x="500" y="300" text-anchor="middle" font-size="11" fill="#495057">SSIM / PSNR / MAE,</text>
+  <text x="500" y="316" text-anchor="middle" font-size="11" fill="#495057">HoVer-Net Relative Dice</text>
+
+  <rect x="650" y="250" width="220" height="90" rx="10" fill="#FFF4E6" stroke="#E8590C" stroke-width="2"/>
+  <text x="760" y="280" text-anchor="middle" font-size="13" font-weight="600" fill="#212529">Clinical utility</text>
+  <text x="760" y="300" text-anchor="middle" font-size="11" fill="#495057">downstream atypia-</text>
+  <text x="760" y="316" text-anchor="middle" font-size="11" fill="#495057">classifier accuracy &#916;</text>
+
+  <!-- footer note -->
+  <text x="500" y="368" text-anchor="middle" font-size="11" fill="#868E96">Held-out slides (A06/A08/A09/A13/A16) are never used in training. Every result reports per-slide + outlier-excluded aggregate.</text>
+</svg>

@@ -268,11 +268,13 @@ do not create new top-level folders without updating this list.
               score_outputs.slurm       `logs/` job logs
 - `tickets/`   task breakdown per phase, derived from proposal.tex (see below)
 - The flat layout above is where ALL real code, checkpoints, and results actually
-  live (confirmed by direct cluster audit). Any `phase1_ablation/`, `phase2_evaluation/`,
-  `phase3_sdxl/`, `probe_sd35/` folders are **documentation-only** (an INPUTS.md per
-  phase describing what that phase consumes/produces and pointing at the real flat
-  paths above) — they are NOT real working directories and nothing should be written
-  into subfolders under them.
+  live (confirmed by direct cluster audit). `docs/phases/phase1_ablation.md`,
+  `phase2_evaluation.md`, `phase3_sdxl.md`, `sd35_probe.md` (moved here from root-level
+  `phase1_ablation/`, `phase2_evaluation/`, `phase3_sdxl/`, `probe_sd35/` folders on
+  2026-09-29 as part of the public-facing README/docs restructure) are
+  **documentation-only** (one file per phase describing what that phase
+  consumes/produces and pointing at the real flat paths above) — nothing should be
+  written into them beyond that per-phase reference doc.
 
 ## Tickets — task tracking against the proposal
 - `tickets/` contains one file per phase (PHASE1-TICKETS.md, PHASE2-TICKETS.md,

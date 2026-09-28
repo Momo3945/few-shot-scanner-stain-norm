@@ -1,17 +1,23 @@
 # Phase 1 — SD1.5 Ablation Ladder (A0–A5)
 
-**Documentation only.** This folder holds no code, configs, checkpoints, or results —
-see CLAUDE.md's "Layout" section for the canonical code location and the cluster
-`/datasets/mhoosen/stain-norm/` paths for real artifacts.
+**Documentation only.** This file holds no code, configs, checkpoints, or results —
+see [`CLAUDE.md`](../../CLAUDE.md)'s "Layout" section for the canonical code location
+and the cluster `/datasets/mhoosen/stain-norm/` paths for real artifacts.
 
-Colour-LoRA + ControlNet + LCM ablation rungs. Training and inference.
+Colour-LoRA + ControlNet + LCM ablation rungs, plus the source-conditioning,
+DDIM-inversion, and post-hoc fusion follow-on work (P1-10 through P1-17) it led to.
+Training and inference.
 
-## Status (2026-08-08)
+## Status: ✅ complete
 
-3 of 4 planned colour-LoRA legs completed on `bigbatch`: `a2h_r8`, `a2h_r4`, `h2a_r8`
-(each 1000/1000 steps, loss ≈0.20–0.21, `final/pytorch_lora_weights.safetensors`
-present). `h2a_r4` has not been run. ControlNet and LCM-LoRA rungs (A1–A5 beyond the
-base colour LoRA) have not started.
+The full A0–A5 ladder and every P1-10–P1-17 follow-on (source-conditioned
+training, DDIM inversion, LCM acceleration, VAE-floor diagnosis, post-hoc
+source-detail fusion) are done. Headline result: P1-16's post-hoc fusion is
+the first configuration in the project to beat all three classical
+stain-normalisation baselines on SSIM. See
+[`tickets/PHASE1-TICKETS.md`](../../tickets/PHASE1-TICKETS.md) for the
+per-ticket task board and [`docs/results/RESULTS_SUMMARY.md`](../results/RESULTS_SUMMARY.md)
+for the full numbers and narrative.
 
 ## Consumes
 
@@ -51,4 +57,5 @@ warm-start source only.
 | `.../final/pytorch_lora_weights.safetensors` | Trained LoRA weights |
 | `.../loss_log.csv`, `.../training_config.json` | Training curve + run config |
 
-The best-performing rung config is the input to **Phase 3** (`phase3_sdxl/`).
+The best-performing rung config is the input to **Phase 3**
+([`docs/phases/phase3_sdxl.md`](phase3_sdxl.md)).
