@@ -1,4 +1,12 @@
-# Auxiliary Probe — PixCell Feasibility (proposed, NOT yet in scope)
+# Auxiliary Probe — PixCell Feasibility (COMPLETE, was never proposal-scoped)
+
+**Final verdict (2026-09-28, PXC-04): mechanically excellent, structurally
+infeasible as-is.** Cheapest LoRA training cost of any backbone in this
+project (130.3s/1000 steps, 4.20GB VRAM) and the highest VAE-only
+structural ceiling (0.7732 SSIM) — but zero-fine-tuning generation scores
+SSIM 0.0451 against a real registered target, decisively too low to use,
+because PixCell has no native img2img/source-conditioning at all. See
+PXC-04 at the bottom for the full outcome write-up.
 
 **⚠️ This is not in `docs/proposal.tex` at all — unlike the SD3.5 probe (which
 has its own dedicated, explicitly descopable proposal section,
@@ -174,6 +182,35 @@ and fixed en route (both via direct primary-source reads, not guessing):**
    directly reading the cached pipeline source on the cluster, not
    guessing a zero-tensor substitute).
 
+**PXC-01b result — LoRA training cost, done (2026-09-28, jobs 61314 smoke,
+61317 real 1000-step run).** Two more real bugs found and fixed en route
+(both confirmed via direct execution, not guessed): `PixCellTransformer2DModel`
+is a custom community class with no diffusers `PeftAdapterMixin`, so
+`.add_adapter()` doesn't exist on it — fixed with peft's own
+backend-agnostic `get_peft_model()` instead. LoRA restricted to `attn2`
+(cross-attention) projections only, rank 8 (this project's own convention):
+2,064,384 trainable params. Transformer confirmed `in_channels=16,
+out_channels=32` (learned-sigma variant, confirmed via direct config read,
+not assumed) — output correctly halved before the loss, matching the
+cached pipeline's own inference-time handling.
+
+| | SD1.5 A2 (`lora/a2h_r8`) | SD3.5 (PR-01) | **PixCell (PXC-01b)** |
+|---|---|---|---|
+| Wall-clock, 1000 steps | 160.5s (2.7 min) | 798.8s (13.3 min) | **130.3s (2.2 min)** |
+| Per-step time | ~0.16s | ~0.66–0.80s | **0.130s** |
+| Peak VRAM | not tracked (small, known-fit) | 17.77 GB | **4.20 GB** |
+| Trainable LoRA params | 1,594,368 | 5,914,624 | 2,064,384 |
+
+**PixCell is the cheapest LoRA training of every backbone tried in this
+entire project — including SD1.5 itself**, despite the extra UNI2-h
+embedding-extraction step and reused 16-channel VAE. Loss stayed in a
+noisy but finite 0.03–0.33 band across all 1000 steps, no NaN/divergence
+(same standing guardrail as every other LoRA script in this project —
+loss is not a success signal, PXC-02 already measured the actual
+structural result). **Cost feasibility is unambiguously excellent; PXC-02
+already established that cost is not the blocking factor for this
+backbone — structural fidelity is.**
+
 **Resolves this project's real unknowns going in:** UNI2-h embedding for a
 single 224×224 image is `(1, 1536)`, reshaped to `(1, 1, 1536)` — confirmed
 to match `caption_num_tokens=1` read directly from the loaded transformer's
@@ -304,10 +341,52 @@ pasted table's own (correct) observation.
 
 ## PXC-04 — Report outcome
 
-**Status:** BLOCKED on PXC-01/02(/03).
-**Description:** Same discipline as PR-05 — write up feasible/infeasible
-as a short, clearly-scoped note. Given PXC-00's proposal-scope caveat
-above, this explicitly **cannot** be framed as a fourth ablation condition
-or as evidence for/against the main research questions unless the
-proposal itself is amended first — report it as informal exploratory
-follow-up work at most, distinct from the graded Phase 1–3 results.
+**Status:** ✅ DONE (2026-09-28). PXC-01a/PXC-01b/PXC-02 complete; PXC-03
+(the ControlNet build PXC-02 shows would be required) deliberately not
+started — a real go/no-go decision, not this ticket's default next step
+(see PXC-02's own note). Reported here per PR-05's discipline: informal
+exploratory follow-up, **not** proposal-scoped evidence, per PXC-00's own
+caveat — do not cite this as a fourth ablation condition or as bearing on
+the main research questions unless the proposal is explicitly amended.
+
+### Verdict: mechanically excellent, structurally infeasible as-is
+
+**What works, decisively well:**
+- Wiring is fully proven end-to-end (UNI2-h → PixCell-256, PXC-01a) after
+  finding and fixing two real API gaps via direct primary-source reads.
+- **Compute cost is the best in this entire project** — 130.3s/1000
+  LoRA-training steps at 4.20GB peak VRAM (PXC-01b), cheaper than SD1.5
+  itself (160.5s) and far cheaper than SD3.5 (798.8s/17.77GB).
+- PixCell's own VAE (SD3.5's, 16-channel) has a self-reconstruction SSIM
+  ceiling of 0.7732 (PXC-02 Part A) — dramatically higher than the
+  4-channel VAE ceiling (0.54–0.62) that has capped every SD1.5/SDXL
+  structural result in this project.
+
+**What doesn't work, decisively:**
+- PixCell has no native img2img — conditioning is purely a single global
+  1536-dim UNI2-h embedding extracted from the source image, with no
+  pixel/nucleus-position information at all. Zero-fine-tuning generation
+  from a real crop's own embedding, scored against the real registered
+  target, gives **SSIM 0.0451** — noise-level, nowhere near the VAE's own
+  0.7732 ceiling and far below SD1.5's own weak 0.27–0.46 img2img floor
+  (PXC-02 Part B, job 61123). The embedding-only conditioning paradigm
+  fundamentally does not fit this project's registered-pair structural
+  metrics without additional machinery.
+
+**Net assessment:** the ceiling this backbone *could* reach (0.77 SSIM,
+if structure were solved) is higher than anything achieved elsewhere in
+this project — but reaching it requires building a genuine
+source-RGB-conditioning branch for a DiT (PXC-03), a first-of-its-kind
+build for this project's third backbone family, not a quick follow-up.
+Whether that's worth the investment is a scope/time decision for the
+thesis, not a technical one this probe can resolve on its own — this
+probe's job (is it mechanically feasible, and roughly how expensive) is
+answered: yes, and cheaply; the *quality* question is answered too: not
+without substantially more engineering than this probe's own scope covers.
+
+**If cited in the thesis at all** (subject to PXC-00's scope caveat):
+frame as "explored as an auxiliary feasibility check, found cheap to
+train but structurally unworkable without native source conditioning
+(unlike SD1.5/SDXL's img2img), not pursued further within this project's
+scope" — an honest, complete, defensible outcome, not a stalled or
+abandoned thread.
