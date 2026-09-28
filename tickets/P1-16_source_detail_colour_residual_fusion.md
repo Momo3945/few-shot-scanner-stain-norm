@@ -745,3 +745,113 @@ recovery_delta agreeing with genuine colour recovery is a good sign for
 *this specific number's internal consistency*, but it still isn't valid
 clinical-utility evidence until P2-12 lands and a real H→A version of
 P1-11's output (and this fusion step rerun on top of it) exists.
+
+## Methodological integrity check: is fusion "cheating"? (2026-09-28)
+
+Prompted by a direct question about whether the SSIM/colour gains reported
+above are legitimate or an artefact of how fusion is constructed. Two
+separate questions, answered separately: (1) does fusion leak the real
+target into its construction, and (2) even without leakage, is comparing
+fusion's SSIM to other methods' SSIM a fair comparison?
+
+### (1) No-target-leakage re-verification, current code
+
+This ticket already has one real precedent of this exact failure mode
+(the `p1_10_vae_floor` incident, documented above in this file — a
+reused directory's `reference_path` silently resolved to real Hamamatsu
+instead of raw Aperio, producing an invalid SSIM≈0.998 result, caught via
+a checksum audit). That incident is direct evidence the guardrail is not
+just a paper policy — it has been tested by a real bug before, and the
+bug was caught. This section re-verifies the *current* `fuse_source_
+detail.py` (which has since grown a second, P3-08/SDXL input convention)
+against the same "Hard Guardrail — No Target Leakage" stated above, by a
+full line-by-line trace of every pixel-array input to `fuse_f1`/`fuse_f2`/
+`fuse_f3`.
+
+**Function signatures (structural proof, not just intent):** `fuse_f1(a_raw_rgb,
+h_pred_rgb)`, `fuse_f2(a_raw_rgb, h_pred_rgb, sigma, alpha)`, `fuse_f3(a_raw_rgb,
+h_pred_rgb, a_vae_rgb, sigma, beta)` — none of the three functions accepts a
+reference/target parameter at all. There is no variable inside any of them
+that could hold target pixel data even if the caller wanted to pass it in.
+
+**Provenance of every array actually passed to those functions:**
+- `a_raw_rgb` — SD1.5/P1-11 convention: `id_base / r["reference_path"]` read
+  from the **identity**-manifest, which for `--mode identity` is, by that
+  script's own construction (`infer_colour_source_ddim_inversion.py`:
+  `ref_img = c["src"] if args.mode == "identity" else c["ref"]`), the
+  untouched **source** crop, not a translation target (self-reconstruction
+  mode, A→A). P3-08/SDXL convention: re-derived directly from the raw Aperio
+  TIFF via `_rederive_aperio_crops()`, which stores `src_frame = a_rgb` (the
+  real, unregistered Aperio frame) — never the Hamamatsu side.
+- `h_pred_rgb` — the translate-manifest's own `output_path` for
+  `source_mode=="correct"` rows: the diffusion model's own prediction, not
+  ground truth.
+- `a_vae_rgb` (F3 only) — a `source_mode=="vae_only"` row's `output_path`:
+  pure VAE encode/decode of the source, no UNet, no target involvement.
+
+**`reference_path` (the real Hamamatsu target) is read exactly once in the
+whole script** (line ~405, `ref_src = tr_base / r["reference_path"]`), and
+only via `shutil.copyfile(ref_src, ref_dst)` — a raw byte copy, never opened
+into a pixel array, never passed to `fuse()`. Control-flow order in the main
+loop matters here too: `fused = fuse(a_raw_rgb, h_pred_rgb, **kwargs)` and
+`Image.fromarray(fused).save(out_path)` both execute and complete *before*
+`reference_path` is touched at all — the fused output is already fully
+computed and written to disk before the script does anything with the real
+target. Even a corrupted or missing `reference_path` cannot retroactively
+change pixels already saved.
+
+**Verdict: current code satisfies the guardrail.** No held-out target
+pixel, histogram, statistic, or fusion coefficient is derivable from the
+real Hamamatsu image anywhere in the fusion-construction path.
+
+**One nuance, disclosed rather than swept under the rug:**
+`_rederive_aperio_crops()` (P3-08/SDXL convention only) does call
+`register_h_to_a(a_rgb, h_rgb, ...)` — meaning it *does* read real Hamamatsu
+pixels — and uses the registered Hamamatsu crop's blank-background mask
+(`(ref_c.max(2) < 6).mean() > 0.10`) to decide which crop *locations* to
+keep. This touches target data, but only to reproduce — exactly,
+deterministically — the same crop-selection filter
+`infer_colour_translation_sdxl.py` already applies to every one of its
+outputs, fusion or not (this project's standing crop-eligibility protocol,
+established for reasons unrelated to fusion). It affects which tiles exist,
+never a pixel *value* inside a kept tile, and it is not "a registration
+transform chosen specifically for fusion" in the sense the guardrail
+prohibits (choosing/tuning something using target content to make fusion's
+number look good) — it is the same deterministic geometry the underlying
+translation script already committed to before fusion runs at all. Recorded
+here for full transparency rather than omitted.
+
+### (2) Is the SSIM comparison itself fair?
+
+Even with zero leakage, a fair question remains: fusion's structure comes
+100% from real, untouched source pixels — of course its SSIM is higher than
+a method that regenerates structure stochastically from noise. Two
+different comparisons in this ticket need two different answers:
+
+- **Fusion vs. classical baselines (Macenko/Reinhard/histogram matching):
+  fair.** All of these methods — fusion included — fully preserve raw
+  spatial structure and only alter colour/luminance statistics. Comparing
+  their SSIM is comparing colour-adjustment quality on an equal structural
+  footing, not comparing "who preserved more structure."
+- **Fusion vs. pure diffusion output (P1-11's raw generation, pre-fusion):
+  not an apples-to-apples "diffusion got better" claim.** Pure diffusion
+  resynthesises the whole crop stochastically; fusion reuses guaranteed-real
+  structure by construction. The correct reading of "fusion's SSIM beats
+  P1-11's own" is "post-hoc structure-preserving colour fusion recovers
+  what pure generation sacrifices" — not "the diffusion model learned to
+  preserve structure better." This distinction is already implicit in how
+  this ticket frames the result (motivation section: "diffusion supplies
+  only the colour/style change while the source supplies the fine tissue
+  structure") but is worth stating explicitly for anyone citing the SSIM
+  number without reading the full method.
+
+**Corroborating evidence this isn't metric-gaming:** the downstream
+atypia-classifier recovery_delta for the corrected H→A fusion result (see
+`tickets/PHASE1-TICKETS.md` P1-16's H2A extension) came back as an exact
+tie with the raw baseline (0.0, 95% CI crossing zero) — not a win. A
+technique that were artificially inflating its reported quality would have
+no reason to also honestly register as clinically neutral. The fact that
+fusion helps SSIM/colour but does nothing for the one metric it cannot
+directly manipulate (a classifier trained independently, on Aperio, with no
+knowledge of this fusion process) is the expected signature of a real,
+bounded effect — not a trick.
