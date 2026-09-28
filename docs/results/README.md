@@ -44,6 +44,11 @@ where to look instead.
 | `p3_05_sdxl_a5_warmstart/` | SDXL port of the A5 histopathology warm-start | ❌ done |
 | `p3_06_sdxl_source_cond/` | SDXL transfer of P1-10's fresh-ControlNet architecture | ❌ done |
 | `p3_07_sdxl_native1024/` | P3-06 retrained at native 1024×1024 | 🔄 reopened, D1 diagnostic now resolved |
+| `p3_07b_sdxl_1024_full96/` | P3-07 retrained on the full 96-pair (non-overlapping) set | ✅ done — colour recovery flips positive |
+| `p3_07c_sdxl_1024_overlap144/` | P3-07b pushed further to 144 pairs (overlap fallback) | ✅ done — further gain, diminishing returns |
+| `p3_08_sdxl_fusion/` | SDXL's own VAE floor + P1-16-style fusion applied to P3-07c | ✅ **fusion transfers to SDXL — clears classical baselines too** |
+| `p3_06_p3_07_h2a_extension/` | SDXL transfer extended to H2A, + backbone colour-bias diagnostic | ✅ done — H2A robustly positive, opposite asymmetry from SD1.5 |
+| `p1_11_ensemble_fusion_null/` | Self-ensembling (alone, and combined with P1-16's fusion) | ✅ done — real alone, null result combined |
 | `analyze.py` | Reproducible per-crop trend analysis behind the P1-09 strength-sweep picks | — |
 
 ## Glossary — the A0–A5 names
@@ -91,7 +96,10 @@ from a pixel-perfect match. **That changed with `p1_16_source_fusion/`**:
 using the AI only to estimate a colour shift, then compositing it onto the
 untouched raw source, clears every classical baseline on SSIM at full
 held-out scale — the same trick classical methods use, borrowed
-deliberately. Separately, `p2_09_atypia_classifier/` is the one place
-diffusion beat classical *without* that trick, on a real downstream
-clinical task. `RESULTS_SUMMARY.md` explains all of this in full, including
-why it happens and what was done to rule out measurement artefacts.
+deliberately, and reproduced on the reverse (H→A) scanner direction too.
+`p3_08_sdxl_fusion/` shows the same trick transfers cleanly to the larger
+SDXL backbone, closing its classical-baseline gap on structure as well.
+Separately, `p2_09_atypia_classifier/` is the one place diffusion beat
+classical *without* that trick, on a real downstream clinical task.
+`RESULTS_SUMMARY.md` explains all of this in full, including why it happens
+and what was done to rule out measurement artefacts.

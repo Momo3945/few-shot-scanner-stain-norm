@@ -1,0 +1,2 @@
+source_mode,n_seeds,n_rows,lab_total_mean,wlab_mean_mean,de2000_mean_mean,ssim_mean,psnr_mean,mae_mean,lab_total_stdev_across_seeds,wlab_mean_stdev_across_seeds,de2000_mean_stdev_across_seeds,ssim_stdev_across_seeds,psnr_stdev_across_seeds,mae_stdev_across_seeds
+correct,3,1488,24.90233,25.63956,11.89998,0.35548,16.52352,30.30879,0.13185,0.12371,0.01841,0.0004,0.01208,0.05239

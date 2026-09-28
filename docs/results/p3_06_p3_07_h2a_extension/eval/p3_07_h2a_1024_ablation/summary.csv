@@ -1,0 +1,4 @@
+source_mode,n_seeds,n_rows,lab_total_mean,wlab_mean_mean,de2000_mean_mean,ssim_mean,psnr_mean,mae_mean,lab_total_stdev_across_seeds,wlab_mean_stdev_across_seeds,de2000_mean_stdev_across_seeds,ssim_stdev_across_seeds,psnr_stdev_across_seeds,mae_stdev_across_seeds
+correct,3,24,21.39449,22.03972,16.05999,0.10779,13.84453,39.76614,0.80063,0.72341,0.09844,0.0014,0.04072,0.17781
+shuffled,3,24,27.81464,30.93859,17.61475,0.04388,13.27088,44.26513,0.74748,0.69442,0.04746,0.00079,0.02553,0.09314
+zero,3,24,48.13273,48.70688,16.29695,0.05771,14.18248,39.82592,0.32395,0.32822,0.03107,0.00047,0.01587,0.04606

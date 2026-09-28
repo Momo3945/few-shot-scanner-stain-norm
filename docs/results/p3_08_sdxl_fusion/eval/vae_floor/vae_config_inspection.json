@@ -1,0 +1,31 @@
+{
+  "sdxl": {
+    "repo": "stabilityai/stable-diffusion-xl-base-1.0",
+    "subfolder": "vae",
+    "dtype_requested": "float32",
+    "diffusers_version": "0.39.0",
+    "latent_channels": 4,
+    "block_out_channels": [
+      128,
+      256,
+      512,
+      512
+    ],
+    "down_block_types": [
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D"
+    ],
+    "up_block_types": [
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D"
+    ],
+    "sample_size": 1024,
+    "param_count": 83653863,
+    "dtype": "torch.float32",
+    "scaling_factor": 0.13025
+  }
+}

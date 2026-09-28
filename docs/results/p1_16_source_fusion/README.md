@@ -34,6 +34,34 @@ caught and discarded) — see the ticket for the full writeup.
 reconstruction → P1-11 prediction → F3 fusion result → real Hamamatsu, same
 crop), `images/comparison_p1_16_f3_process_{a06,a08}.png`.
 
+## Reproduced on H2A — structural/colour win, but no downstream clinical-utility gain
+
+The same frozen F3 config (σ=8, β=0.50), rerun on the H2A checkpoint's
+own DDIM-inversion output (P1-11's SSIM 0.5477 / Δlab −15.64, this
+project's best-performing H2A configuration before fusion):
+
+| | SSIM | Recovery Δlab |
+|---|---|---|
+| H2A, pre-fusion (P1-11) | 0.5477 | −15.64 |
+| **H2A, post-fusion (P1-16)** | **0.7304** | **−5.34** |
+
+Fusion delivers a large, genuine structural/colour improvement — SSIM
++0.183 absolute (~33% relative), colour regression roughly a third the
+size, on every single slide including the A06 outlier (−12.84→−2.72). **But
+this does not translate into any downstream clinical-utility gain**: the
+frame-level atypia-classifier recovery delta is **0.0** (95% CI
+[−0.025, +0.025], n=120) — an exact tie with the raw, unnormalised
+Hamamatsu baseline, essentially unchanged from the pre-fusion result.
+Fusion's benefit is real but structural/colour-only for H2A; the negative
+atypia-classifier verdict holds across every H2A configuration tested to
+date, including this project's best architecture and its post-hoc fusion
+refinement.
+
+**Files (H2A):** `eval/h2a_f3_s8_b0.50_full/{eval_summary.csv,
+eval_per_crop.csv,eval_manifest.csv}`.
+
 **Full narrative:** `docs/results/RESULTS_SUMMARY.md` ("Update
-(2026-08-28): P1-16") and `tickets/PHASE1-TICKETS.md` P1-16,
-`tickets/P1-16_source_detail_colour_residual_fusion.md`.
+(2026-08-28): P1-16", "Update (2026-09-22): P1-16 ... rerun on H2A") and
+`tickets/PHASE1-TICKETS.md` P1-16,
+`tickets/P1-16_source_detail_colour_residual_fusion.md`,
+`tickets/P2-12_atypia_classifier_evaluation_hardening.md` §8.5.

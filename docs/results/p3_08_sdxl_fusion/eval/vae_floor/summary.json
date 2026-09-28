@@ -1,0 +1,48 @@
+{
+  "vae_info": {
+    "sdxl": {
+      "repo": "stabilityai/stable-diffusion-xl-base-1.0",
+      "subfolder": "vae",
+      "dtype_requested": "float32",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 1024,
+      "param_count": 83653863,
+      "dtype": "torch.float32",
+      "scaling_factor": 0.13025
+    }
+  },
+  "summary": {
+    "sdxl": {
+      "aperio": {
+        "lab_total": 6.6880387500000005,
+        "wlab_mean": 7.120980262756348,
+        "de2000_mean": 7.513543378077279,
+        "ssim": 0.49237133806652744,
+        "psnr": 20.233946959023736,
+        "mae": 18.736597061157227
+      }
+    }
+  },
+  "paired": {},
+  "stage": "heldout",
+  "n_crops": 8
+}
