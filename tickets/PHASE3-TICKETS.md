@@ -1570,6 +1570,70 @@ colour-free default — **not yet run**, would need new inference (small,
 cheap generations, but genuinely new compute, not a reuse of existing
 outputs) and its own explicit go-ahead before submitting.
 
+### D2 — the clean test: pure text2img, no source image at all
+
+**Method (2026-09-27/28, `src/eval/diagnose_text2img_colour_default.py`,
+jobs 61099/61100/61117/61118/61120/61131, all COMPLETED; compared via
+`diagnose_direction_colour_bias.py --mode text2img`, job 61316):** genuinely
+new inference this time, not a reuse — pure text-to-image generation
+(colour LoRA loaded alone, no ControlNet component, no source image or
+img2img initialisation of any kind, starting from full random noise; fixed
+prompt, 24 samples per combo, same 50-step/guidance-2.0 settings this
+project's own inference scripts already use). With no source latent to
+leak, whatever colour comes out reflects only the frozen backbone +
+trained colour LoRA's own generative tendency — the quantity D1 was trying
+and failing to isolate.
+
+| Backbone | Direction | closer to | own TARGET | match? | real recovery |
+|---|---|---|---|---|---|
+| SD1.5 | A2H | Hamamatsu | Hamamatsu | **MATCH** | +2.89 (positive) |
+| SD1.5 | H2A | Hamamatsu | Aperio | MISMATCH | **-15.64** (catastrophic) |
+| SDXL@512 | A2H | Aperio (margin 0.60 — near-tie) | Hamamatsu | mismatch (weak) | +1.22 (weakest positive) |
+| SDXL@512 | H2A | Aperio | Aperio | **MATCH** | **+9.47** (strongest positive) |
+| SDXL@1024 | A2H | Aperio (margin 0.69 — near-tie) | Hamamatsu | mismatch (weak) | -5.60 (negative) |
+| SDXL@1024 | H2A | Hamamatsu | Aperio | **MISMATCH** | **+9.20** (strong positive) |
+
+**Result: partial support, with one clear counterexample — not a clean
+confirmation, and honestly reported as such.** Five of six rows are
+directionally consistent with the hypothesis, two of them strikingly so:
+SD1.5 H2A is the cleanest validation in the whole table (a real mismatch
+paired with the worst real-world result, -15.64) and SDXL@512 H2A is
+equally clean the other way (a real match paired with the best real-world
+result, +9.47). SD1.5 A2H (match/positive) and SDXL@1024 A2H
+(mismatch/negative) both also line up. **But SDXL@1024 H2A breaks the
+pattern outright**: its text2img default leans toward Hamamatsu (its own
+*source*, not target) by the largest SDXL margin in the table (2.87) — a
+clear mismatch — yet it is one of the two strongest real-world results
+recorded anywhere in this ticket (+9.20). If backbone colour bias fully
+explained the asymmetry, this combination should have been fragile or
+negative; it is not.
+
+**Interpretation:** backbone colour bias is a real, contributing factor —
+SD1.5 in particular shows one *consistent* colour lean (toward Hamamatsu)
+regardless of which LoRA is loaded, cleanly explaining why A2H is
+comfortable and H2A collapses for that specific backbone. SDXL does not
+show this same consistency: its text2img default flips direction across
+resolutions (Aperio-leaning @512, split by direction @1024) rather than
+having one fixed backbone-wide bias, consistent with D1's own secondary
+observation that SDXL@512's colour LoRA already appeared to exert more
+independent pull than SD1.5's. **This means backbone colour bias is not
+the whole story for SDXL** — something else (structural/ControlNet
+conditioning strength once real source content is supplied, or a
+resolution-dependent interaction with the LoRA's own learned colour pull)
+must also be doing real work in the SDXL@1024 H2A case specifically, since
+the backbone's own uncoerced default there points the wrong way and the
+model still succeeds anyway.
+
+**Status: D1+D2 together give a real, honest, partially-explanatory answer
+— not a closed one.** Suitable for the thesis discussion section as
+"backbone colour prior is a contributing but incomplete explanation,
+strongest for SD1.5, incomplete for SDXL, with the SDXL@1024 H2A result as
+a documented open exception" rather than either a confirmed mechanism or a
+shrug. A full explanation would need probing what actually happens
+differently in the genuinely-conditioned (real source + ControlNet) forward
+pass for that specific combination — out of scope for this diagnostic
+thread unless requested.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or
