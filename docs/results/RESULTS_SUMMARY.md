@@ -1500,6 +1500,37 @@ for "beats classical on SSIM," not a pooled-average effect. P3-07b still
 trails P1-10/P1-11/P1-16 on every slide, both metrics — it restores
 viability, not the project's best result.
 
+**Aside (2026-09-28): informal, non-ticketed curiosity test — does the
+Prodigy optimizer beat AdamW on P3-07b's own architecture?** Not part of
+the P3-06/P3-07/P3-07b/P3-07c ladder above, not evidence for or against
+any of its findings — recorded here only because the result itself is a
+real, useful data point. `src/train/train_p3_07_prodigy_curiosity.py`
+swaps AdamW for `prodigyopt.Prodigy` (learning-rate-free), everything
+else identical to `train_p3_07b_lora_sdxl.py` (same architecture, same
+`train_1024_full96` pairs, same 4000 steps). Needed `slice_p=11`
+(Prodigy's own documented memory-saving approximation) to fit in 24GB
+VRAM at all — full-precision Prodigy (`slice_p=1`) OOM'd at step 4. Idea
+originated from an unrelated personal kohya_ss LoRA config (`test/`,
+anime-character LoRA presets) — only the optimizer choice was ported, not
+any other hyperparameter, since the rest doesn't transfer across domains.
+
+| | AdamW (P3-07b, validated) | Prodigy (this test) |
+|---|---|---|
+| val_loss (best, step 4000) | 0.0982 | 0.1059 |
+| Full held-out ALL SSIM (job 61133) | 0.4416 | 0.3815 ± 0.0002 |
+
+**AdamW wins on both the training-loss metric and the real downstream
+SSIM metric** — a consistent, honest negative result for the optimizer
+swap on this specific setup. Source-conditioning ablation still passed
+decisively for the Prodigy checkpoint (`correct` wins SSIM on 16/16 held-out
+crops, even more clean than P3-07b's own 5/8), so the checkpoint itself is
+trustworthy — Prodigy just produced a weaker result here, not a broken
+one. Caveats: `slice_p=11` degrades precision specifically to fit in
+memory, and the Prodigy hyperparameters (`d_coef`, `betas`, `weight_decay`)
+were never tuned for this domain — a properly-resourced, tuned Prodigy run
+might close some of this gap, but that's a further experiment, not run
+here. Checkpoint: `lora/a2h_cond_r8_sdxl_1024_full96_prodigy/`.
+
 ## Local file index
 
 Reorganized 2026-08-21 for clarity (was a flat sprawl of ~17 sibling folders
