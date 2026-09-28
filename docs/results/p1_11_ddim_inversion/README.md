@@ -99,9 +99,19 @@ SSIM 0.628), purely via an inference-time technique -- no retraining.
 **Files:** `eval/ensemble_eta03_full/summary.csv`, `per_crop.csv`,
 `paired_win_rate.csv` (full 496-crop result).
 
-**Not yet tested:** H2A direction, combining with P1-16's post-hoc fusion
-(both act on the same underlying output -- may or may not compound),
-ensemble sizes other than 3.
+**Combined with P1-16's fusion (2026-09-28): does NOT compound.**
+Applying P1-16's frozen F3 config (sigma=8, beta=0.50) to the eta=0.3
+ensembled prediction gives SSIM essentially identical to fusion alone
+(0.72879 vs 0.72895 pooled, matching to 3-4 decimal places on every
+slide) -- a genuine null result, not noise. F3 fusion already takes its
+structural detail from the raw source directly and only adds a heavily
+blurred colour residual, bypassing `H_pred`'s own structural fidelity
+almost entirely -- exactly the thing self-ensembling improves, so there's
+nothing left for it to contribute once fusion is applied. Use fusion for
+a fusion-based result (it alone already beats classical); self-ensembling
+remains valuable only for a fusion-free, purely model-generated output.
+
+**Not yet tested:** H2A direction, ensemble sizes other than 3.
 
 **Full narrative:** `tickets/PHASE1-TICKETS.md` P1-11's future-work list
 (idea #2), `docs/results/RESULTS_SUMMARY.md`.

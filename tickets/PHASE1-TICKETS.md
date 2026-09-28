@@ -1598,9 +1598,47 @@ proposals for a future session, not commitments:
    to the weakest classical baseline (Macenko, SSIM 0.628) purely via an
    inference-time technique -- no retraining required.** The single most
    promising result in this entire future-work list. Not yet tested: H2A
-   direction, combining with P1-16's post-hoc fusion (may or may not
-   compound -- both act on the same underlying output, worth checking
-   before assuming additivity), or ensemble sizes other than 3.
+   direction, or ensemble sizes other than 3.
+
+   **Combined with P1-16's fusion (2026-09-28): does NOT compound --
+   fusion completely absorbs ensembling's structural contribution.** New
+   standalone script `src/eval/fuse_source_detail_ensemble.py` (imports
+   the validated `fuse_f3` function from `fuse_source_detail.py`, does not
+   edit that script; keys A_V by crop_id only rather than (crop_id, seed),
+   since the ensemble manifest's sentinel seed value "ensemble" never
+   matches the identity manifest's real numeric seeds -- same reasoning
+   `fuse_source_detail.py` itself already uses for its P3-08/SDXL
+   convention) applied P1-16's frozen F3 config (sigma=8, beta=0.50) to
+   the eta=0.3 ensembled prediction instead of a single deterministic
+   sample (job 61489 fusion, COMPLETED 00:04:36; scored by job 61492,
+   COMPLETED 00:07:08):
+
+   | Slide | fusion alone SSIM | fusion+ensemble SSIM | Delta |
+   |---|---|---|---|
+   | A06 | 0.6171 | 0.6170 | ~0 |
+   | A08 | 0.7867 | 0.7870 | ~0 |
+   | A09 | 0.7269 | 0.7270 | ~0 |
+   | A13 | 0.6687 | 0.6680 | ~0 |
+   | A16 | 0.7586 | 0.7580 | ~0 |
+   | **ALL** | **0.72895** | **0.72879** | **-0.0002** |
+
+   Identical to 3-4 decimal places on every slide -- not noise-level
+   uncertainty, a genuine null result for compounding. Colour (windowed
+   LAB) shows a tiny, consistent improvement on 4/5 slides (e.g. A09
+   18.65->18.36) but nothing meaningful. **Mechanistic read:** F3 fusion
+   takes the raw source's own structure directly (`A_raw`) and adds back
+   only a heavily Gaussian-blurred (sigma=8) colour residual -- it already
+   bypasses the diffusion output's own structural fidelity almost
+   entirely, discarding most of `H_pred`'s spatial detail in favour of the
+   real source pixels. Self-ensembling's entire benefit was specifically
+   about improving `H_pred`'s own structural fidelity -- but fusion was
+   already discarding that signal before ensembling could matter. The two
+   techniques solve the same underlying problem (P1-11's structural
+   weakness) via different, non-additive routes: **use fusion when a
+   fusion-based result is acceptable (it alone already beats classical);
+   self-ensembling remains valuable only for a fusion-free result** (a
+   purely model-generated output, not blending in real source pixels),
+   where it is still a genuine +0.047 SSIM improvement on its own line.
 3. **Post-hoc detail fusion on any remaining un-fused configs** (mostly
    already done). This is P1-16's own technique, already the project's
    best result (SSIM 0.729, beats classical) and already applied to the
