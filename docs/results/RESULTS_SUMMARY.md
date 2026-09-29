@@ -1773,6 +1773,53 @@ satisfies it as well as finishing it would. The PixCell probe
 (`PROBE-PIXCELL-TICKETS.md`) is complete but extracurricular — not
 proposal-scoped, cite only as auxiliary exploration if at all.
 
+## Addendum (2026-09-30): compute cost — diffusion vs. classical baselines
+
+**Never a formal ticket** — no `P#-##` ID, not scoped from the proposal.
+Pulled directly from completed Slurm job logs (`sacct`, read-only) at the
+same evaluation scale wherever possible, not estimated or reconstructed
+from memory. Useful for the write-up's limitations/practicality discussion:
+this project's success criteria are colour/structural/clinical metrics, not
+speed, but the trade-off is real and worth stating explicitly rather than
+leaving implicit.
+
+**Raw measured elapsed time, same 1488-output evaluation scale (496 held-out
+crops):**
+
+| Method | Compute | Elapsed | Per-output |
+|---|---|---|---|
+| Classical, all 3 baselines combined (Macenko + Reinhard + Histogram Matching; jobs 40405/40406/40407) | CPU-only, `stampede` | 3:26:45 | 8.34 s |
+| SD1.5 img2img, 50-step DDIM (P1-10; job 44542) | GPU, `bigbatch` (`mscluster61`) | 4:07:23 | 9.98 s |
+| SD1.5 DDIM inversion, ~100 steps (P1-11; job 44858) | GPU, `bigbatch` (`mscluster61`) | 10:00:14 (hit the job time limit; all 1488 outputs had already been written) | 24.20 s |
+| SD1.5 8-step LCM (A4; job 39630) | GPU, `bigbatch` (`mscluster66`) | 1:06:24 | 2.68 s |
+
+**Node-speed caveat, stated explicitly rather than glossed over:**
+`mscluster61` is CLAUDE.md's own documented slow/contended `bigbatch` node
+(measured 2.4x slower than `mscluster57` for SDXL 1024px 50-step DDIM,
+jobs 47330 vs. 47298) — both the P1-10 and P1-11 rows above ran on it, so
+their true best-case time on a healthy node is faster than shown. Applying
+that same 2.4x factor as an **approximation** (it was measured for
+SDXL/1024px, not independently verified for SD1.5/512px, so treat this as
+an estimate, not a measured fact): P1-10 ≈ 4.16 s/output, P1-11 ≈
+10.08 s/output on a healthy node. `mscluster66` (the LCM row) is not
+flagged as slow or fast anywhere in CLAUDE.md's node history, so is treated
+as a representative normal-speed node as measured.
+
+**Bottom line:** classical baselines require **no GPU at all** — a
+qualitative advantage independent of raw speed, since every diffusion
+configuration needs `bigbatch`. Even correcting for the slow node, a full
+50-step diffusion pass (P1-10) is roughly the same order of magnitude as
+CPU-only classical processing, not faster; DDIM inversion (P1-11, and by
+extension P1-16's fusion technique, which runs DDIM inversion as its first
+stage before a cheap post-processing step) is clearly slower than classical
+even after correction. The one diffusion configuration that is
+unambiguously faster than classical is few-step LCM — but it still needs a
+GPU, and per the LCM findings above, trades away colour-recovery quality to
+get that speed on the harder source-conditioned checkpoints (P1-12).
+**Speed is not where this project's diffusion methods win** — the win
+(P1-16, P3-08) is quality (SSIM beating classical outright), at a real,
+acknowledged compute-time and GPU-dependency cost.
+
 ## Local file index
 
 Reorganized 2026-08-21 for clarity (was a flat sprawl of ~17 sibling folders

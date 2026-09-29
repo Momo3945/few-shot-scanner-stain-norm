@@ -86,5 +86,20 @@ allowed to stand alone as a pooled number):
 Held-out slides (A06/A08/A09/A13/A16) are never used in any training —
 enforced as a standing invariant, checked at every stage.
 
+## Compute cost
+
+The project's success criteria are colour/structural/clinical quality, not
+speed — but the trade-off against classical stain-normalisation methods is
+real and worth stating plainly. Measured directly from completed cluster
+job logs at matched evaluation scale (496 held-out crops): the three
+classical baselines combined run **CPU-only** in ~3h27m; a full 50-step
+diffusion pass is comparable or slower on a GPU; DDIM inversion (the
+mechanism behind this project's best quality results) is clearly slower
+again. Few-step LCM inference is the one diffusion configuration that beats
+classical on raw speed, but still requires a GPU and trades away colour
+fidelity on the harder checkpoints. **This project's diffusion methods win
+on quality, not speed or compute cost** — full breakdown and the node-speed
+caveats behind these numbers: [`docs/results/RESULTS_SUMMARY.md`](results/RESULTS_SUMMARY.md#addendum-2026-09-30-compute-cost--diffusion-vs-classical-baselines).
+
 Full architecture detail per ablation rung, and the complete numeric
 results, live in [`docs/results/RESULTS_SUMMARY.md`](results/RESULTS_SUMMARY.md).
