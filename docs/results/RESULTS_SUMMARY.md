@@ -1514,6 +1514,15 @@ Directly resolves the "is there any way to improve SSIM on base SD1.5/
 SDXL" question raised in discussion: yes, decisively, on both backbones —
 this was simply a proven SD1.5 lever that had never been tried on SDXL.
 
+**Update (2026-10-01): downstream-classifier diagnostic on P3-08 (job
+62211) — non-clinical (A2H direction, scorer-flagged), but a striking
+number.** accuracy 0.567 vs raw_hamamatsu 0.450 (informal delta ≈+0.117,
+suppressed as non-clinical by the hardened scorer, not a headline
+number) — larger than P1-16's own old A2H classifier delta (+0.029), and
+P3-08 even exceeds the raw_aperio sanity check (0.542). Real and
+reportable, not yet explained, no H2A rerun attempted (`tickets/
+PHASE3-TICKETS.md` P3-08).
+
 **Full cross-project per-slide comparison** (every number below pulled
 directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
 in this folder, not re-derived) — the pooled `ALL` figures used throughout

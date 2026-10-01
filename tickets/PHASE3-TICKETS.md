@@ -1445,6 +1445,33 @@ significant result in its own right, not the same claim.
 decisively, on both backbones — this was the one lever proven on SD1.5
 that had simply never been tried on SDXL.
 
+**Downstream-classifier diagnostic (2026-10-01, job 62211, `atypia_r18`
+checkpoint, P2-12's hardened scorer, `--allow-direction-mismatch`):**
+P3-08 had never been scored against the atypia classifier at all. Run
+under A2H (the only direction available — P3-08 has no H2A counterpart
+yet), so **explicitly flagged `** NON-CLINICAL **` by the scorer itself**,
+same status as P1-16's own original (pre-P2-12) classifier number, not
+valid clinical-utility evidence per P2-12.
+
+| | accuracy (frame-level, n=120) |
+|---|---|
+| raw_hamamatsu | 0.450 |
+| raw_aperio (sanity) | 0.542 |
+| **P3-08 (fusion)** | **0.567** |
+
+Informal delta vs raw_hamamatsu ≈ **+0.117** (the scorer suppresses this
+as `N/A (non-clinical direction)` per its own design — computed here only
+for comparison, not presented as a headline number). Notably larger than
+P1-16's own old A2H classifier delta (+0.029) and — striking, not yet
+explained — **P3-08 even exceeds the raw_aperio sanity check (0.567 vs
+0.542)**, i.e. the fused output reads as *more* legible to the
+Aperio-trained classifier than untouched raw Aperio itself. No bootstrap
+CI computed (suppressed alongside recovery_delta); given this classifier's
+own established low absolute accuracy and small n (P2-12 §9), this is a
+real, reportable observation but not a confirmed effect — same caution
+P2-12 already applies throughout. Not pursued further within this
+diagnostic's scope (no H2A rerun attempted here).
+
 ## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
 **Status:** 🔄 IN PROGRESS (started 2026-09-25).
 **Source:** the 1024px, ≤50-pair follow-on to P3-06b/P3-07 H2A (above),
