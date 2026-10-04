@@ -1022,11 +1022,21 @@ metric (atypia accuracy, delta vs raw Hamamatsu) stays the headline; balanced
 metrics are added as supplementary, not substituted.
 
 **Design.**
-1. *Encoder.* Frozen public pathology encoder (candidates: Phikon, CTransPath;
-   avoid gated weights) + regularised multinomial/ordinal head, replacing
-   end-to-end ResNet18 fine-tuning. Weights must be fetched on the cluster
-   (compute nodes run `HF_HUB_OFFLINE`; verify real byte sizes, per CLAUDE.md
-   fetch lessons). Keep `atypia_r18` as the frozen comparison arm.
+1. *Encoder.* Frozen pathology encoder + regularised multinomial/ordinal head,
+   replacing end-to-end ResNet18 fine-tuning. **Primary: UNI2-h**
+   (`MahmoodLab/UNI2-h`), already cached on the cluster at
+   `/datasets/mhoosen/hf_cache/hub/models--MahmoodLab--UNI2-h` (verified
+   2026-10-04: real 2.6 GB `pytorch_model.bin`, config present — ViT-giant,
+   1536-d features, 224px input, `timm` loader; `timm` 1.0.30 is in the
+   `stainnorm` env). Gated, CC-BY-NC-ND 4.0: acceptable for this academic
+   work, state the licence in the write-up. Needs no fetch job (compute nodes
+   run `HF_HUB_OFFLINE`). Not yet test-loaded: its custom `timm` config
+   arguments must be checked in a small first step. **Fallback: Phikon**
+   (`owkin/phikon`, ungated, 346 MB `model.safetensors`, `transformers`
+   loader; would need one `fetch_models.slurm` addition and a real-byte-size
+   check per CLAUDE.md). Phikon-v2 (ungated, 1.2 GB) is a second fallback;
+   Hibou-b and UNI v1 are gated and not cached. Keep `atypia_r18` as the
+   frozen comparison arm.
 2. *Inputs.* Aperio-only training (proposal design). All tissue tiles per
    frame at the trained scale (512px tiles -> encoder input), averaged
    embeddings per frame (frame is the labelled unit). No colour augmentation
