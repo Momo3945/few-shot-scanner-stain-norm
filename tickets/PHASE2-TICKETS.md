@@ -995,7 +995,10 @@ specifically): `tickets/P2-13_atypia_classifier_quality_improvements.md`.
 
 ## P2-14 — Validated, reproducible atypia classifier (clinical-utility instrument)
 
-**Status:** 📝 PROPOSED (2026-10-04) — not started; needs go-ahead before code.
+**Status:** ❌ GATE FAILED (2026-10-04, job 63846) — implemented through the
+fit stage; the UNI2-h probe does not clear the pre-registered validity gate.
+Per the protocol below, no further iteration on the held-out set; scorer
+integration NOT done (the probe is not a valid instrument). See "Results".
 **Source:** `docs/proposal_draft(6).tex`, Table "Evaluation framework summary",
 row *Clinical utility* (MITOS-ATYPIA-14; atypia score accuracy; threshold
 "positive delta") and §"MITOS-ATYPIA-14: Training and Clinical Evaluation".
@@ -1014,6 +1017,37 @@ see P3-08 scale-fixed rescoring). P2-13 tried augmentation + class-balanced
 sampling and got worse (raw_hamamatsu 0.442 -> 0.192). Absolute accuracy is
 dominated by the class prior (held-out {1: 38, 2: 60, 3: 22}; training frames
 {1: 23, 2: 222, 3: 52}).
+
+**Data finding (2026-10-04, from `atypia_{train,test}_manifest.csv`): labels
+are almost slide-determined.** Frames per slide x score:
+
+| training slide | 1 | 2 | 3 | | held-out slide | 1 | 2 | 3 |
+|---|---|---|---|---|---|---|---|---|
+| A03 | 0 | 2 | 22 | | A06 | 0 | 16 | 0 |
+| A04 | 0 | 22 | 10 | | A08 | 0 | 19 | 8 |
+| A05 | 1 | 26 | 1 | | A09 | 0 | 7 | 14 |
+| A07 | 0 | 12 | 4 | | A13 | 14 | 2 | 0 |
+| A10 | 0 | 17 | 2 | | A16 | 24 | 16 | 0 |
+| A11 | 0 | 21 | 11 | | | | | |
+| A12 | 19 | 17 | 0 | | | | | |
+| A14 | 1 | 38 | 0 | | | | | |
+| A15 | 1 | 21 | 2 | | | | | |
+| A17 | 1 | 18 | 0 | | | | | |
+| A18 | 0 | 28 | 0 | | | | | |
+
+19 of the 23 training score-1 frames are in A12, and 22 of 52 score-3 frames are in
+A03; in the held-out set all 38 score-1 frames are in A13/A16. Consequences:
+(1) the original validation slides A17/A18 contain 46 score-2 frames and 1
+score-1 frame of 47, so the 0.9468 `val_acc` that selected `atypia_r18/best.pt`
+is the majority-class rate, not skill. (2) A classifier can score well by
+recognising slide/patient staining instead of atypia, and slide-grouped CV
+cannot measure score-1 skill except in the A12 fold. (3) Leave-one-slide-out
+folds will be degenerate for classes 1 and 3; the CV must report per-fold
+class presence, and per-class recall only where the class exists in the
+held-out fold. (4) Even a correct classifier gives a 5-slide, effectively
+5-cluster test; the validity gate below is necessary, not sufficient. The
+gate therefore also requires score-1 recall > 0 on A12 when A12 is held out
+(otherwise the head has only learned slide identity).
 
 **Goal.** A classifier that (a) demonstrably beats the majority-class baseline
 before it is used to judge any normaliser, and (b) gives identical numbers on
@@ -1083,6 +1117,57 @@ frame-level labels are weak for tile-level features. Compute is small
 
 **Not in scope.** Mitosis F-measure arm (P2-09b); changing the proposal's
 headline metric; retraining on Hamamatsu.
+
+### Results (2026-10-04)
+
+Implemented: `src/eval/pathology_encoder.py` (UNI2-h loader/preprocess, fp32,
+TF32 off, cudnn deterministic), `src/train/extract_atypia_features.py` +
+`slurm/extract_atypia_features.slurm`, `src/train/fit_atypia_probe.py` +
+`slurm/fit_atypia_probe.slurm`. Features (frozen UNI2-h, 512px tissue tiles,
+all tiles): train 297 frames / 3539 tiles (job 63833), held-out Aperio 120
+frames / 1427 tiles (job 63834). Determinism check: repeating the smoke
+extraction (jobs 63722 vs 63835) gave identical embedding SHA-256
+(`db47d03a...`). Fit (job 63846, 2:17, CPU): nested leave-one-slide-out CV,
+L2 logistic regression, balanced class weights, C grid 1e-4..10.
+
+Pooled out-of-fold CV, 297 frames / 11 slides (majority class 2 = 0.747):
+
+| metric | value | slide-bootstrap 95% CI |
+|---|---|---|
+| accuracy | 0.579 (below the 0.747 majority rate) | [0.392, 0.743] |
+| balanced accuracy | 0.312 (chance = 0.333) | [0.225, 0.457] |
+| QWK | 0.022 | [-0.229, 0.261] |
+| recall (score 1 / 2 / 3) | 0.00 / 0.73 / 0.21 | |
+
+Gate: balanced acc > 0.45 FAIL; QWK > 0.2 FAIL; no class > 80% of predictions
+PASS (max 0.73); slide-bootstrap lower bound > chance FAIL; score-1 recall on
+A12 > 0 FAIL (0.0). **GATE = FAIL.** Per-fold accuracy swings from 0.09 (A11)
+and 0.13 (A03) to 0.90 (A10, A14): when a slide's label mix differs from the
+rest, the head predicts the training prior. The inner CV picked the strongest
+regularisation (C = 1e-4, the grid edge) in 6 of 11 folds and C <= 1e-3 in 9
+of 11, i.e. it found little cross-slide signal to fit; extending the grid lower would only push the head
+towards the class prior.
+
+Held-out raw-Aperio sanity check, run once at the end, NOT used for any
+decision: accuracy 0.583 (majority 0.500), balanced accuracy 0.434, QWK 0.317,
+recall 0.37 / 0.93 / 0.00, predicted-class shares 0.15 / 0.85 / 0.00 (fails
+the 80% collapse check). This looks better than CV, but it does not rescue the
+gate: it is 5 slides, one of which (A16, 24 of the 38 score-1 frames) has a
+label mix close to the training slide A12's, so it can reward recognising a
+slide's appearance rather than atypia, and the protocol fixed CV, not
+held-out, as the decision basis.
+
+Conclusion: with this dataset (labels nearly slide-determined, class 1 almost
+entirely one training slide), neither fine-tuned ResNet18 nor a frozen UNI2-h
+probe yields a classifier whose cross-slide skill is distinguishable from the
+class prior. The "Clinical utility" row cannot be supported by a downstream
+atypia classifier trained on MITOS-ATYPIA-14 Aperio alone; every recovery
+delta reported so far (including +0.058 for P3-07 H2A) should be read as
+noise around the class prior. Options left to the user (not started): report
+this as a limitation of the evaluation design; or add a clinical-utility
+proxy that does not depend on atypia labels (e.g. P2-08's structural-safety
+check, already in place). Not recommended: tuning the probe further against
+CV/held-out until a number passes.
 
 ---
 
