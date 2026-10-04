@@ -1173,8 +1173,10 @@ CV/held-out until a number passes.
 
 ## P2-15 — Frame-level, criteria-supervised atypia classifier (v2), gated
 
-**Status:** 🔄 IN PROGRESS (2026-10-04) — implemented; x40 feature extraction
-queued (jobs 64001 smoke, 64002 train); candidate fits not run yet.
+**Status:** ⚠️ RUN (2026-10-04, job 64035) — pre-registered score gate FAILED
+for all three candidates (M3 is a one-criterion near miss); within-slide
+criteria gate PASSED. Held-out slides not scored (rule: only for a model that
+passes the CV gates). See "Results".
 
 **Implementation so far.** `src/train/extract_atypia_x40_features.py` +
 `slurm/extract_atypia_x40_features.slurm` (x40 subfield embeddings + criteria
@@ -1246,6 +1248,59 @@ split), CPU fits. No diffusion jobs.
 
 **Not in scope.** Using held-out labels for training; the mitosis arm; any
 change to the proposal's headline atypia-accuracy metric.
+
+### Results (2026-10-04)
+
+Features: x40 subfields (job 64002, 15:38, 1200 subfields, 987 with the 4
+criteria; smoke 64001 OK) + the P2-14 x20 tile features. Fit: job 64035
+(CPU, 5:14), nested leave-one-slide-out CV, 11 training slides, 297 frames
+(majority class 2 = 0.747 accuracy). Slide-bootstrap 95% intervals.
+
+| model | accuracy | balanced acc | QWK | recall (1 / 2 / 3) | A12 score-1 recall | score gate |
+|---|---|---|---|---|---|---|
+| P2-14 mean-pool logistic (reference) | 0.579 | 0.312 | 0.02 | 0.00 / 0.73 / 0.21 | 0.00 | FAIL |
+| M1 ordinal head, mean pool | 0.633 | 0.331 [0.27, 0.47] | 0.105 [-0.05, 0.28] | 0.00 / 0.80 / 0.19 | 0.00 | FAIL (0 of 5) |
+| M2 attention MIL | 0.478 | 0.292 [0.19, 0.50] | 0.098 [-0.08, 0.26] | 0.00 / 0.57 / 0.31 | 0.00 | FAIL (1 of 5) |
+| **M3 criteria two-stage** | 0.525 | **0.614** [0.26, 0.73] | **0.304** [-0.04, 0.57] | **0.83 / 0.50 / 0.52** | **0.95** | **FAIL (4 of 5)** |
+
+M3 clears balanced accuracy > 0.45, QWK > 0.2, no class > 80% of predictions,
+and score-1 recall > 0 on A12 (0.95: with A12 unseen, it still finds 18 of its
+19 score-1 frames). It fails the single remaining criterion, "bootstrap lower
+bound of balanced accuracy > 1/3": the interval is [0.26, 0.73], i.e. with only
+11 slides it cannot be distinguished from chance at the pre-registered
+strictness. By the protocol this is a FAIL; the threshold is not being
+loosened after the fact. Note also that accuracy (the proposal's metric) is
+lower than the always-"2" rate for every model, because the balanced heads
+trade accuracy for minority-class recall.
+
+**Criteria gate (M3's ridge regressor, x40 subfield features -> criteria,
+slide-centred Spearman): PASS.** Mean 0.240, slide-bootstrap CI [0.148, 0.318]
+(threshold: mean > 0.15 and lower bound > 0). Per criterion: nuclei_size
+0.378, anisonucleosis 0.299, nucleoli_size 0.408, nuclei_contour -0.125.
+Because both predictions and truth have each slide's mean removed, this cannot
+come from recognising the slide: frozen UNI2-h x40 features carry real
+within-slide signal for three of the four atypia criteria (contour does not).
+
+Interpretation (not separately tested): the 3-class frame label is nearly
+slide-determined and noisy, so models trained directly on it learn little
+transferable signal (M1, M2, P2-14), whereas the six-criteria supervision gives
+within-slide variation to learn from, which is where M3's gain comes from. Caveats: three
+candidates were tried (multiple comparisons; the criteria gate is a single
+test, M3's score result is one of three); M3's score-1 recall is dominated by
+A12 and A5/A14/A15/A17 each have only 1 score-1 frame; the intervals are wide
+(11 slides).
+
+Consequence for clinical utility: still no validated classifier, so the
+earlier atypia recovery deltas stay "noise around the class prior". But the
+criteria result suggests a label-independent instrument: score how well the
+criteria regressor's predictions on normalised images match the true criteria
+(no 3-class label needed). That needs x40 normalised outputs, which this project
+has not produced (all translation is at x20), so it is a possible new ticket,
+not started.
+
+Decision on held-out: not run. M3 did not pass the pre-registered score gate,
+so scoring held-out raw Aperio would be exactly the selection-by-test that
+the protocol forbids.
 
 ---
 
