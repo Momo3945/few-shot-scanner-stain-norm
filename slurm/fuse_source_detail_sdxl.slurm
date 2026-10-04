@@ -24,6 +24,15 @@
 #     p3_07c_full_heldout/eval_manifest.csv \
 #     p3_08_fusion/f3_s8_b0.50 8 1.0 0.50
 #
+#   # H2A extension (P3-08 H2A ticket): DIRECTION env var, not positional --
+#   # additive, defaults to A2H so the invocation above is unchanged. Must
+#   # match the direction BOTH the vae-only and translate manifests were
+#   # generated with.
+#   DIRECTION=H2A sbatch fuse_source_detail_sdxl.slurm f3 \
+#     p3_08_h2a_vae_only/eval_manifest.csv \
+#     p3_07_h2a_full_heldout/eval_manifest.csv \
+#     p3_08_h2a_fusion/f3_s8_b0.50 8 1.0 0.50
+#
 # Then score with the EXISTING scorer:
 #   sbatch score_outputs.slurm p3_08_fusion/f3_s8_b0.50
 # =====================================================================
@@ -54,6 +63,7 @@ SIGMA=${5:-4.0}
 ALPHA=${6:-1.0}
 BETA=${7:-1.0}
 OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
+DIRECTION=${DIRECTION:-A2H}
 
 mkdir -p "${CODE_DIR}/logs"
 
@@ -65,7 +75,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P3-08 fusion -- Method=$METHOD Sigma=$SIGMA Alpha=$ALPHA Beta=$BETA"
+echo "P3-08 fusion -- Method=$METHOD Sigma=$SIGMA Alpha=$ALPHA Beta=$BETA Direction=$DIRECTION"
 echo "VaeOnlyManifest=${DATA_ROOT}/eval/${VAE_ONLY_MANIFEST}"
 echo "TranslateManifest=${DATA_ROOT}/eval/${TRANSLATE_MANIFEST}"
 echo "Out=$OUT_DIR"
@@ -80,6 +90,7 @@ python fuse_source_detail.py \
     --vae-only-manifest "${DATA_ROOT}/eval/${VAE_ONLY_MANIFEST}" \
     --translate-manifest "${DATA_ROOT}/eval/${TRANSLATE_MANIFEST}" \
     --aperio-root "${APERIO_ROOT}" --heldout-csv "${HELDOUT_CSV}" --crop "${CROP}" \
+    --direction "${DIRECTION}" \
     --method "${METHOD}" --sigma "${SIGMA}" --alpha "${ALPHA}" --beta "${BETA}" \
     --out "${OUT_DIR}"
 

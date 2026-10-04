@@ -302,6 +302,23 @@ def parse_args():
                          "question P2-12 S:3.1 describes, not as a way past the gate.")
     ap.add_argument("--n-bootstrap", type=int, default=2000)
     ap.add_argument("--bootstrap-seed", type=int, default=0)
+    ap.add_argument("--tile-size", type=int, default=0,
+                    help="P3-08 scale-confound fix. 0 (default) = legacy behaviour: every eval "
+                         "image is resized whole to --resize. >0 (use 512): split each loaded "
+                         "image into non-overlapping tile-size x tile-size tiles BEFORE the "
+                         "--resize, so 1024px outputs (P3-07/P3-07c/P3-08) reach the classifier "
+                         "at the 512->224 scale it was trained on, not 1024->224. Tile keys are "
+                         "(slide, frame, x+dx, y+dy) so methods pair tile-for-tile. A tile is kept "
+                         "only if the raw_hamamatsu tile passes --tile-tissue-thresh, so every "
+                         "method and raw_aperio are scored on the identical tile set. With "
+                         "--tile-size, set --crop to the eval crop size (1024) so raw_aperio is "
+                         "tiled from the same region.")
+    ap.add_argument("--tile-tissue-thresh", type=float, default=0.30,
+                    help="Min tissue fraction for a raw_hamamatsu tile to be kept (--tile-size only; "
+                         "same 0.30 convention as the classifier's training crops).")
+    ap.add_argument("--allow-cpu", action="store_true",
+                    help="Permit running without CUDA. Default is to abort: a GPU-less node "
+                         "otherwise silently falls back to CPU (jobs 54802/57095/62373).")
     return ap.parse_args()
 
 
@@ -320,6 +337,8 @@ def main():
     from registration import read_rgb
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type != "cuda" and not args.allow_cpu:
+        raise SystemExit("ABORT: no GPU on this node -- resubmit (or pass --allow-cpu to run on CPU).")
 
     labels = load_testing_labels(args.testing_manifest)
     if not labels:
@@ -481,18 +500,47 @@ def main():
     pc_w.writerow(["method", "slide", "frame", "x", "y", "seed",
                    "true_score", "pred_score", "correct", "prob_1", "prob_2", "prob_3"])
 
-    def classify_items(method_label, items, loader_fn):
+    tile_keep = set()  # --tile-size only: tile keys that pass the raw_hamamatsu tissue filter
+
+    def tissue_fraction(rgb):
+        a = rgb.astype(np.int16); mx = a.max(2); mn = a.min(2)
+        return float(((mx < 235) & ((mx - mn) > 12)).mean())
+
+    def classify_items(method_label, items, loader_fn, is_filter_source=False):
         """items already have output paths resolved via loader_fn(item) -> rgb.
-        Returns crop_identity: {ckey: averaged_prob_vector}, plus n_unlabelled."""
+        Returns crop_identity: {ckey: averaged_prob_vector}, plus n_unlabelled.
+        With --tile-size, each image becomes several tile records (see --tile-size);
+        is_filter_source=True (raw_hamamatsu only) defines the kept tile set."""
         rgb_list, item_keys, seeds = [], [], []
         n_unlabelled = 0
         for it in items:
             if (it["slide"], it["frame"]) not in labels:
                 n_unlabelled += 1
                 continue
-            item_keys.append(ckey(it))
-            seeds.append(it["seed"])
-            rgb_list.append(loader_fn(it))
+            rgb = loader_fn(it)
+            if not args.tile_size:
+                item_keys.append(ckey(it))
+                seeds.append(it["seed"])
+                rgb_list.append(rgb)
+                continue
+            h, w = rgb.shape[:2]
+            th, tw = min(args.tile_size, h), min(args.tile_size, w)
+            for iy in range(h // th):
+                for ix in range(w // tw):
+                    tile = rgb[iy * th:(iy + 1) * th, ix * tw:(ix + 1) * tw]
+                    k = (it["slide"], it["frame"], str(int(it["x"]) + ix * tw), str(int(it["y"]) + iy * th))
+                    if is_filter_source:
+                        if tissue_fraction(tile) < args.tile_tissue_thresh:
+                            continue
+                        tile_keep.add(k)
+                    elif k not in tile_keep:
+                        continue
+                    item_keys.append(k)
+                    seeds.append(it["seed"])
+                    # pre-resize so memory scales with 224px tiles, not full-size ones;
+                    # preprocess() then resizes 224->224 (identity)
+                    rgb_list.append(np.asarray(
+                        Image.fromarray(tile).resize((args.resize, args.resize), Image.LANCZOS)))
         if n_unlabelled:
             print(f"  {method_label}: {n_unlabelled} crops skipped (no atypia label for their frame).")
         if not rgb_list:
@@ -512,7 +560,10 @@ def main():
 
     # raw_hamamatsu / raw_aperio first -- everything else pairs against raw_hamamatsu
     raw_ham_crops, _ = classify_items("raw_hamamatsu", raw_hamamatsu_items,
-                                       lambda it: read_png(it["_ref_path"]))
+                                       lambda it: read_png(it["_ref_path"]), is_filter_source=True)
+    if args.tile_size:
+        print(f"  tile mode: --tile-size {args.tile_size}, {len(tile_keep)} raw_hamamatsu tissue tiles kept "
+              f"(thresh {args.tile_tissue_thresh}); all methods + raw_aperio restricted to this set")
     raw_aperio_crops = {}
     if not args.no_raw_aperio:
         raw_aperio_crops, _ = classify_items(

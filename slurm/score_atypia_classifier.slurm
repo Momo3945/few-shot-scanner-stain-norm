@@ -68,6 +68,18 @@ if [[ -n "${RAW_HAMAMATSU_TAG:-}" ]]; then
     RAW_HAM_TAG_ARGS=(--raw-hamamatsu-tag "${RAW_HAMAMATSU_TAG}")
 fi
 
+# P3-08 scale-confound fix (additive, unset by default -> legacy behaviour):
+# TILE_SIZE=512 CROP=1024 tiles 1024px outputs into 512px tiles before the 224
+# resize, matching the classifier's 512->224 training scale. See
+# tickets/PHASE3-TICKETS.md "Classifier-validity check".
+TILE_ARGS=()
+if [[ -n "${TILE_SIZE:-}" ]]; then
+    TILE_ARGS+=(--tile-size "${TILE_SIZE}")
+fi
+if [[ -n "${CROP:-}" ]]; then
+    TILE_ARGS+=(--crop "${CROP}")
+fi
+
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 
 source /home-mscluster/mhoosen/miniconda3/etc/profile.d/conda.sh
@@ -103,7 +115,7 @@ CMD=(python score_atypia_classifier.py \
 if [[ ${#TAGS_ARGS[@]} -gt 0 ]]; then
     CMD+=(--tags "${TAGS_ARGS[@]}")
 fi
-CMD+=("${EXPECT_DIRECTION_ARGS[@]}" "${TAG_DIRECTION_ARGS[@]}" "${ALLOW_MISMATCH_ARGS[@]}" "${RAW_HAM_TAG_ARGS[@]}")
+CMD+=("${EXPECT_DIRECTION_ARGS[@]}" "${TAG_DIRECTION_ARGS[@]}" "${ALLOW_MISMATCH_ARGS[@]}" "${RAW_HAM_TAG_ARGS[@]}" "${TILE_ARGS[@]}")
 "${CMD[@]}"
 
 echo "------------------------------------------------------------------"

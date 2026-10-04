@@ -183,6 +183,11 @@ def parse_args():
     ap.add_argument("--aperio-root", default=None,
                     help="P3-08/SDXL only: mitos_heldout dataset root, for re-deriving A_raw crops. "
                          "Required with --vae-only-manifest.")
+    ap.add_argument("--direction", choices=["A2H", "H2A"], default="A2H",
+                    help="P3-08/SDXL only: which direction's raw source crop to re-derive -- must "
+                         "match the --direction used for both --translate-manifest and "
+                         "--vae-only-manifest's own infer_colour_translation_sdxl.py runs. Default "
+                         "A2H preserves every existing invocation's behaviour unchanged.")
     ap.add_argument("--heldout-csv", default=None,
                     help="P3-08/SDXL only: heldout_frames.csv. Required with --vae-only-manifest.")
     ap.add_argument("--crop", type=int, default=1024,
@@ -209,15 +214,21 @@ def load_rows(manifest_path):
         return base, list(csv.DictReader(fh))
 
 
-def _rederive_aperio_crops(root, heldout_csv, crop, tissue_thresh, ecc_min):
+def _rederive_aperio_crops(root, heldout_csv, crop, tissue_thresh, ecc_min, direction="A2H"):
     """P3-08/SDXL only: reproduce infer_colour_translation_sdxl.py's own
-    A2H crop selection exactly (registration + grid tiling + both its
-    filters), since that script never saves the raw source crop to disk.
-    Returns {tag_id: rgb_uint8_array}, tag_id format
-    f"{slide}_{frame}_x{x}_y{y}" matching that script's own tag_id exactly.
-    A2H-only (matches every P3-06/P3-07/P3-07c run so far) -- src_frame is
-    the UNREGISTERED raw Aperio frame, per that script's own
+    crop selection exactly (registration + grid tiling + both its filters),
+    since that script never saves the raw source crop to disk. Returns
+    {tag_id: rgb_uint8_array}, tag_id format f"{slide}_{frame}_x{x}_y{y}"
+    matching that script's own tag_id exactly (direction-invariant --
+    always keyed by the Aperio slide/frame id, per that script's own
+    `crops.append({"slide": r["aperio_slide"], "frame": r["frame_id"], ...})`).
+
+    direction="A2H" (default, matches every P3-06/P3-07/P3-07c run so far):
+    src_frame is the UNREGISTERED raw Aperio frame, per that script's own
     `src_frame, ref_frame = (a_rgb, h_reg) if direction == "A2H" ...`.
+    direction="H2A" (P3-07 H2A/P3-08 H2A extension): src_frame is the
+    REGISTERED Hamamatsu frame (h_reg) instead -- the mirror image of the
+    same conditional in that script.
     """
     from registration import read_rgb, register_h_to_a
 
@@ -246,7 +257,7 @@ def _rederive_aperio_crops(root, heldout_csv, crop, tissue_thresh, ecc_min):
         reg = register_h_to_a(a_rgb, h_rgb, ecc_min=ecc_min)
         h_reg = reg.h_registered_rgb
         H, W = a_rgb.shape[:2]
-        src_frame, ref_frame = a_rgb, h_reg  # A2H
+        src_frame, ref_frame = (a_rgb, h_reg) if direction == "A2H" else (h_reg, a_rgb)
 
         crops_done = 0
         for y in grid_offsets(H, crop):
@@ -332,7 +343,8 @@ def main():
             raise SystemExit("--aperio-root and --heldout-csv are required with --vae-only-manifest "
                              "(A_raw must be re-derived -- see that flag's --help).")
         a_raw_by_crop = _rederive_aperio_crops(
-            args.aperio_root, args.heldout_csv, args.crop, args.tissue_thresh, args.ecc_min)
+            args.aperio_root, args.heldout_csv, args.crop, args.tissue_thresh, args.ecc_min,
+            direction=args.direction)
         vae_base, vae_rows = load_rows(args.vae_only_manifest)
         a_vae_by_crop_only = {r["crop_id"]: vae_base / r["output_path"]
                               for r in vae_rows if is_vae_only(r)}

@@ -1469,8 +1469,152 @@ Aperio-trained classifier than untouched raw Aperio itself. No bootstrap
 CI computed (suppressed alongside recovery_delta); given this classifier's
 own established low absolute accuracy and small n (P2-12 §9), this is a
 real, reportable observation but not a confirmed effect — same caution
-P2-12 already applies throughout. Not pursued further within this
-diagnostic's scope (no H2A rerun attempted here).
+P2-12 already applies throughout. **SUPERSEDED / CAVEATED by the H2A rerun
+and classifier-validity check below — read that before citing the +0.117.**
+
+### P3-08 H2A extension (2026-10-01/04) — clinically-valid direction
+
+Mirrors P1-16's H2A 4-step pipeline on the SDXL backbone, reusing the
+already-complete P3-07 H2A translate run (`eval/p3_07_h2a_full_heldout`,
+`lora/h2a_cond_r8_sdxl_1024`, 496 crops x 3 seeds). Code changes
+(backward-compatible, default A2H unchanged): `fuse_source_detail.py` gained
+`--direction {A2H,H2A}` (`_rederive_aperio_crops` now picks the registered
+Hamamatsu frame as the source for H2A); `fuse_source_detail_sdxl.slurm`
+gained a `DIRECTION` env var.
+
+1. H2A VAE-only floor (H_V), `infer_colour_translation_sdxl.slurm vae_only`
+   with `DIRECTION=H2A CROP=1024`: job 62222, COMPLETED 1:05:02, 496 crops.
+2. Fusion F3 s=8 b=0.50 (frozen from P3-08): job 62260, COMPLETED 1:42:59,
+   1488/1488 fused, 0 skipped. Output `eval/p3_08_h2a_fusion/f3_s8_b0.50`.
+3. Structural/colour scoring (unmodified `score_outputs.slurm`): job 62307,
+   COMPLETED 1:04:15.
+
+   | Scope | SSIM | recovery dLab |
+   |---|---|---|
+   | ALL (n=1488) | 0.7313 | **+5.69** |
+   | excl. A06 | 0.7454 | -- |
+   | A06 / A08 / A09 / A13 / A16 | 0.637 / 0.789 / 0.721 / 0.673 / 0.759 | +5.35 / +5.59 / +6.44 / +5.63 / +5.46 |
+
+   vs P3-07 H2A pre-fusion (SSIM 0.3865, dLab +9.20): fusion roughly doubles
+   SSIM (+0.345) and keeps colour recovery positive on every slide (it drops
+   from +9.20 to +5.69, the usual fusion trade). Opposite of SD1.5 H2A+fusion
+   (P1-16), which stays net-negative on colour (-5.34).
+4. Atypia-classifier rescoring, true H2A (`RAW_HAMAMATSU_TAG=a0`,
+   `TAG_DIRECTION="a0=A2H <tag>=H2A"`): job 62373 aborted cleanly (no
+   `--raw-hamamatsu-tag` for an H2A tag; also landed on bad node mscluster45
+   because `--exclude` was omitted); resubmitted as job 62375, COMPLETED
+   5:34 (`eval/atypia_classifier_scores_p3_08_h2a/summary.csv`):
+
+   | method | n | accuracy | macro-F1 | macro-AUC | recovery_delta |
+   |---|---|---|---|---|---|
+   | raw_hamamatsu | 120 | 0.442 | 0.235 | 0.436 | -- |
+   | P3-08 H2A fusion | 118 | 0.407 | 0.355 | 0.560 | **-0.017** (95% CI [-0.127, +0.085]) |
+   | raw_aperio (sanity) | 120 | 0.533 | 0.326 | 0.518 | N/A |
+
+   Verdict: statistical tie with doing nothing, same as P1-16's SD1.5 H2A
+   result (0.0). n=118 not 120: frames A06_01A and A06_03A have no fused
+   crop (no 1024 tissue crop passed the filters).
+
+### Classifier-validity check (2026-10-04) — the instrument is weak, and
+### 1024px scoring has a probable scale confound
+
+Asked "is the classifier broken?". It loads and runs (`atypia_r18/best.pt`,
+step 400, val_acc 0.9468), but analysis of the saved `per_frame.csv` files
+shows it is a near-degenerate instrument on held-out data:
+
+- **It predicts class 2 for ~91% of frames even on raw_aperio, its own
+  training domain** (raw_aperio preds {1: 8, 2: 109, 3: 3} vs true {1: 38,
+  2: 60, 3: 22}). Majority-class accuracy is 60/120 = 0.50, so raw_aperio's
+  0.533 is essentially the majority baseline. The 0.9468 val_acc was on
+  slides A17/A18 only (47 frames; P2-13 later had to fix a validation split
+  that did not cover all 3 classes), so it overstates real skill. Per-slide
+  raw_aperio accuracy is wildly uneven (A06 1.00, A08 0.70, A09 0.33, A16
+  0.35), i.e. dominated by label mix, not skill. This extends P2-12 §9's
+  "barely above chance" caveat — all recovery deltas on this classifier,
+  here and in earlier tickets, sit on a noisy instrument.
+- **Probable scale confound for any 1024px method (NOT yet verified by an
+  experiment).** `score_atypia_classifier.py` resizes every eval crop
+  straight to 224 (`preprocess`, `--resize 224`), whatever its size. The
+  classifier was trained on 512px crops resized to 224
+  (`training_config.json`: crop 512, resize 224). 1024px outputs (P3-07,
+  P3-07c, P3-08) are therefore seen at half the effective magnification the
+  classifier was trained on; raw_aperio uses `--crop 512` re-cropping and is
+  at the correct scale. Evidence it matters: the *same* label `raw_hamamatsu`
+  predicts {1: 39, 2: 70, 3: 11} in the A2H run (derived from the fusion
+  tag's 1024px reference) but {1: 2, 2: 109, 3: 9} in the H2A run (derived
+  from tag `a0`, 512px) — same images, different prediction mix.
+
+Consequences (all **provisional** until the scale fix is tested):
+  - The A2H "+0.117 / beats raw_aperio" number above is suspect: both
+    raw_hamamatsu and the fusion were scored at the wrong scale, and the
+    gain may be a scale artefact. Do not cite it.
+  - The H2A -0.017 compares a 1024px fusion against a 512px raw_hamamatsu
+    (mixed scales), so it is not a clean paired comparison either. The
+    conclusion "no classifier benefit" is the safe reading, but it is not
+    a rigorous null.
+  - Earlier 1024px classifier numbers (P3-07 +0.0769 in P2-09's extension)
+    carry the same caveat. 512px results (A0-A5, P1-16, P3-06) are not
+    affected by this confound.
+  - Fix (implemented 2026-10-04, see next section): tile 1024px outputs
+    into 512px tiles before the 224 resize, score raw_hamamatsu from the
+    same tile grid, plus a `torch.cuda.is_available()` fail-fast in
+    `score_atypia_classifier.py` (job 62373 had silently run on CPU on a
+    known-bad node).
+
+### Scale-fixed rescoring (2026-10-04, job 63612, COMPLETED 12:19)
+
+`score_atypia_classifier.py` gained `--tile-size` (512), `--tile-tissue-thresh`
+(0.30) and `--allow-cpu` (default now aborts without a GPU); the launcher
+takes `TILE_SIZE`/`CROP` env vars. Legacy behaviour is unchanged when unset.
+Each 1024px image is split into 2x2 512px tiles (keys `(slide, frame, x+dx,
+y+dy)`); a tile is kept only if the *raw Hamamatsu* tile has >=30% tissue, so
+every method and raw_aperio is scored on the identical 1916 tiles. raw_hamamatsu
+= the registered 1024px Hamamatsu from `p3_07c_full_heldout` (A2H run,
+same crop grid as the H2A runs), tiled identically. One job scored all five
+tags: `eval/atypia_classifier_scores_p3_tiled/`. Integrity: every method
+paired on all 120 frames / 1916 tiles, 0 missing (the earlier n=118 was an
+artefact of the mixed-scale, coordinate-only pairing, now gone). Common
+outlier policy flagged A08 this time (A06 in older runs).
+
+Frame-level accuracy (n=120; majority-class "always 2" = 0.500):
+
+| method | direction | accuracy | macro-F1 | recovery_delta (95% CI) |
+|---|---|---|---|---|
+| raw_hamamatsu | -- | 0.425 | 0.214 | -- |
+| raw_aperio (sanity) | -- | 0.550 | 0.342 | N/A |
+| P3-07 H2A | H2A, clinical | 0.483 | 0.233 | **+0.058** (+0.017, +0.108) |
+| P3-08 H2A + fusion | H2A, clinical | 0.425 | 0.214 | **0.000** (0.0, 0.0) |
+| P3-07 | A2H, non-clinical | 0.500 | 0.222 | N/A |
+| P3-07c | A2H, non-clinical | 0.508 | 0.241 | N/A |
+| P3-08 + fusion | A2H, non-clinical | 0.567 | 0.358 | N/A |
+
+Reading, in order of confidence:
+- **The scale fix did not change the qualitative picture.** The classifier
+  still predicts class 2 for 109/120 frames on raw Aperio and raw
+  Hamamatsu. Its absolute skill is at the majority-class baseline.
+- **P3-08 H2A + fusion: exact tie** (predictions identical to raw_hamamatsu
+  on 120/120 frames). Expected: F3 keeps the source's own pixels and adds
+  only a blurred colour shift, so the classifier effectively sees the
+  untouched Hamamatsu input. Confirms the earlier tie under matched scales.
+- **P3-07 H2A (no fusion) shows a nominally significant +0.058 (CI excludes
+  0), but this is not credible evidence of clinical benefit.** It predicts
+  class 2 for 116/120 frames (accuracy 0.483 is near the 0.500 majority
+  baseline), and the whole gain comes from slide A06 (0.375 -> 0.875, i.e.
+  six frames); A09/A13/A16 are unchanged and A08 drops slightly (0.704 ->
+  0.667). It moved the classifier towards "always 2", not towards better
+  atypia discrimination. Not a headline result; the CI also ignores
+  frame clustering within slides.
+- **The earlier A2H "+0.117, P3-08 beats raw_aperio" number mostly
+  disappears as a finding.** With scale fixed, P3-08 A2H is 0.567 vs
+  raw_aperio 0.550 (two frames, noise). The fused A2H output is the raw
+  Aperio pixels plus a small colour shift, so an Aperio-trained
+  classifier scoring ~ raw_aperio is the expected outcome, not evidence
+  that normalisation helped. (Interpretation, not separately tested.)
+- Net: with this classifier, no 1024px SDXL configuration shows a
+  trustworthy downstream-classification gain. Any clinical-utility claim
+  needs a stronger classifier first (P2-13's attempt made it worse; a
+  better-validated one, e.g. multi-slide CV with all classes in every fold,
+  is the open item). Not run: P3-07b, the prodigy variant, ablation dirs.
 
 ## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
 **Status:** 🔄 IN PROGRESS (started 2026-09-25).

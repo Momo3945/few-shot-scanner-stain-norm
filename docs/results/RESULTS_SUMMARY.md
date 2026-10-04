@@ -1519,9 +1519,33 @@ this was simply a proven SD1.5 lever that had never been tried on SDXL.
 number.** accuracy 0.567 vs raw_hamamatsu 0.450 (informal delta ≈+0.117,
 suppressed as non-clinical by the hardened scorer, not a headline
 number) — larger than P1-16's own old A2H classifier delta (+0.029), and
-P3-08 even exceeds the raw_aperio sanity check (0.542). Real and
-reportable, not yet explained, no H2A rerun attempted (`tickets/
-PHASE3-TICKETS.md` P3-08).
+P3-08 even exceeds the raw_aperio sanity check (0.542). **Caveated by the
+2026-10-04 update below: do not cite this number.**
+
+**Update (2026-10-04): P3-08 H2A (clinically-valid direction) and a
+classifier-validity check.** SDXL H2A + fusion (jobs 62222/62260/62307):
+SSIM **0.7313**, recovery dLab **+5.69**, positive on every slide including
+A06 (+5.35) — vs the pre-fusion P3-07 H2A SSIM 0.3865 / dLab +9.20. Atypia
+classifier (job 62375): accuracy 0.407 vs raw_hamamatsu 0.442, recovery_delta
+**-0.017** (95% CI [-0.127, +0.085], n=118 paired frames) — a tie, matching
+SD1.5's P1-16 H2A result. The classifier itself is a weak instrument: it
+predicts class 2 for ~91% of held-out frames even on raw Aperio (accuracy
+0.533 vs 0.50 majority baseline). Also, 1024px outputs are fed to a
+classifier trained on 512px crops (everything is resized to 224), a probable
+scale confound that makes the earlier A2H +0.117 suspect and the H2A
+comparison mixed-scale. **Re-scored with the scale fixed (job 63612;
+1024px outputs tiled to 512px, all methods on identical tiles, 120/120
+frames paired):** P3-08 H2A + fusion is an exact tie with raw Hamamatsu
+(0.425 vs 0.425, recovery_delta 0.000, predictions identical on every
+frame — fusion keeps the source pixels). P3-07 H2A (no fusion) reads
++0.058 (95% CI +0.017 to +0.108), but it predicts class 2 for 116/120
+frames (majority baseline 0.500, accuracy 0.483) and the gain is entirely
+slide A06, so it is a drift toward the majority class, not evidence of
+clinical benefit. The A2H "+0.117" largely disappears (P3-08 A2H 0.567 vs
+raw_aperio 0.550). Net: the scale fix does not rescue a classifier effect;
+the classifier is too weak to support a clinical-utility claim for any
+1024px SDXL configuration. Details: `tickets/PHASE3-TICKETS.md` P3-08 H2A,
+classifier-validity and scale-fixed rescoring sections.
 
 **Full cross-project per-slide comparison** (every number below pulled
 directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
