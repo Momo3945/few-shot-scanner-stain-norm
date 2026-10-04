@@ -1877,6 +1877,64 @@ differently in the genuinely-conditioned (real source + ControlNet) forward
 pass for that specific combination — out of scope for this diagnostic
 thread unless requested.
 
+## P3-09 — CAMELYON17 multi-centre generalisation on SDXL + fusion
+
+**Status:** ✅ DONE (2026-10-04) — both fused and unfused scored; PASS,
+small effect.
+**Source:** `docs/proposal_draft(6).tex`, evaluation table row *Colour accuracy
+(CAMELYON17)*: pairwise LAB Wasserstein across the 5 centres, threshold
+$D_{post} < D_{pre}$ (same test as P2-10, which FAILED for plain SD1.5:
+56.70 -> 57.52, 1/10 pairs improved).
+
+**What was run.** P3-07c's source-conditioned SDXL colour LoRA + ControlNet
+(`a2h_cond_r8_sdxl_1024_overlap144`, strength 0.50, 50 DDIM steps, guidance 2.0,
+single seed, self-conditioned on each patch; no tuning) applied to all 2103
+CAMELYON17 patches, then P3-08's frozen F3 fusion (sigma=8, beta=0.50).
+CAMELYON17 patches (512px) were upscaled to 1024px (LANCZOS) to match the
+checkpoint's native resolution, rather than re-extracted from the mostly
+deleted raw WSIs, and $D_{pre}$ was re-measured on the same upscaled patches
+for a resolution-fair baseline.
+
+| Step | Script | Job |
+|---|---|---|
+| Upscale 512 -> 1024 | `upscale_camelyon_patches.py` | 62212, 14:36, 2103/2103 |
+| D_pre at 1024 | `score_camelyon_wasserstein.py` (unmodified) | 62231, **56.6745** (original 512px: 56.70) |
+| VAE-only (A_V) | `normalize_camelyon_sdxl.py --vae-only` | 62234, 51:49, 2103/2103 |
+| SDXL correct mode | `normalize_camelyon_sdxl.py` | 62259 (TIMEOUT at 4h, 1066/2103), resumed as 63610 (3:48:35, 2103/2103; script made resumable) |
+| F3 fusion | `fuse_camelyon_patches.py` | 63885, 20:23, 2103 fused, 0 missing |
+| D_post (fused) | `score_camelyon_wasserstein.py --against` | 63934, 3:31 (first attempts 63897/63898 timed out at 30 min with no logged progress; resubmitted with `PYTHONUNBUFFERED=1`, 28G) |
+
+**Result (fused): PASS, but marginal.** D_pre 56.6745 -> D_post **56.0017**
+(-0.67, -1.2%); 8 of 10 centre pairs improved. The two pairs that got worse are
+0-1 (37.11 -> 37.37) and 1-4 (99.77 -> 99.84), the latter being the largest
+distance. Context: an 8/10 sign test is p = 0.11 two-sided, and there is no
+confidence interval on a single deterministic run, so this is "slightly
+reduced and not obviously noise", not a demonstrated generalisation win. It is
+the expected size: F3 keeps the source's own pixels and adds only a blurred,
+half-weight colour residual, so it cannot move a centre's colour distribution
+far. The previous SD1.5 result (a FAIL, 57.52 vs 56.70) and this one are
+not like-for-like (different architecture, resolution and fusion), so this
+should not be written up as "SDXL fixes generalisation".
+
+**Unfused SDXL output (job 63935, COMPLETED 1:20:05 on mscluster41 — about
+23x slower than the fused run, see CLAUDE.md note):** D_pre 56.6745 -> D_post
+**54.3235** (-2.35, -4.1%), 9 of 10 pairs improved (only 0-1 worse: 37.11 ->
+37.65; sign test p = 0.02 two-sided). So the model's own output moves the
+centre distributions about 3.5x more than the fused output (-2.35 vs -0.67),
+as expected, because fusion keeps the source pixels and applies only half the
+learned colour shift. Caveat that applies to this metric (metrics.py): it is a
+pooled colour-histogram distance, so unfused outputs can score better partly
+through VAE resynthesis and global colour remapping without being
+content-correct (the unfused path has SSIM ~0.45 on MITOS). The fused output
+is the one that keeps structure; the unfused one shows the model's colour
+effect more strongly.
+
+**Verdict:** both configurations pass the proposal's $D_{post} < D_{pre}$
+criterion on CAMELYON17 (fused 56.00, 8/10; unfused 54.32, 9/10), versus the
+SD1.5 plain config's FAIL (57.52, 1/10). Magnitudes are small (1-4%) and from a
+single deterministic run with no tuning on CAMELYON17; read as "direction
+consistent with generalisation, effect small", not as a strong result.
+
 ---
 
 **Compute note:** proposal states SDXL is compute-contingent — if training time or

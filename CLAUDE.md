@@ -227,6 +227,25 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   yet promoted to "confirmed bad" the way `mscluster48`/`65`/`46`/`44` were
   after a second hit) -- but worth excluding pre-emptively on any `bigbatch`
   job that seems to be running suspiciously long, same as `mscluster40` above.
+- **`stampede` nodes have ~30,000 MB RAM** (`sinfo -p stampede -N -o "%N %m"`):
+  `sbatch --mem=32G` is rejected ("Memory specification can not be satisfied");
+  the maximum usable request is `--mem=28G` (2026-10-04).
+- **Python buffers stdout when redirected to a Slurm log, so a TIMEOUT kill
+  loses everything printed** (2026-10-04, jobs 63897/63898: 30-min TIMEOUT, logs
+  empty, no way to see progress). For any job that might hit its limit, submit
+  with `PYTHONUNBUFFERED=1 sbatch ...` (the env var is inherited).
+- **`mscluster41` (on `stampede`) looked slow for CPU scoring** (2026-10-04, job
+  63935, `score_camelyon_wasserstein.py`: 1:20:05 vs 3:31 for the same script
+  and a similar input on `mscluster25`; job 63898 timed out there earlier).
+  Weak evidence: the first fused scoring attempt also timed out on
+  `mscluster25` (63897), so slow I/O on freshly written files is also possible.
+  Exclude pre-emptively if a `stampede` scoring job runs suspiciously long.
+- **Scale confound when scoring 1024px outputs with the atypia classifier**
+  (found 2026-10-04): the classifier was trained on 512px crops resized to 224;
+  feeding 1024px outputs resized to 224 shows it half the magnification. Always
+  score 1024px methods with `TILE_SIZE=512 CROP=1024` (`score_atypia_classifier.py
+  --tile-size 512`). And the classifier itself is not a valid instrument (P2-14
+  gate failed): treat every atypia recovery_delta as noise around the class prior.
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 

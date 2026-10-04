@@ -1547,6 +1547,24 @@ the classifier is too weak to support a clinical-utility claim for any
 1024px SDXL configuration. Details: `tickets/PHASE3-TICKETS.md` P3-08 H2A,
 classifier-validity and scale-fixed rescoring sections.
 
+**Update (2026-10-04): P2-14 — a frozen UNI2-h probe also fails the
+validity gate.** Nested leave-one-slide-out CV on the 11 training slides:
+balanced accuracy 0.312 (chance 0.333), QWK 0.02, accuracy 0.579 vs 0.747
+for always answering "2", score-1 recall 0 on A12. MITOS-ATYPIA-14 atypia
+labels are nearly slide-determined (19 of 23 training score-1 frames are in
+A12; all 38 held-out score-1 frames are in A13/A16), so no atypia classifier
+trained on this data separates skill from the class prior. Clinical-utility
+deltas elsewhere in this document should be read as noise around the class
+prior (`tickets/PHASE2-TICKETS.md` P2-14).
+
+**Update (2026-10-04): P3-09 — CAMELYON17 multi-centre test on SDXL.**
+P3-07c checkpoint applied to all 2103 CAMELYON17 patches (upscaled to
+1024px; D_pre re-measured at 1024px = 56.67). Fused (P3-08 F3): D_post
+56.00, 8/10 pairs improved. Unfused SDXL: D_post 54.32, 9/10 improved. Both
+pass $D_{post} < D_{pre}$ (SD1.5 plain failed: 57.52 vs 56.70), but the
+effect is small (1-4%), single run, and the metric is a pooled-histogram
+distance (`tickets/PHASE3-TICKETS.md` P3-09).
+
 **Full cross-project per-slide comparison** (every number below pulled
 directly from each method's own `eval_summary_final.csv`/`eval_summary.csv`
 in this folder, not re-derived) — the pooled `ALL` figures used throughout
