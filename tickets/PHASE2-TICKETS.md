@@ -993,6 +993,89 @@ specifically): `tickets/P2-13_atypia_classifier_quality_improvements.md`.
 
 ---
 
+## P2-14 — Validated, reproducible atypia classifier (clinical-utility instrument)
+
+**Status:** 📝 PROPOSED (2026-10-04) — not started; needs go-ahead before code.
+**Source:** `docs/proposal_draft(6).tex`, Table "Evaluation framework summary",
+row *Clinical utility* (MITOS-ATYPIA-14; atypia score accuracy; threshold
+"positive delta") and §"MITOS-ATYPIA-14: Training and Clinical Evaluation".
+Follows P2-09 (classifier), P2-12 (direction/pairing hardening), P2-13
+(negative result), and P3-08's classifier-validity check
+(`tickets/PHASE3-TICKETS.md`).
+
+**Problem.** Every clinical-utility number in this project sits on
+`atypia_r18/best.pt`, which is not a valid instrument: on the 120 held-out
+frames it predicts class 2 for ~91% of frames even on raw Aperio (its own
+domain); raw_aperio accuracy 0.55 vs 0.50 for always answering "2". Its
+0.9468 val_acc came from 47 frames on two slides (A17, A18), and `best.pt` was
+chosen by that same val set (step 400 of 2000). Results therefore swing on
+class-2 drift and one slide (e.g. P3-07 H2A "+0.058" is entirely slide A06;
+see P3-08 scale-fixed rescoring). P2-13 tried augmentation + class-balanced
+sampling and got worse (raw_hamamatsu 0.442 -> 0.192). Absolute accuracy is
+dominated by the class prior (held-out {1: 38, 2: 60, 3: 22}; training frames
+{1: 23, 2: 222, 3: 52}).
+
+**Goal.** A classifier that (a) demonstrably beats the majority-class baseline
+before it is used to judge any normaliser, and (b) gives identical numbers on
+re-run, with uncertainty that respects slide-level clustering. The proposal's
+metric (atypia accuracy, delta vs raw Hamamatsu) stays the headline; balanced
+metrics are added as supplementary, not substituted.
+
+**Design.**
+1. *Encoder.* Frozen public pathology encoder (candidates: Phikon, CTransPath;
+   avoid gated weights) + regularised multinomial/ordinal head, replacing
+   end-to-end ResNet18 fine-tuning. Weights must be fetched on the cluster
+   (compute nodes run `HF_HUB_OFFLINE`; verify real byte sizes, per CLAUDE.md
+   fetch lessons). Keep `atypia_r18` as the frozen comparison arm.
+2. *Inputs.* Aperio-only training (proposal design). All tissue tiles per
+   frame at the trained scale (512px tiles -> encoder input), averaged
+   embeddings per frame (frame is the labelled unit). No colour augmentation
+   in the first pass (P2-13 evidence); revisit only if the gate fails.
+3. *Objective.* Class-balanced, ordinal-aware (1<2<3); regularisation
+   strength chosen by CV, not by held-out frames.
+4. *Model selection.* Slide-grouped cross-validation over the 11 training
+   slides only. Held-out A06/A08/A09/A13/A16 are never used for training or
+   selection (methodology guardrail); raw_aperio on held-out is a one-time
+   final sanity check. First check per-slide label counts: class 1 has only
+   23 training frames, so some leave-one-slide-out folds may lack it (merge
+   into grouped k-fold if so).
+5. *Determinism.* Fixed seeds; deterministic torch/cudnn flags where a net is
+   trained; head fit is closed-form/convex where possible; average K seeds;
+   write checkpoint/feature-cache SHA-256, seed list, and library versions
+   into every score output; scorer already runs eval-mode with no randomness.
+6. *Reporting.* Accuracy (proposal metric) + balanced accuracy, macro-F1,
+   quadratic weighted kappa, per-class recall, always beside the majority
+   baseline; recovery delta with slide-level cluster bootstrap in addition to
+   the existing frame bootstrap; keep the P2-12 direction/pairing gates and the
+   P3-08 `--tile-size` scoring for 1024px methods.
+
+**Validity gate (decided before running; no post-hoc loosening).** The new
+classifier may be used for clinical-utility claims only if, in grouped CV,
+balanced accuracy and QWK exceed the majority baseline with the slide-level
+interval excluding it, AND raw_aperio on held-out is not majority-collapsed
+(starting thresholds: balanced accuracy > 0.45, QWK > 0.2, no single class
+> 80% of predictions). If it fails, report that the dataset/label quality
+cannot support the claim and stop; do not iterate on held-out numbers.
+
+**Deliverables.** `src/train/train_atypia_probe.py` (feature extraction +
+head fit + CV, new file, does not modify `train_atypia_classifier.py`), a
+`slurm/` launcher, scorer support for the new checkpoint type, a results
+section here + `docs/results/RESULTS_SUMMARY.md`, then re-scoring of the
+methods already scored on `atypia_r18` (A0-A5, classical baselines, P1-16,
+P3-06/07/07c/08, both directions where clinical).
+
+**Risks / open questions.** Label noise and inter-rater disagreement may cap
+achievable accuracy; 5 held-out slides limit power regardless of classifier;
+encoder pretraining data (TCGA-heavy) overlaps source domains of other
+datasets in this project (no leakage into MITOS held-out, but state it);
+frame-level labels are weak for tile-level features. Compute is small
+(feature extraction + CPU/GPU head fit), no diffusion jobs.
+
+**Not in scope.** Mitosis F-measure arm (P2-09b); changing the proposal's
+headline metric; retraining on Hamamatsu.
+
+---
+
 **Reminder (CLAUDE.md):** always report both the pooled `ALL` aggregate and the
 robust-outlier-excluded aggregate. A06 is a confirmed genuine colour-gap outlier —
 never let it silently dominate a headline number.
