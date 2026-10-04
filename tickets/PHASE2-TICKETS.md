@@ -1171,6 +1171,74 @@ CV/held-out until a number passes.
 
 ---
 
+## P2-15 — Frame-level, criteria-supervised atypia classifier (v2), gated
+
+**Status:** 📝 PROPOSED (2026-10-04) — user asked to try; implementation starts
+after this ticket is committed.
+**Source:** `docs/proposal_draft(6).tex`, evaluation table row *Clinical utility*
+(atypia accuracy, positive delta); follow-up to P2-14 (gate failed). Idea from
+the user's v2 sketch: score the whole x20 frame, pool crop features, ordinal
+output, use the six x40 criteria as extra supervision, slide-grouped validation
+only, and an in-domain gate before any scanner-shift claim.
+
+**What is already done (P2-14) vs new.** Already: frame-level aggregation (mean
+of tile embeddings), frozen UNI2-h, nested leave-one-slide-out CV, an
+in-domain gate. New here: (1) an ordinal head; (2) attention-based pooling
+(gated attention MIL); (3) the six x40 criteria as auxiliary supervision;
+(4) a within-slide criteria test that cannot be passed by recognising the slide.
+
+**Data audit (2026-10-04).** Criteria files
+(`<slide>/atypia/x40/<slide>_<frame><a-d>_cna_criteria.csv`, 3 rater scores
+each): 987 / 1200 training subfields and 436 / 496 held-out subfields have
+scores (the rest are name-only, empty). `chromatin_density` and
+`membrane_thickness` are near-constant (variance 0.017 / 0.018) and will be
+dropped; `nuclei_size`, `anisonucleosis`, `nucleoli_size`, `nuclei_contour`
+are kept. Slide identity explains 54-67% of their variance, so they are
+slide-confounded too, but 33-46% is within-slide variation, which is the
+signal that can break the slide-identity shortcut.
+
+**Design (all encoders frozen UNI2-h; head fit CPU, deterministic).**
+1. *x40 features.* Tile each x40 subfield at native 224px (no downscale),
+   tissue filter, cap tiles per subfield with a deterministic stride; mean
+   embedding per subfield; frame-level criteria target = mean over its
+   subfields and raters.
+2. *Models*, all under nested leave-one-slide-out CV on the 11 training slides:
+   M1 ordinal (cumulative-logit) head on mean-pooled x20 features;
+   M2 gated-attention pooling over x20 tile features -> ordinal, small hidden
+   size, weight decay + dropout, 5 fixed seeds averaged;
+   M3 two-stage: ridge regression from x40 subfield features to the 4 criteria
+   (CV'd), then predicted criteria (+ x20 features) -> ordinal score.
+   P2-14's mean-pool logistic head is the reference.
+3. *Gates, fixed before running.* Score gate = P2-14's gate unchanged
+   (balanced acc > 0.45, QWK > 0.2, no class > 80% of predictions, slide-
+   bootstrap lower bound of balanced acc > 1/3, score-1 recall > 0 on A12).
+   Criteria gate (new): for each kept criterion, Spearman correlation between
+   out-of-fold predicted and true values AFTER subtracting each slide's mean
+   from both (within-slide), mean over the 4 criteria > 0.15 with the
+   slide-bootstrap lower bound > 0.
+4. *Held-out discipline.* Held-out raw-Aperio features are scored only for a
+   configuration that already passes the CV gates, once, and are never used to
+   choose between models. Three candidate models are tried; this is stated in
+   the write-up (multiple comparisons) and a pass on one of three is not
+   treated as a pass on a single pre-planned test.
+5. *If nothing passes:* record that atypia labels in this dataset cannot
+   support a downstream clinical-utility metric, and stop (as P2-14).
+
+**Expected outcome (honest).** Low odds of a pass for the score gate: 297
+frames / 11 slides with labels nearly slide-determined, and attention pooling
+adds parameters to a tiny dataset. The criteria gate is the more informative
+new test. If it passes while the score gate fails, that is a useful result:
+features carry atypia-relevant signal that the 3-class frame label, being
+slide-confounded, cannot expose.
+
+**Cost.** x40 feature extraction (about 4k subfields, one short GPU job per
+split), CPU fits. No diffusion jobs.
+
+**Not in scope.** Using held-out labels for training; the mitosis arm; any
+change to the proposal's headline atypia-accuracy metric.
+
+---
+
 **Reminder (CLAUDE.md):** always report both the pooled `ALL` aggregate and the
 robust-outlier-excluded aggregate. A06 is a confirmed genuine colour-gap outlier —
 never let it silently dominate a headline number.
