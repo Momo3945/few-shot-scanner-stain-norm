@@ -1173,8 +1173,18 @@ CV/held-out until a number passes.
 
 ## P2-15 — Frame-level, criteria-supervised atypia classifier (v2), gated
 
-**Status:** 📝 PROPOSED (2026-10-04) — user asked to try; implementation starts
-after this ticket is committed.
+**Status:** 🔄 IN PROGRESS (2026-10-04) — implemented; x40 feature extraction
+queued (jobs 64001 smoke, 64002 train); candidate fits not run yet.
+
+**Implementation so far.** `src/train/extract_atypia_x40_features.py` +
+`slurm/extract_atypia_x40_features.slurm` (x40 subfield embeddings + criteria
+scores; criteria parser unit-checked on a filled and a name-only file);
+`src/train/fit_atypia_v2.py` (M1/M2/M3 nested CV, score gate, criteria gate;
+verified on synthetic data: planted signal is learned by all three models,
+pure noise stays at chance with gates failing). Fixed MIL hyper-parameters and
+the three-candidate count are recorded in the script and its results JSON.
+Held-out x40 features are deliberately not extracted until a model passes the
+CV gates.
 **Source:** `docs/proposal_draft(6).tex`, evaluation table row *Clinical utility*
 (atypia accuracy, positive delta); follow-up to P2-14 (gate failed). Idea from
 the user's v2 sketch: score the whole x20 frame, pool crop features, ordinal
