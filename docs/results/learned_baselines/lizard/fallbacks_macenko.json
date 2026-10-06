@@ -1,0 +1,527 @@
+{
+ "method": "macenko",
+ "total_tiles": 775,
+ "total_fallback_tiles": 1,
+ "per_image": {
+  "dpath_1": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_10": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_11": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_12": {
+   "tiles": 20,
+   "fallback_tiles": 0
+  },
+  "dpath_13": {
+   "tiles": 15,
+   "fallback_tiles": 1
+  },
+  "dpath_14": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_15": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_16": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_17": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_18": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_19": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_2": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_20": {
+   "tiles": 12,
+   "fallback_tiles": 0
+  },
+  "dpath_21": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_22": {
+   "tiles": 8,
+   "fallback_tiles": 0
+  },
+  "dpath_23": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_24": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_25": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_26": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_27": {
+   "tiles": 16,
+   "fallback_tiles": 0
+  },
+  "dpath_28": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_29": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_3": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_30": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_31": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_32": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_33": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_34": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_35": {
+   "tiles": 16,
+   "fallback_tiles": 0
+  },
+  "dpath_36": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_37": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_38": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_39": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_4": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_40": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_41": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_42": {
+   "tiles": 12,
+   "fallback_tiles": 0
+  },
+  "dpath_43": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_44": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_45": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_46": {
+   "tiles": 20,
+   "fallback_tiles": 0
+  },
+  "dpath_47": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_48": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_49": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_5": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_50": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_51": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_52": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_53": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_54": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_55": {
+   "tiles": 15,
+   "fallback_tiles": 0
+  },
+  "dpath_56": {
+   "tiles": 8,
+   "fallback_tiles": 0
+  },
+  "dpath_57": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_58": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_59": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_6": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_60": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_61": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_62": {
+   "tiles": 16,
+   "fallback_tiles": 0
+  },
+  "dpath_63": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_64": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_65": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_66": {
+   "tiles": 12,
+   "fallback_tiles": 0
+  },
+  "dpath_67": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_68": {
+   "tiles": 9,
+   "fallback_tiles": 0
+  },
+  "dpath_69": {
+   "tiles": 12,
+   "fallback_tiles": 0
+  },
+  "dpath_7": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "dpath_8": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "dpath_9": {
+   "tiles": 6,
+   "fallback_tiles": 0
+  },
+  "glas_1": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_10": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_11": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_12": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_13": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_14": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_15": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_16": {
+   "tiles": 2,
+   "fallback_tiles": 0
+  },
+  "glas_17": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_18": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_19": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_2": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_20": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_21": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_22": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_23": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_24": {
+   "tiles": 2,
+   "fallback_tiles": 0
+  },
+  "glas_25": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_26": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_27": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_28": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_29": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_3": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_30": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_31": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_32": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_33": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_34": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_35": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_36": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_37": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_38": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_39": {
+   "tiles": 2,
+   "fallback_tiles": 0
+  },
+  "glas_4": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_40": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_41": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_42": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_43": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_44": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_45": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_46": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_47": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_48": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_49": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_5": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_50": {
+   "tiles": 2,
+   "fallback_tiles": 0
+  },
+  "glas_51": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_52": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_53": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_54": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_55": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_56": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_57": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_58": {
+   "tiles": 2,
+   "fallback_tiles": 0
+  },
+  "glas_59": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_6": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_60": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_61": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_7": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_8": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  },
+  "glas_9": {
+   "tiles": 4,
+   "fallback_tiles": 0
+  }
+ }
+}

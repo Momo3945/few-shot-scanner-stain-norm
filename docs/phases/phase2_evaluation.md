@@ -67,6 +67,16 @@ geometry evaluation.
   LoRA over the held-out set
 - `src/eval/score_outputs.py` + `slurm/score_outputs.slurm` — scores inference output
   against baseline (imports `metrics.py` as a flat sibling)
+- **Learned baselines (P2-11b):** `src/baselines/models.py` (StainNet / ParamNet /
+  CycleGAN definitions), `src/train/train_learned_baseline.py` +
+  `slurm/train_learned_baseline.slurm` (trains on the same 50 LoRA pairs),
+  `src/eval/infer_learned_baseline.py` + `slurm/infer_learned_baseline.slurm` (held-out
+  inference, same manifest schema, so `score_outputs.py` is unchanged)
+- **Lizard structure-safety for the baselines (P2-11b):**
+  `src/eval/normalize_lizard_learned.py` / `normalize_lizard_classical.py` (+ slurm),
+  then `slurm/infer_hovernet.slurm` and `slurm/score_lizard.slurm` as for the diffusion
+  run; `src/eval/lizard_change_magnitude.py` + slurm measures how much each normaliser
+  changes the images
 
 ## Produces
 
@@ -75,3 +85,5 @@ geometry evaluation.
 | `/datasets/mhoosen/stain-norm/eval/<run>/eval_manifest.csv` | Inference run manifest |
 | `/datasets/mhoosen/stain-norm/eval/<run>/eval_per_crop.csv` | Per-crop metrics |
 | `/datasets/mhoosen/stain-norm/eval/<run>/eval_summary.csv` | Aggregate scores (per-slide + outlier-excluded, per CLAUDE.md guardrails) |
+| `/datasets/mhoosen/stain-norm/baselines/<direction>_<method>/` | Trained StainNet / ParamNet / StainGAN weights (P2-11b) |
+| `/datasets/mhoosen/stain-norm/eval/lizard_normalised_images_<method>/`, `eval/lizard_normalised_<method>/`, `eval/lizard_change_magnitude/` | Lizard normalised images, HoVer-Net predictions + Dice, and change-size tables for every normaliser |

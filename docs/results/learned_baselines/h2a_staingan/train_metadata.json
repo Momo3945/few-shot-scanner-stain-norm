@@ -1,0 +1,11 @@
+{
+  "script": "train_learned_baseline.py",
+  "method": "staingan",
+  "direction": "H2A",
+  "steps": 20000,
+  "seed": 3407,
+  "train_dir": "/datasets/mhoosen/stain-norm/pairs/train",
+  "n_pairs": 50,
+  "smoke": false,
+  "selection": "final-step weights, no held-out selection"
+}

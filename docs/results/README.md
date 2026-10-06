@@ -26,6 +26,7 @@ where to look instead.
 |---|---|---|
 | `phase1_ablation/` | The A0–A5 ablation ladder + strength-sweep follow-ups + raw baseline | ✅ done |
 | `classical_baselines/` | Macenko, Reinhard, Histogram Matching | ✅ done |
+| `learned_baselines/` | StainNet, ParamNet, StainGAN trained on the same 50 pairs (A2H + H2A) | ✅ done — ParamNet/StainGAN beat classical **and** the best diffusion pipeline; StainNet fails; Lizard Relative Dice, all 7 normalisers: only ParamNet passes (0.999, but it barely changes the images); closest real normaliser is Reinhard 0.92, diffusion 0.87 |
 | `p1_10_source_conditioning/` | Training-time source conditioning (fresh ControlNet branch) | ✅ done — mixed |
 | `p1_11_ddim_inversion/` | Deterministic DDIM-inversion initialisation | ✅ done — best SD1.5 result at the time |
 | `p1_12_generic_lcm/` | Few-step LCM acceleration on P1-10 | ✅ closed — speed/quality tradeoff |

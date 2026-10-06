@@ -483,9 +483,12 @@ still-open structural-safety check that could tell a different story, since it
 scores downstream nucleus-detection agreement rather than raw pixel/colour
 agreement.
 
-**Not yet run:** StainNet and (pretrained) StainGAN/ParamNet — no existing code
-found in this repo; would need new inference wrappers and pretrained weights
-before they could be added to this table (`tab:baselines` scope).
+**Update (2026-10-05):** StainNet, StainGAN and ParamNet have since been
+trained on the same 50 pairs and scored on this same held-out set, both
+directions — see the "Learned baselines (P2-11b)" addendum near the end of
+this file and `learned_baselines/README.md`. (Original note, kept for
+history: "no existing code found in this repo; would need new inference
+wrappers and pretrained weights".)
 
 ## Addendum (2026-08-27): per-slide consistency — classical swings far more than diffusion, slide to slide
 
@@ -1871,6 +1874,87 @@ get that speed on the harder source-conditioned checkpoints (P1-12).
 (P1-16, P3-08) is quality (SSIM beating classical outright), at a real,
 acknowledged compute-time and GPU-dependency cost.
 
+## Addendum (2026-10-05): learned baselines (P2-11b) — StainNet, ParamNet, StainGAN
+
+The last three rows of `tab:baselines`. All three were **trained here on the
+same 50 coordinate-corresponding pairs (slide A03) the colour LoRA uses**, then
+scored through the identical pipeline (`score_outputs.py` unchanged, same 496
+held-out crops), A2H and H2A. Upstream MITOS-trained checkpoints were not used
+(unknown train/test split — could include held-out slides). StainGAN has no
+released weights, so it is a standard CycleGAN trained here. Code:
+`src/baselines/models.py`, `src/train/train_learned_baseline.py`,
+`src/eval/infer_learned_baseline.py`. Full tables and job IDs:
+`learned_baselines/README.md`, `learned_baselines/aggregate_typical_slides.csv`.
+
+Aggregate over the four typical slides (A08/A09/A13/A16, crop-weighted, n=432);
+A06 reported separately, as always:
+
+| A2H | Lab W. | SSIM | Δlab | A06 Lab W. | A06 Δlab |
+|---|---|---|---|---|---|
+| Raw | 25.41 | 0.748 | 0 | 94.84 | 0 |
+| Macenko | 21.02 | 0.649 | +4.39 | 50.30 | +44.5 |
+| Reinhard | 26.79 | 0.701 | −1.38 | 36.34 | +58.5 |
+| Histogram Matching | 31.33 | 0.664 | −5.92 | 25.72 | +69.1 |
+| StainNet | 58.02 | 0.518 | −32.61 | 38.58 | +56.3 |
+| **ParamNet** | **8.55** | 0.769 | **+16.86** | 76.15 | +18.7 |
+| **StainGAN** | 13.55 | **0.772** | +11.86 | 29.92 | +64.9 |
+
+H2A shows the same ordering (ParamNet typical Δlab +17.28, StainGAN +10.75,
+StainNet −28.38; SSIM ties with classical at ~0.75).
+
+**Findings**
+
+1. **Classical methods only beat raw on the pooled number because of A06.**
+   On the four typical slides Reinhard (−1.38) and Histogram Matching (−5.92)
+   are slightly *worse* than doing nothing in A2H; only Macenko (+4.39) is
+   better. This sharpens the earlier "classical beats diffusion" reading,
+   which was driven by A06.
+2. **ParamNet and StainGAN are strong baselines — stronger than this project's
+   best diffusion pipeline on the same crops.** A2H, all 5 slides (n=496):
+   ParamNet SSIM 0.753 / Lab 17.27 / Δlab +17.1 and StainGAN 0.764 / 15.66 /
+   +18.7, versus P1-16 fusion's 0.729 / 26.56 / +7.81 (SDXL P3-08's fused
+   SSIM, 0.7325, comes from its own 1024px evaluation setup, so it is not
+   strictly the same crops, but it is also below both). Both learned baselines beat every classical method on typical-slide
+   colour in both directions, and on SSIM in A2H. The thesis must say this
+   plainly: the few-shot diffusion pipeline does not beat a ResNet colour
+   mapper trained on the same 50 pairs on these metrics.
+3. **ParamNet is the most consistent** (typical-slide Δlab +9.8 to +19.1 A2H,
+   +16.2 to +19.7 H2A); **StainGAN does better on the A06 outlier in A2H**
+   (+64.9 vs +18.7) but varies more slide to slide.
+4. **StainNet fails to generalise.** Worse than raw on every typical slide,
+   both directions (SSIM 0.52/0.40). Not undertraining: a 150,000-step retrain
+   plateaued at the same training L1 (~0.24; the do-nothing mapping is 0.30).
+   A per-pixel colour map fit on one slide's 50 crops does not transfer to the
+   other slides' stain variation.
+
+**Caveats — what this does NOT show.** Single seed and a single 50-pair
+training slide; Lab Wasserstein is a colour-distribution metric with the P2-11
+construction confound; the raw reference row uses the full 1,296 typical-slide
+crops vs the methods' 432, so SSIM-vs-raw is approximate (method-vs-method is
+exact). SSIM tests pixel agreement, not whether the ResNet generators altered
+nuclei — that is the Lizard Relative Dice run below. The atypia classifier was
+not run on these outputs (P2-14 gate failed: not a valid instrument).
+
+**Structure safety on Lizard (P2-08 protocol, A2H, 130 images, HoVer-Net), all
+seven normalisers.** Dice(A,G) = 0.6982. Relative Dice: **ParamNet 0.9989**
+(CI 0.996-1.001, the only pass at >=0.95), Reinhard 0.9225 [0.905, 0.939], the
+diffusion pipeline 0.8745 [0.867, 0.882], Histogram Matching 0.7931, Macenko 0.7365,
+StainGAN 0.7241, StainNet 0.6220. Change size over all 130 images (mean pixel
+change, 0-255): ParamNet **1.77** (only 2 of 130 images change by more than 4),
+diffusion 15.8, StainGAN 20.8, Macenko 23.8, StainNet 27.5, Histogram Matching
+27.6, Reinhard 27.8. **ParamNet's pass is "it barely touched the images"**, not
+proven structure-safety where it changes colour. **No method that substantially
+changes colour passes the 0.95 gate**, classical or learned; the closest is
+Reinhard. The diffusion pipeline is mid-pack (better than four of the other six),
+not uniquely unsafe. **Colour-shift size does not by itself explain the Dice
+loss:** Reinhard shifts colour the most yet loses ~8%, while diffusion shifts it
+the least of the active methods yet loses ~12.5% — so diffusion's loss reads as
+real structural/content change (consistent with P2-06/P2-07), not a colour
+artefact (this corrects an earlier, weaker reading that the failures conflated
+damage with out-of-distribution colour shift). Within a method, per-image change
+size does not reliably predict Dice loss (mixed-sign Spearman). Detail, CIs,
+terciles, jobs: `learned_baselines/README.md`.
+
 ## Local file index
 
 Reorganized 2026-08-21 for clarity (was a flat sprawl of ~17 sibling folders
@@ -1902,6 +1986,11 @@ docs/results/
 │   ├── macenko/                       summary only pulled; full outputs on cluster
 │   ├── reinhard/                      summary only pulled; full outputs on cluster
 │   └── histogram_matching/            summary only pulled; full outputs on cluster
+│   └── h2a_{macenko,reinhard,histogram_matching}/   H2A summaries (P2-12 runs), pulled 2026-10-05
+├── learned_baselines/              StainNet / ParamNet / StainGAN trained on the 50 LoRA pairs (P2-11b)
+│   ├── stainnet/ paramnet/ staingan/  A2H eval_summary.csv + train_metadata.json
+│   ├── h2a_stainnet/ h2a_paramnet/ h2a_staingan/   H2A, same
+│   └── aggregate_typical_slides.{py,csv}   crop-weighted typical-slide aggregate, every baseline
 └── qualitative/                    side-by-side comparison images (A0-A5 ladder + P1-09 strength sweeps)
     └── strength_sweep/                component crops for the strength_sweep_* composites (source material)
 ```

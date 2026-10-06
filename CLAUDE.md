@@ -103,6 +103,19 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   any submitted/running job was affected, since jobs run on compute nodes via
   Slurm, independent of the login-node SSH session that submitted them.
 
+- **Learned-baseline timings, measured 2026-10-05 (P2-11b)** — use these to set
+  `--time`, do not re-derive: StainNet train (1,500 steps) ~1 min; ParamNet 20k steps
+  ~36 min; StainGAN 20k steps ~48 min (bigbatch, RTX 3090). Held-out inference
+  (`infer_learned_baseline.slurm`, 496 crops) is **registration-bound, ~55 min per
+  method regardless of model size** — submit with `--time=02:00:00` (the script's
+  1 h default is too tight). `score_outputs.slurm` ~7.5 min on stampede. Chained
+  train→infer→score submissions via `sbatch --parsable --dependency=afterok:<id>` work
+  well (one approval, nine jobs).
+- **A multi-`sbatch` `ssh` loop can exceed the Bash tool's 120 s timeout and get
+  backgrounded even though every submission succeeded** (seen twice, 2026-10-05). On
+  that, check `squeue --me` / the backgrounded output file BEFORE resubmitting — a
+  blind retry creates duplicate jobs.
+
 ## Cluster facts (hard-won — DO NOT re-derive or assume otherwise)
 - Login: `146.141.21.100`, user `mhoosen`. Home `/home-mscluster/mhoosen` ≈ 50 GB, CODE ONLY.
 - Large data, model cache, and all job OUTPUTS live in `/datasets/mhoosen/...` (201 TB).
@@ -272,6 +285,9 @@ do not create new top-level folders without updating this list.
   training source. Added 2026-08-18.
 - `classifier/` — trained downstream-classifier checkpoints (P2-09), one dir per
   run (e.g. `atypia_r18/`). Added 2026-08-18.
+- `baselines/` — trained StainNet/ParamNet/StainGAN weights (P2-11b), one dir per
+  `<direction>_<method>` (e.g. `a2h_paramnet/`, `h2a_staingan/`); `*_smoke` dirs are
+  5-step sanity runs. Added 2026-10-05.
 - `camelyon17_patches/` — **raw** CAMELYON17 patches (`centre_<0-4>_patient_<id>/
   *.png`, extracted locally then uploaded — see P2-10 for why extraction happens
   off-cluster). Added 2026-08-19.
@@ -280,7 +296,8 @@ do not create new top-level folders without updating this list.
 
 ## Layout (CANONICAL — this section is authoritative; README.md defers to this)
 - `src/data/`  extract_pairs.py, inspect_mitos.py, sample_hist_mitos.py
-- `src/train/` train_colour_lora.py
+- `src/train/` train_colour_lora.py, train_learned_baseline.py (StainNet/ParamNet/StainGAN)
+- `src/baselines/` models.py (learned-baseline network definitions, P2-11b)
 - `src/eval/`  registration.py, metrics.py, progress.py, infer_colour_lora.py,
               score_outputs.py (these import each other as siblings — keep co-located)
 - `slurm/`     train_colour_lora.slurm, fetch_models.slurm, infer_colour_lora.slurm,

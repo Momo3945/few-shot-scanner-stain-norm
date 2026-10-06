@@ -31,15 +31,23 @@ BSc Honours research project, University of the Witwatersrand. Supervisor: Richa
 |---|---:|
 | Held-out evaluation | 496 crops across 5 completely held-out slide pairs |
 | Training set | &le;50 few-shot pairs, one slide pair |
-| Best structural fidelity (SSIM) | **0.729**, beats every classical baseline |
+| Best structural fidelity of the diffusion pipeline (SSIM) | **0.729**, beats every classical baseline |
 | vs. classical baselines (SSIM) | Macenko 0.628 &middot; Histogram Matching 0.651 &middot; Reinhard 0.681 |
-| Best colour recovery (LAB &Delta;) | **+7.81**, retaining ~89% of the underlying model's colour gain |
+| vs. learned baselines trained on the same 50 pairs (SSIM, A&rarr;H) | ParamNet **0.753** &middot; StainGAN **0.764** &middot; StainNet 0.512 (all-slide) |
+| Best colour recovery of the diffusion pipeline (LAB &Delta;) | **+7.81**, retaining ~89% of the underlying model's colour gain |
+| Learned-baseline colour recovery (LAB &Delta;, A&rarr;H) | ParamNet +17.1 &middot; StainGAN +18.7 &middot; StainNet &minus;21.1 |
 | Reproduced on the reverse (H&rarr;A) direction | SSIM 0.548 &rarr; **0.730** |
 
 The headline result (post-hoc source-detail fusion on top of a source-conditioned,
 DDIM-inverted colour LoRA) is the first configuration across 37+ tested
 configurations in this project to beat classical stain-normalisation methods
-outright, not just approach them. Full narrative, per-slide breakdowns, and
+outright, not just approach them. **It does not beat learned baselines trained on the
+same 50 pairs:** ParamNet and StainGAN score higher on both colour recovery and SSIM,
+and StainNet fails to generalise (worse than doing nothing). On nucleus-detection
+structure safety (Lizard Relative Dice, pre-committed pass &ge; 0.95), no normaliser that
+substantially changes colour passes: Reinhard 0.92, the diffusion pipeline 0.87,
+StainGAN 0.72, StainNet 0.62; ParamNet reaches 0.999 only because it barely alters
+those images. Full narrative, per-slide breakdowns, and
 every intermediate result: [`docs/results/RESULTS_SUMMARY.md`](docs/results/RESULTS_SUMMARY.md).
 
 ## Method
