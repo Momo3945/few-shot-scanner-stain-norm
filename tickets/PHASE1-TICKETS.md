@@ -2766,8 +2766,12 @@ P1-11's translated output the new decoder reaches SSIM **0.6163** (stock 0.4960,
 `ft_mse` 0.5567; better than `ft_mse` on 100% of crop-seeds) but windowed LAB is
 **26.34 vs `ft_mse` 25.21** (A06 worst, +2.8) — a structure/colour trade-off, G1.3's
 wLAB condition fails. After P1-16 F3 fusion the gain vanishes (SSIM 0.7289 vs 0.7290)
-and colour is slightly worse (wLAB 27.74 vs 27.08): G1.4 fails. G1.2 (panels) and
-G1.5 (CAMELYON17) still owed. Details and data: `tickets/P1-18_vae_decoder_finetune.md`,
+and colour is slightly worse (wLAB 27.74 vs 27.08): G1.4 fails. **G1.2 (2026-10-18):**
+no artefacts but visible over-smoothing — the P1-18 decoder keeps 21–30% of the
+input's fine detail vs 52–59% for `ft_mse` (2 panel crops), close to the real
+Hamamatsu's own 18–24%, so much of the translated SSIM gain is matching the target's
+softness; it also adds a −3 to −5 level blue shift. G1.5 (CAMELYON17) still owed.
+Supervisor summary: claude.ai doc "VAE Decoder Fine-Tune: Results Summary". Details and data: `tickets/P1-18_vae_decoder_finetune.md`,
 `docs/results/p1_18_vae_finetune/`.
 Follows P1-14/P1-15: even `sd-vae-ft-mse` self-reconstructs held-out crops at
 only SSIM 0.6182 (stock 0.5759) versus 1.0 for a lossless autoencoder.

@@ -444,6 +444,31 @@ reproduce P1-16's 0.729. Order: A_V job (independent of G1.3, can run now) → a
 G1.3: fuse stock rows (sanity) + fuse new-decoder rows → score both
 (`score_outputs.slurm`, ~7.5 min each) → compare.
 
+### G1.2 result: no artefacts, but the decoder over-smooths (2026-10-18)
+
+Panels: `docs/report/figures/p1_18_g12_recon.jpg` (original | stock | `ft_mse` | P1-18,
+self-reconstruction) and `p1_18_g12_translated.jpg` (Aperio source | real Hamamatsu |
+the same P1-11 latent through stock / `ft_mse` / P1-18), A06 and A08 crop (0,0), seed
+0, full crop plus a 128 px zoom (nearest-neighbour). Script
+`docs/report/make_p1_18_panels.py`; inputs fetched to `docs/report/cluster_raw/p1_18/`.
+Checked before use: the P1-14 original and stock tiles are pixel-identical to the
+identity run's source crop and stock VAE-only output (max |Δ| = 0).
+
+- **No checkerboarding, ringing or invented nuclei.**
+- **Over-smoothing:** by eye the P1-18 decoder is visibly softer than stock and
+  `ft_mse` (stromal fibres, chromatin texture). Laplacian variance (fine-detail
+  energy) relative to the input, A06 / A08: reconstruction stock 1.11 / 1.17,
+  `ft_mse` 0.52 / 0.59, **P1-18 0.21 / 0.30**.
+- **The target scanner is just as soft:** real Hamamatsu carries 0.18 / 0.24 of the
+  Aperio source's fine detail; translated output stock 0.91 / 1.02, `ft_mse` 0.44 /
+  0.51, **P1-18 0.21 / 0.27**. So much of P1-18's translated SSIM gain (G1.3) is
+  matching Hamamatsu's softer rendering, not recovering structure. The decoder was
+  trained on both scanners, which is the plausible source of the softness.
+- **Colour shift introduced by the fine-tune:** mean blue-channel offset vs input,
+  A06 / A08: stock −0.7 / −0.6, `ft_mse` −1.0 / −1.3, **P1-18 −5.0 / −3.3** levels.
+- **G1.2 verdict: FAIL on over-smoothing** (no artefacts). Rests on two crops; a
+  496-crop Laplacian-variance comparison is the cheap way to confirm it and is not run.
+
 ### G1.3 result: translated drop-in — structure passes strongly, colour gate fails (2026-10-06)
 
 Inference job 64803 (COMPLETED 03:35:17, `mscluster52`, 6.3 s/crop-seed; the first
