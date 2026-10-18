@@ -45,6 +45,20 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
 - Drive the cluster over SSH, e.g.: `ssh mhoosen@146.141.21.100 'squeue --me'`.
 - Sync code up before submitting jobs:
   `rsync -av ./src ./slurm mhoosen@146.141.21.100:/home-mscluster/mhoosen/stain-norm/`
+  (2026-10-05: `rsync` is NOT installed in this Windows Git Bash — use `scp` for
+  the specific changed files, e.g. `scp src/eval/x.py mhoosen@146.141.21.100:
+  /home-mscluster/mhoosen/stain-norm/src/eval/`. Check the files have no CRLF line
+  endings on the cluster before submitting a `.slurm`: `grep -c $'\r' file`.
+  **Do NOT trust a local Git Bash `grep`/`cat`/`sed` for this** — MSYS hides CRs, so a
+  local `grep -c $'\r'` prints 0 on a CRLF file (2026-10-06: caused two bogus
+  `bash -n` failures on the cluster; tracked files are CRLF in this Windows worktree
+  but LF in the git index, e.g. `fuse_source_detail.slurm`). Check with Python
+  bytes locally, or on the cluster; upload an LF copy without touching the worktree:
+  `python -c "import pathlib,sys; ..."` / `tr -d '\r' < f | ssh host 'cat > dest'`.)
+- `lpips` 0.1.4 is installed in the `stainnorm` env (2026-10-05, P1-18 job 64246,
+  `pip install --no-deps` — torch stayed 2.5.1+cu121). Its VGG16 backbone is
+  cached at `/datasets/mhoosen/torch_cache/hub/checkpoints/vgg16-397923af.pth`
+  (553,433,881 bytes); jobs using LPIPS must set `TORCH_HOME=/datasets/mhoosen/torch_cache`.
 
 ## Permission rule — Slurm job control (explicit, matches .claude/settings.json)
 - **Always ask for my explicit confirmation before running `sbatch` or `scancel`**,
@@ -70,7 +84,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   gate is a backstop, not the whole rule.
 - **Standard submit shape:**
   `ssh mhoosen@146.141.21.100 'cd /home-mscluster/mhoosen/stain-norm && \`
-  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62 \`
+  `<ENV_VAR=val ...> sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62,mscluster61 \`
   `[-J job_name] [--time=HH:MM:SS] slurm/<script>.slurm <positional args>'`
   — always pass the bad-node `--exclude` list on `bigbatch` GPU jobs (see
   Cluster facts below); `-J` gives the job a readable name for log-matching;
@@ -208,7 +222,7 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   doesn't silently CPU-crawl for hours the way heavy diffusion generation
   jobs are already guarded against. This is a recurring
   pattern, not a one-off — always pass
-  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62`
+  `--exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62,mscluster61`
   on `bigbatch` GPU jobs, and add any new bad node hit to this list rather than
   re-discovering it. Corroborated 2026-08-11: `squeue`/`scontrol` show other
   users' CPU-only jobs currently running fine on all three of the originally-
@@ -236,10 +250,19 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   per SDXL 50-step-DDIM 1024 output vs 17.5s/output for the identical script
   and checkpoint on `mscluster57` (job 47298) -- 2.4x slower, enough to
   TIMEOUT at `--time=03:30:00` having produced the same output count as the
-  first (shorter, `--time=01:30:00`) attempt. Single occurrence so far (not
-  yet promoted to "confirmed bad" the way `mscluster48`/`65`/`46`/`44` were
-  after a second hit) -- but worth excluding pre-emptively on any `bigbatch`
-  job that seems to be running suspiciously long, same as `mscluster40` above.
+  first (shorter, `--time=01:30:00`) attempt. **SECOND independent hit
+  2026-10-06 (P1-18 G1.3, job 64762, SD1.5 DDIM-inversion inference):** 14.4 s per
+  crop-seed measured from output-file mtimes (50 crop-seeds in 708 s) vs ~6.5 s on
+  a normal node (inferred from P1-15's identical run: 3:41 total minus ~1 h
+  registration, over 1,488 crop-seeds -- derived, not directly measured) = ~2.2x
+  slower, projecting ~7 h total against a 5 h cap. CPU registration on the same node
+  ran at a normal pace (~1.7 frames/min), so the slowness is GPU/inference-side.
+  **Treat `mscluster61` as confirmed slow for GPU inference: add it to the standard
+  `--exclude` list** (now `...,mscluster62,mscluster61`) for any long `bigbatch`
+  job. Quick pace check that works: count `outputs/` files and compare first/last
+  mtime (`stat -c %Y`), a job needs ~10 min of inference before the rate is
+  readable. (A monitor script must not call `python3` on this Windows host -- it
+  resolves to the Microsoft Store stub and exits 49; use `python`.)
 - **`stampede` nodes have ~30,000 MB RAM** (`sinfo -p stampede -N -o "%N %m"`):
   `sbatch --mem=32G` is rejected ("Memory specification can not be satisfied");
   the maximum usable request is `--mem=28G` (2026-10-04).
@@ -285,6 +308,8 @@ do not create new top-level folders without updating this list.
   training source. Added 2026-08-18.
 - `classifier/` — trained downstream-classifier checkpoints (P2-09), one dir per
   run (e.g. `atypia_r18/`). Added 2026-08-18.
+- `vae/` — fine-tuned VAE checkpoints (P1-18: decoder-only and full-VAE runs),
+  one dir per run. Added 2026-10-05.
 - `baselines/` — trained StainNet/ParamNet/StainGAN weights (P2-11b), one dir per
   `<direction>_<method>` (e.g. `a2h_paramnet/`, `h2a_staingan/`); `*_smoke` dirs are
   5-step sanity runs. Added 2026-10-05.

@@ -2747,6 +2747,41 @@ colour recovery, at the cost of a modest colour regression specifically on
 the A06 outlier slide. Full-run data + qualitative panel archived at
 `docs/results/p1_15_alt_decoder/`.
 
+## P1-18 — Raising the VAE Ceiling: Decoder-Only Fine-Tune, then Full-VAE Fine-Tune
+
+**Status:** 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
+partly done (job 64246): `sd-vae-ft-mse`'s encoder is bit-identical to stock's,
+i.e. it is already a decoder-only fine-tune; LPIPS + VGG16 weights ready; data
+inventory done (diversity is the 3,000-patch `hist_lora_pool`, the A03 pair sets
+are re-crops of 24 frames). **Update 2026-10-06: Stage 1 trained and scored on
+held-out self-reconstruction (jobs 64639/64640 training, 64645 benchmark).** The
+H&E decoder fine-tune (`d1_pn03_best`, decoder-only, encoder bit-identical) beats
+`ft_mse` by **+0.0278 SSIM (Aperio) / +0.0214 (Hamamatsu)** on the 496 held-out
+crops, 100% / 98.4% of crops improved; G1.0 and G1.1 pass, narrowly on Hamamatsu.
+Caveats: the generalising gain (≈ +0.025) is small next to the 0.88 reachable by
+memorising 16 crops, and the SSIM-selected decoder drifts colour a little
+(identity LAB +0.2 / +0.6, A06 worst). G1.2–G1.5 (artifacts, translated
+drop-in, fusion, off-domain) not yet run. **Update 2026-10-06 (G1.3/G1.4 run):** on
+P1-11's translated output the new decoder reaches SSIM **0.6163** (stock 0.4960,
+`ft_mse` 0.5567; better than `ft_mse` on 100% of crop-seeds) but windowed LAB is
+**26.34 vs `ft_mse` 25.21** (A06 worst, +2.8) — a structure/colour trade-off, G1.3's
+wLAB condition fails. After P1-16 F3 fusion the gain vanishes (SSIM 0.7289 vs 0.7290)
+and colour is slightly worse (wLAB 27.74 vs 27.08): G1.4 fails. G1.2 (panels) and
+G1.5 (CAMELYON17) still owed. Details and data: `tickets/P1-18_vae_decoder_finetune.md`,
+`docs/results/p1_18_vae_finetune/`.
+Follows P1-14/P1-15: even `sd-vae-ft-mse` self-reconstructs held-out crops at
+only SSIM 0.6182 (stock 0.5759) versus 1.0 for a lossless autoencoder.
+**Stage 1:** freeze the encoder (latent space unchanged, so P1-10/P1-11 stay
+valid with no retraining) and fine-tune only the decoder on H&E. **Stage 2:**
+fine-tune the full VAE (latent anchor to protect downstream components; downstream
+retrain only if separately approved). Gated, scored per-slide, pre- and
+post-P1-16-fusion (fusion absorbed the self-ensemble gain completely, so a
+pre-fusion-only win must not be claimed as a pipeline win). Supervisor confirmed
+the proposal's frozen-VAE design is not a constraint here. Output folder
+`/datasets/mhoosen/stain-norm/vae/` created. Baseline ceiling graph (dotted line
+at SSIM = 1.0) already rendered: `docs/report/figures/vae_ceiling.png`. Full plan, gates, and
+open questions for the supervisor: `tickets/P1-18_vae_decoder_finetune.md`.
+
 ---
 
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review

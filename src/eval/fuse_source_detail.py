@@ -200,6 +200,13 @@ def parse_args():
                          "run (or, for P3-08/SDXL, an infer_colour_translation_sdxl.py "
                          "--source-mode correct run -- same manifest schema). Supplies H_pred. Its "
                          "own reference_path (real Hamamatsu) is NOT read by this script.")
+    ap.add_argument("--pred-method", default="ddim_inversion",
+                    help="P1-18 G1.4: which translate-manifest rows are H_pred (method column; rows with no "
+                         "method column count as 'ddim_inversion'). Default unchanged. Use alt_decoder / "
+                         "stock_decoder for infer_colour_source_ddim_inversion_alt_decoder.py manifests.")
+    ap.add_argument("--pred-source-mode", default="correct",
+                    help="P1-18 G1.4: source_mode value of the H_pred rows. Default 'correct' (unchanged); "
+                         "alt-decoder manifests carry e.g. correct_alt_decoder / correct_stock_decoder.")
     ap.add_argument("--method", choices=["f1", "f2", "f3"], required=True)
     ap.add_argument("--sigma", type=float, default=4.0, help="Gaussian blur sigma (px). F2/F3.")
     ap.add_argument("--alpha", type=float, default=1.0, help="F2 high-frequency reinjection weight.")
@@ -362,11 +369,12 @@ def main():
     # ablation rows, if present in the same manifest, are deliberately
     # excluded).
     h_pred_rows = [r for r in tr_rows
-                   if r.get("method", "ddim_inversion") == "ddim_inversion" and r["source_mode"] == "correct"]
+                   if r.get("method", "ddim_inversion") == args.pred_method
+                   and r["source_mode"] == args.pred_source_mode]
     if not h_pred_rows:
         raise SystemExit(
-            "No method=ddim_inversion, source_mode=correct rows found in --translate-manifest -- "
-            "wrong file, or the run used a different --source-mode.")
+            f"No method={args.pred_method}, source_mode={args.pred_source_mode} rows found in "
+            "--translate-manifest -- wrong file, or the run used a different --source-mode.")
 
     out_dir = Path(args.out)
     (out_dir / "outputs").mkdir(parents=True, exist_ok=True)

@@ -20,6 +20,10 @@
 #     p1_10_ddim_inversion/translate_pairs_inv100_correct/eval_manifest.csv \
 #     p1_16_fusion/f3_s8_b0.75 8 1.0 0.75
 #
+# P1-18 G1.4 (additive env overrides, unset = unchanged): fuse the alternate-decoder rows of an
+# infer_p1_11_alt_decoder.slurm manifest instead of plain P1-11 rows:
+#   PRED_METHOD=alt_decoder PRED_SOURCE_MODE=correct_alt_decoder sbatch fuse_source_detail.slurm f3 ...
+#
 # Then score with the EXISTING scorer:
 #   sbatch score_outputs.slurm p1_16_fusion/f3_s8_b0.75
 # =====================================================================
@@ -69,6 +73,7 @@ python fuse_source_detail.py \
     --identity-manifest "${DATA_ROOT}/eval/${IDENTITY_MANIFEST}" \
     --translate-manifest "${DATA_ROOT}/eval/${TRANSLATE_MANIFEST}" \
     --method "${METHOD}" --sigma "${SIGMA}" --alpha "${ALPHA}" --beta "${BETA}" \
+    --pred-method "${PRED_METHOD:-ddim_inversion}" --pred-source-mode "${PRED_SOURCE_MODE:-correct}" \
     --out "${OUT_DIR}"
 
 echo "------------------------------------------------------------------"

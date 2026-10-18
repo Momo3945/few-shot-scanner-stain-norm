@@ -29,6 +29,11 @@
 # full 496-crop run:
 #   LIMIT=2 sbatch --exclude=mscluster48,mscluster65,mscluster46,mscluster44,mscluster75,mscluster74,mscluster51,mscluster83,mscluster76,mscluster50,mscluster45,mscluster57,mscluster59,mscluster62 \
 #     benchmark_vae_reconstruction.slurm heldout sd35_pixcell pxc_02a_vae_floor
+#
+# P1-18 (tickets/P1-18_vae_decoder_finetune.md) -- additive env overrides, unset = unchanged:
+#   EXTRA_VAES="label=/path/to/vae_dir label2=/path2"   also score fine-tuned VAEs (--extra-vae)
+#   HELDOUT_BOTH=1                                       also score the registered Hamamatsu crops
+#   EXTRA_VAES="d1_pn03_best=/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val" HELDOUT_BOTH=1 #     sbatch --exclude=<BAD_NODES> --time=03:00:00 -J p1_18_heldout #     benchmark_vae_reconstruction.slurm heldout both p1_18_stage1_heldout
 # =====================================================================
 
 #SBATCH --job-name=p1_14_vae_bench
@@ -58,6 +63,13 @@ fi
 LIMIT_FLAG=""
 if [[ -n "${LIMIT:-}" ]]; then
     LIMIT_FLAG="--limit ${LIMIT}"
+fi
+P118_FLAGS=""
+for spec in ${EXTRA_VAES:-}; do
+    P118_FLAGS="${P118_FLAGS} --extra-vae ${spec}"
+done
+if [[ "${HELDOUT_BOTH:-0}" == "1" ]]; then
+    P118_FLAGS="${P118_FLAGS} --heldout-both-domains"
 fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
@@ -90,7 +102,7 @@ else
         --root "${DATA_ROOT}/mitos_heldout" \
         --heldout "${DATA_ROOT}/pairs/heldout_frames.csv" \
         --max-crops-per-frame 4 \
-        --out "${OUT_DIR}" ${QUAL_FLAG} ${LIMIT_FLAG}
+        --out "${OUT_DIR}" ${QUAL_FLAG} ${LIMIT_FLAG} ${P118_FLAGS}
 fi
 
 echo "------------------------------------------------------------------"

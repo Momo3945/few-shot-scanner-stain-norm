@@ -44,6 +44,15 @@
 #     --eval-dirs eval/p1_15_alt_decoder/smoke_correct \
 #     --out eval/p1_15_alt_decoder/smoke_correct_summary
 #
+# P1-18 G1.3 (tickets/P1-18_vae_decoder_finetune.md): optional env override,
+# unset = unchanged (the alt decoder stays stabilityai/sd-vae-ft-mse). Point the
+# SAME validated script at a local fine-tuned VAE dir instead:
+#   ALT_DECODER=/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val PYTHONUNBUFFERED=1 \
+#     sbatch --exclude=<BAD_NODES> --time=05:00:00 -J p1_18_g13 \
+#     infer_p1_11_alt_decoder.slurm correct 0 p1_18_d1_pn03_full 0,1,2
+# (the script still aborts on any latent_channels / scaling_factor mismatch and always
+# encodes with the stock VAE.)
+#
 # Requires the P1-10 checkpoint to already exist -- this script never
 # trains anything.
 # =====================================================================
@@ -76,6 +85,14 @@ OUT_TAG=${3:-$DEFAULT_TAG}
 SEEDS_CSV=${4:-0}
 SEEDS=${SEEDS_CSV//,/ }
 OUT_DIR=${DATA_ROOT}/eval/p1_15_alt_decoder/${OUT_TAG}
+ALT_FLAG=""
+if [[ -n "${ALT_DECODER:-}" ]]; then
+    if [[ ! -f "${ALT_DECODER}/config.json" ]]; then
+        echo "ABORT: ALT_DECODER=${ALT_DECODER} has no config.json (not a saved AutoencoderKL dir)."
+        exit 1
+    fi
+    ALT_FLAG="--alt-decoder-repo ${ALT_DECODER}"
+fi
 
 if [[ ! -f "${CHECKPOINT_DIR}/pytorch_lora_weights.safetensors" ]]; then
     echo "ABORT: ${CHECKPOINT_DIR}/pytorch_lora_weights.safetensors not found -- "
@@ -96,7 +113,7 @@ python -c "from diffusers import DDIMInverseScheduler" \
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
 echo "P1-15 Stage 1 alt-decoder -- SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS"
-echo "Checkpoint=$CHECKPOINT_DIR"
+echo "Checkpoint=$CHECKPOINT_DIR  AltDecoder=${ALT_DECODER:-stabilityai/sd-vae-ft-mse (default)}"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed"
@@ -112,6 +129,7 @@ python infer_colour_source_ddim_inversion_alt_decoder.py \
     --inversion-fraction 1.0 \
     --limit "${LIMIT}" --max-crops-per-frame 4 \
     --seeds ${SEEDS} \
+    ${ALT_FLAG} \
     --debug-inversion
 
 echo "------------------------------------------------------------------"

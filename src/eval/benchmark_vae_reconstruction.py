@@ -109,6 +109,15 @@ def parse_args():
                          "gather crops (cheap: registration, no reconstruction) and generate the "
                          "--qualitative-slides panels. For adding panels to an already-completed "
                          "scoring run without repeating the expensive part.")
+    ap.add_argument("--extra-vae", action="append", default=[], metavar="LABEL=PATH",
+                    help="P1-18: also score a local fine-tuned VAE dir (diffusers AutoencoderKL "
+                         "format, saved with save_pretrained). Repeatable. Scored in addition to "
+                         "--vae, by exactly the same code path. Each extra arm gets paired stats "
+                         "vs ft_mse (or stock if ft_mse isn't being run) under 'paired_extra'. "
+                         "Default (no flag) behaviour is unchanged.")
+    ap.add_argument("--heldout-both-domains", action="store_true",
+                    help="P1-18: Stage heldout only -- also score the registered Hamamatsu crops "
+                         "(self-reconstruction), not just Aperio. Default (off) is unchanged.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--online", action="store_true")
     return ap.parse_args()
@@ -140,6 +149,19 @@ def main():
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     vae_names = ["stock", "ft_mse"] if args.vae == "both" else [args.vae]
+    # P1-18: extra local fine-tuned VAEs, scored alongside the requested ones.
+    extra_names = []
+    for spec in args.extra_vae:
+        if "=" not in spec:
+            raise SystemExit(f"--extra-vae expects LABEL=PATH, got '{spec}'.")
+        label, path = spec.split("=", 1)
+        if label in VAE_REPOS:
+            raise SystemExit(f"--extra-vae label '{label}' collides with a built-in VAE name.")
+        if not Path(path).is_dir():
+            raise SystemExit(f"--extra-vae path not found: {path}")
+        VAE_REPOS[label] = (path, None, "float16")
+        vae_names.append(label)
+        extra_names.append(label)
 
     # ------------------------------------------------------------------
     # Load requested VAE(s) + log the ticket-required config inspection
@@ -261,7 +283,8 @@ def main():
     # Skipped entirely under --qualitative-only (adding panels to an
     # already-completed scoring run without repeating the expensive part).
     # ------------------------------------------------------------------
-    domains = ["aperio", "hamamatsu"] if args.stage == "internal" else ["aperio"]
+    both_domains = args.stage == "internal" or args.heldout_both_domains
+    domains = ["aperio", "hamamatsu"] if both_domains else ["aperio"]
     metric_keys = ["lab_total", "wlab_mean", "de2000_mean", "ssim", "psnr", "mae"]
     scores = {name: {d: [] for d in domains} for name in vae_names}
     if not args.qualitative_only:
@@ -357,8 +380,43 @@ def main():
                   f"(95% CI [{ci_lo:+.4f}, {ci_hi:+.4f}])  median_dSSIM={p['median_delta_ssim']:+.4f}  "
                   f"mean_dPSNR={p['mean_delta_psnr']:+.3f}  mean_dMAE={p['mean_delta_mae']:+.3f}")
 
+    # P1-18: paired stats of each extra arm against ft_mse (else stock), same
+    # bootstrap protocol as above. Empty dict when no --extra-vae was given.
+    paired_extra = {}
+    if extra_names:
+        ref = "ft_mse" if "ft_mse" in vae_names else ("stock" if "stock" in vae_names else None)
+        if ref is None:
+            print("WARNING: --extra-vae given but neither ft_mse nor stock was run -- no paired stats.")
+        else:
+            rng = np.random.default_rng(args.seed)
+            for label in extra_names:
+                paired_extra[label] = {"reference": ref}
+                for domain in domains:
+                    deltas = {k: [b[k] - a[k] for a, b in zip(scores[ref][domain], scores[label][domain])]
+                              for k in metric_keys}
+                    ssim_deltas = np.asarray(deltas["ssim"])
+                    boot = [rng.choice(ssim_deltas, size=len(ssim_deltas), replace=True).mean()
+                            for _ in range(args.bootstrap_n)]
+                    lo, hi = np.percentile(boot, [2.5, 97.5])
+                    paired_extra[label][domain] = {
+                        "mean_delta_ssim": float(np.mean(deltas["ssim"])),
+                        "median_delta_ssim": float(np.median(deltas["ssim"])),
+                        "mean_delta_psnr": float(np.mean(deltas["psnr"])),
+                        "mean_delta_mae": float(np.mean(deltas["mae"])),
+                        "mean_delta_lab_total": float(np.mean(deltas["lab_total"])),
+                        "ssim_delta_bootstrap_ci95": [float(lo), float(hi)],
+                        "frac_crops_ssim_improved": float(np.mean(ssim_deltas > 0)),
+                        "n_crops": len(ssim_deltas),
+                    }
+                    p = paired_extra[label][domain]
+                    print(f"[paired {label}-{ref}][{domain}] mean_dSSIM={p['mean_delta_ssim']:+.4f} "
+                          f"(95% CI [{lo:+.4f}, {hi:+.4f}])  improved on "
+                          f"{p['frac_crops_ssim_improved']:.1%} of crops  "
+                          f"mean_dPSNR={p['mean_delta_psnr']:+.3f}  mean_dMAE={p['mean_delta_mae']:+.3f}")
+
     with open(out_dir / "summary.json", "w") as fh:
         json.dump({"vae_info": vae_info, "summary": summary, "paired": paired,
+                   "paired_extra": paired_extra,
                    "stage": args.stage, "n_crops": len(crops)}, fh, indent=2)
     print(f"\nWritten: {out_dir / 'summary.json'}  and  {per_crop_path}")
 

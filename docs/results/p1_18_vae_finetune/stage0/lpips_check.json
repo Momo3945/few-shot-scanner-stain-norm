@@ -1,0 +1,20 @@
+{
+  "torch_version": "2.5.1+cu121",
+  "lpips_version": "unknown",
+  "vgg_checkpoints": [
+    {
+      "file": "vgg16-397923af.pth",
+      "bytes": 553433881
+    }
+  ],
+  "vgg_weights_real": true,
+  "lpips_identical_images": [
+    0.0,
+    0.0
+  ],
+  "lpips_random_pair": [
+    0.348773330450058,
+    0.35346195101737976
+  ],
+  "forward_ok": true
+}
