@@ -1,0 +1,63 @@
+\section{Discussion}
+\label{sec:discussion}
+
+Table~\ref{tab:hyp} answers the four hypotheses the project committed to before any results.
+
+\begin{table}[t]
+\centering
+\caption{Pre-registered hypotheses and outcomes (SD\,1.5 unless stated).}
+\label{tab:hyp}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{0.9cm}p{3.0cm}p{3.6cm}}
+\toprule
+H & Claim & Outcome\\
+\midrule
+H1 & $\leq$50 pairs suffice to generalise to the five held-out slides &
+\textbf{Supported for SD\,1.5} with source conditioning and DDIM inversion (every slide improves);
+not for SDXL at 1024\,px, which needed 144 pairs.\\
+\midrule
+H2 & Colour improves over raw input and classical baselines, on MITOS and CAMELYON17 &
+\textbf{Partly.} Beats raw everywhere and classical on typical slides; loses to Macenko on A06 and to
+ParamNet/StainGAN everywhere; CAMELYON17 fails for SD\,1.5, passes narrowly for SDXL.\\
+\midrule
+H3 & Relative Dice $\geq 0.95$ &
+\textbf{Supported with fusion}: 0.994 for inversion + F3; not without it (0.893 unfused, 0.875
+for the A4-type point).\\
+\midrule
+H4 & 4-step LCM matches 50-step DDIM &
+\textbf{Not supported}: generic LCM loses quality; task-specific distillation is worse.\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Why the learned baselines win.} ParamNet and StainNet apply a colour map to the input pixels, and
+StainGAN's CycleGAN generator keeps a wide feature map (a quarter of the resolution, hundreds of
+channels); none of them passes the image through a 48$\times$ compressing four-channel latent. Every diffusion output is resynthesised by the VAE, which alone limits SSIM to
+0.576--0.646 on Aperio crops (Section~\ref{sec:vae}). F3 fusion is, in effect, our way of turning the
+diffusion model back into a colour map applied to the source: its success on structure and the
+learned colour maps' success on colour point in the same direction. With 50 pairs, the strong image prior
+of a diffusion model does not compensate for the information it loses in its own bottleneck.
+
+\textbf{Colour metrics.} LAB Wasserstein compares colour histograms and ignores layout, so histogram
+matching wins it on A06 by construction while scoring worse than doing nothing on typical slides. The
+windowed variant and per-slide reporting were essential to avoid reading that as a real gain. Pixelwise
+$\Delta E_{2000}$ tracks SSIM almost rank for rank, so it is not an independent colour check.
+
+\textbf{Cost.} At 50 inversion and 50 denoising steps the final pipeline takes about 6.3\,s per 512\,px
+crop on an RTX~3090. A 100{,}000$\times$100{,}000 pixel whole-slide image holds about 38{,}000 such
+crops, roughly 67 GPU-hours per slide, and the few-step LCM path that was meant to remove this cost did not
+hold its quality (H4).
+
+\textbf{Limitations.} All training data comes from one slide pair (A03/H03), so slide-level variation is
+not represented in training. The learned baselines were trained once, with one seed each. Structural
+safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). The planned clinical-utility test has no valid
+instrument: every atypia classifier we built failed its own pre-registered gate
+(Appendix~\ref{app:clinical}), so no clinical-utility claim is made. The decoder smoothing analysis
+rests on two inspected crops.
+
+\textbf{Planned but not run.} Several planned items were not carried out and no result is claimed for
+them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
+detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a fine-tune of the
+full VAE (encoder and decoder), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
+source-image conditioning branch for PixCell.

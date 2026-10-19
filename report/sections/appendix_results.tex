@@ -1,0 +1,97 @@
+\section{Additional results}
+\label{app:results}
+
+\subsection{Downstream clinical utility (atypia classifier)}
+\label{app:clinical}
+
+\textbf{Protocol.} The proposal's clinical-utility test trains a classifier on raw Aperio $\times$20 frames
+of the eleven MITOS-ATYPIA-14 training slides to predict the adjudicated nuclear-atypia score (1--3), then
+evaluates it on held-out Hamamatsu frames before and after normalisation. The recovery is the accuracy on
+normalised frames minus the accuracy on raw Hamamatsu frames, so a positive value means normalisation
+helped the classifier.
+
+\textbf{A retracted result.} The first classifier (a ResNet18, \texttt{atypia\_r18}) appeared to favour
+diffusion: the A3 rung at strength 0.50 gave a recovery of $+0.0625$, against $+0.0457$ for the best
+classical method, Reinhard. A later audit found that every method had been run \AtoH{}, producing
+Hamamatsu-styled images, whereas an Aperio-trained classifier needs \HtoA{} outputs. An A0 output was twice
+as close in pixel error to its Aperio source as to its Hamamatsu reference, which confirmed the direction
+error. The claim was retracted. Re-running in the correct direction, no configuration beats the raw input:
+our source-conditioned \HtoA{} model gives $-0.025$ (CI crossing zero), and with F3 fusion the recovery is
+exactly $0.0$ (95\% CI $[-0.025,+0.025]$, 120 frames), even though fusion raises its SSIM from 0.548 to
+0.730. The rerun also found and fixed a second bug, in which the raw-Hamamatsu reference silently read
+Aperio pixels.
+
+\textbf{The classifier itself is not valid.} \texttt{atypia\_r18} predicts score 2 for about 91\% of held-out
+frames even on raw Aperio, its own domain, where it scores 0.55 against 0.50 for always answering 2. Its
+0.947 validation accuracy came from two slides containing 46 score-2 frames out of 47, so it is the
+majority rate rather than skill. The labels are close to slide-determined: 19 of the 23 score-1 training
+frames come from slide A12, and all 38 held-out score-1 frames come from A13 and A16. A retrained variant
+with augmentation and class-balanced sampling was worse (raw-Hamamatsu accuracy 0.442 to 0.192).
+
+\textbf{Two rebuilt classifiers, both gated.} Both use frozen UNI2-h features, nested leave-one-slide-out
+cross-validation on the 297 training frames, and five pre-registered gates: balanced accuracy $>0.45$,
+quadratic weighted kappa (QWK) $>0.2$, no class predicted for more than 80\% of frames, a slide-bootstrap
+lower bound on balanced accuracy above chance ($1/3$), and non-zero recall for score 1 on the held-out-in-CV
+slide A12. Table~\ref{tab:atypia} gives the results. The linear probe is at chance. Of three v2 candidates
+(an ordinal head, attention-based multiple-instance pooling, and a two-stage model that first predicts the
+x40 atypia criteria), the criteria model clears four of five gates but fails the bootstrap lower bound:
+its interval $[0.26, 0.73]$ cannot be separated from chance with only eleven slides, and the threshold was
+not relaxed afterwards. A separate within-slide test does pass. With each slide's mean removed from both
+predictions and labels, so that recognising the slide cannot help, the predicted criteria correlate with
+the rated ones (mean Spearman 0.240, CI $[0.148, 0.318]$; nuclei size 0.378, anisonucleosis 0.299,
+nucleoli size 0.408, nuclei contour $-0.125$). Frozen features therefore carry real atypia signal, but not
+yet enough for a valid score classifier. By protocol the held-out slides were never scored with these
+models.
+
+\begin{table}[!htbp]
+\centering
+\caption{Rebuilt atypia classifiers, nested leave-one-slide-out cross-validation on 297 training frames
+(always predicting score 2 gives accuracy 0.747). Brackets: slide-bootstrap 95\% intervals.}
+\label{tab:atypia}
+\small
+\begin{tabular}{lrrrcc}
+\toprule
+Model & Accuracy & Balanced accuracy & QWK & Recall (1 / 2 / 3) & Gates passed\\
+\midrule
+UNI2-h logistic probe & 0.579 & 0.312 [0.23, 0.46] & 0.022 & 0.00 / 0.73 / 0.21 & 1 of 5\\
+v2 M1: ordinal head & 0.633 & 0.331 [0.27, 0.47] & 0.105 & 0.00 / 0.80 / 0.19 & 0 of 5\\
+v2 M2: attention MIL & 0.478 & 0.292 [0.19, 0.50] & 0.098 & 0.00 / 0.57 / 0.31 & 1 of 5\\
+v2 M3: criteria two-stage & 0.525 & 0.614 [0.26, 0.73] & 0.304 & 0.83 / 0.50 / 0.52 & 4 of 5\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Other closed negatives}
+\textbf{Differential diffusion.} To protect structure inside the diffusion process, each pixel was given
+its own denoising strength from a Canny-derived change map, low near edges and high elsewhere. Six
+configurations (dilation radius $\in\{2,4,8\}$, maximum strength $\in\{0.50,0.70\}$) gave SSIM 0.162--0.167
+on 20 internal crops, against $0.162\pm0.006$ for the plain model, so there was no gain
+(Fig.~\ref{fig:app-diffdiff}). On dense H\&E the protected and free regions interleave finely, and the
+shared U-Net receptive field plausibly lets generation bleed into protected pixels. This failure is what
+motivated fusion outside the U-Net.
+
+\textbf{Round-trip consistency.} Translating A06 crops \AtoH{} and back to Aperio (50-step DDIM, strength
+0.20) gives SSIM 0.143, PSNR 13.1\,dB and LAB distance 28.2 against the original
+over 64 crops: the round trip does not return the input (Fig.~\ref{fig:app-roundtrip}).
+
+\subsection{SDXL diagnostics and the decision gate}
+\textbf{Decision gate.} At the end of Phase~1 the ladder configuration A4 was chosen as the base for SDXL,
+and the A5 warm-start transfer was also run because A5 beat A4 on A06 by 2.6--8.7 in LAB distance, far above
+the 0.1--0.3 run-to-run noise floor.
+
+\textbf{Why native-1024 SDXL fails at 50 pairs.} Five diagnostics were run on the 50-pair 1024\,px model.
+(D1) A baseline mismatch was ruled out: re-measured against a do-nothing baseline computed natively at
+1024\,px, the model still gives $\dlab=-5.25$. (D2) Removing the LoRA makes colour worse ($-8.21$ against $-5.25$), so the LoRA helps by about 3
+LAB but is too weak. (D3) RGB-only conditioning matches RGB plus Canny, and Canny alone collapses (SSIM 0.16,
+$\dlab=-17.9$), so the edge channels are inert. (D4) No ControlNet scale gives positive recovery. (D5)
+Raising the LoRA scale from 1.0 to 2.0 makes recovery monotonically worse ($-4.38$ to $-8.00$). The model is
+data-starved, which the 96- and 144-pair runs confirm.
+
+\textbf{The \AtoH{}/\HtoA{} asymmetry.} SD\,1.5 fails \HtoA{} while SDXL succeeds. Two diagnostics compared
+the mean LAB of model outputs with the real scanner means (domain gap 17.97). Zero-source ControlNet
+outputs refuted the idea that the asymmetry follows the backbone's default colour, because img2img leaks the
+source colour into them. Pure text-to-image samples (Fig.~\ref{fig:app-t2i}) gave partial support (five of
+six comparisons consistent), and SDXL at 1024\,px \HtoA{} remains an open counterexample: its default colour
+leans the wrong way, yet it recovers $\dlab=+9.20$.
+
+\clearpage

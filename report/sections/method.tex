@@ -1,0 +1,149 @@
+\section{Method}
+\label{sec:method}
+
+\subsection{Data and evaluation protocol}
+MITOS-ATYPIA-14~\cite{roux2014mitos} provides $\times$20 frames of the same breast-cancer slides scanned
+on an Aperio and a Hamamatsu scanner, and frame identifiers match across scanners. All training uses at
+most 50 512\,px crop pairs taken from 24 frames of slide A03/H03. The pairs are
+\emph{coordinate-corresponding}, not pixel-exact, so no training loss compares pixels across scanners. The
+held-out slides A06, A08, A09, A13 and A16 are never used in training; they give 496 canonical 512\,px
+crops (up to four per frame, tissue fraction $\geq 0.3$). For pixel metrics only, each Hamamatsu frame is
+affinely registered into the Aperio grid with ECC; registration is never applied to training data.
+A06 is a genuine colour outlier: its raw Aperio--Hamamatsu colour distance is 94.8 against 23.8--27.5 for
+the other four slides, so every result is reported pooled (ALL), on the four \emph{typical} slides, and on
+A06 alone.
+
+\textbf{Metrics.} Colour fidelity is the LAB Wasserstein distance between an output $X$ and the
+registered target $Y$, summed over channels,
+\begin{equation}
+W_{\mathrm{LAB}}(X,Y)=\sum_{c\in\{L,a,b\}}\int_{\mathbb{R}}\bigl|F_{X_c}(t)-F_{Y_c}(t)\bigr|\,dt ,
+\label{eq:wlab}
+\end{equation}
+where $F$ is the empirical CDF of a channel. Because Eq.~\eqref{eq:wlab} ignores spatial layout,
+histogram matching optimises it by construction, so we also report a windowed version averaged over
+64$\times$64 tiles (wLAB). Structure is measured by grayscale SSIM~\cite{wang2004ssim} against the
+registered target. Structural safety is the Relative Dice
+$\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\cite{graham2019hovernet} nuclei on 130 Lizard
+images~\cite{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
+pre-committed pass threshold of 0.95. Diffusion training loss is never used as a success signal.
+
+\subsection{Ablation ladder (A0--A5)}
+All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, the best strength for four of five
+slides. A0 is the frozen base; A1 adds a Canny ControlNet; A2 adds a rank-8 colour LoRA trained with the
+denoising loss on Hamamatsu crops only, so direction comes from img2img; A3 combines ControlNet and LoRA;
+A4 adds the generic LCM-LoRA (8 steps); A5 initialises from a LoRA warm-started on 3{,}000 unpaired
+histopathology patches (MITOS, PanNuke~\cite{gamper2019pannuke} and TCGA).
+
+\subsection{Source-conditioned translation}
+A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore train a fresh
+ControlNet, cloned from the U-Net encoder, whose input is the source RGB image stacked with its
+Otsu-adaptive Canny edges (6 channels), jointly with the colour LoRA (12.6M trainable parameters). The
+loss is the standard noise-prediction loss on the latent of the paired Hamamatsu crop. Shuffled- and
+zero-source controls confirm that the model uses the source (SSIM 0.147 with the correct source against
+0.047 with a shuffled one, in training-domain control runs).
+
+At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
+source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM
+steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}).
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=3.2mm and 2.6mm,
+  box/.style={draw, rounded corners=1.5pt, align=center, font=\scriptsize, inner sep=2.2pt, minimum height=6mm},
+  io/.style={box, fill=gray!12},
+  ours/.style={box, fill=blue!10},
+  arr/.style={-{Latex[length=1.6mm]}, semithick}]
+\node[io] (a) {Aperio\\crop $A$};
+\node[box, right=of a] (e) {VAE\\encoder $E$};
+\node[ours, right=of e] (inv) {DDIM\\inversion};
+\node[ours, right=of inv] (fwd) {DDIM\\denoising};
+\node[box, right=of fwd] (d) {VAE\\decoder $D$};
+\path (inv.north) -- (fwd.north) coordinate[midway] (mid);
+\node[ours, above=5mm of mid] (cn) {source ControlNet + colour LoRA};
+\node[ours, below=6mm of d] (f3) {F3 colour\\fusion};
+\node[io, left=6mm of f3] (out) {normalised\\output};
+\draw[arr] (a) -- (e);
+\draw[arr] (e) -- (inv);
+\draw[arr] (inv) -- (fwd);
+\draw[arr] (fwd) -- (d);
+\draw[arr] (cn.south -| inv.north) -- (inv.north);
+\draw[arr] (cn.south -| fwd.north) -- (fwd.north);
+\draw[arr, dashed] (a.north) |- (cn.west);
+\draw[arr] (d) -- node[right, font=\tiny]{$H_{\mathrm{pred}}$} (f3);
+\draw[arr] (f3) -- (out);
+\draw[arr, dashed] (a.south) |- node[pos=0.75, below, font=\tiny]{raw $A$ and $A_V=D(E(A))$} ([yshift=-1.5mm]f3.south west) -- ([yshift=-1.5mm]f3.south west -| f3.south) -- (f3.south);
+\end{tikzpicture}
+\caption{Final SD\,1.5 pipeline. The source conditions the ControlNet during inversion and denoising
+(dashed), and the untouched source supplies fine structure to the F3 fusion. Shaded blue: components
+trained or added in this work; the SD\,1.5 U-Net and VAE encoder stay frozen.}
+\label{fig:pipeline}
+\end{figure}
+
+\subsection{The VAE ceiling, fusion and decoder fine-tuning}
+Every diffusion output is decoded by the VAE, which compresses a 512$\times$512$\times$3 crop 48$\times$
+into a 64$\times$64$\times$4 latent. We measure the ceiling this imposes by self-reconstruction,
+$\mathrm{SSIM}(x, D(E(x)))$ with a deterministic encode, and test three ways around it.
+
+\textbf{Decoder swap.} The pretrained \texttt{sd-vae-ft-mse} decoder shares the stock encoder bit for bit,
+so it decodes the same latents without retraining anything upstream.
+
+\textbf{Detail fusion.} Instead of accepting the VAE-resynthesised image, we move only the learned
+colour change back onto the untouched source. All arithmetic is in floating-point CIELAB; we write
+$X=(L_X,a_X,b_X)$ for an image in LAB, $H=H_{\mathrm{pred}}$ for the translated prediction and $G_\sigma$ for
+a Gaussian blur of width $\sigma$ pixels. Three variants were compared. F1 keeps the source luminance and
+takes chroma from the prediction,
+\begin{equation}
+F_1=(L_A,\;a_H,\;b_H).
+\label{eq:f1}
+\end{equation}
+F2 keeps the prediction's low-frequency luminance and re-injects the source's high-frequency detail,
+\begin{equation}
+F_2=\bigl(G_\sigma(L_H)+\alpha\,[L_A-G_\sigma(L_A)],\;a_H,\;b_H\bigr).
+\label{eq:f2}
+\end{equation}
+F3 transfers all three channels, but only as a smoothed residual measured against the model's own
+reconstruction of the source, $A_V=D(E(A))$:
+\begin{equation}
+F_3=A+\beta\,G_\sigma\!\bigl(H-A_V\bigr).
+\label{eq:f3}
+\end{equation}
+Each term of Eq.~\eqref{eq:f3} has one job. Subtracting $A_V$ cancels what the VAE does to every image
+(its blur and colour offset), so $H-A_V$ approximates the scanner shift alone; $G_\sigma$ removes
+high-frequency texture that the generator invented; and $\beta$ sets how much of the shift is applied.
+Because the added residual is smooth, F3 can change only low-frequency colour, and the fine structure of
+$F_3$ is that of $A$ by construction. Variant and parameters were chosen on internal training-domain crops
+and frozen ($\sigma=8$, $\beta=0.5$) before any held-out run. The real Hamamatsu image is never read to
+construct a fused output; one construction bug that briefly did so (it produced SSIM $\approx0.998$) was
+caught, and the corrected run was checked against the raw source.
+
+\textbf{Decoder fine-tune.} With the encoder frozen, so that the latent space and every trained component
+remain valid, we fine-tune only the decoder (49.5M parameters, initialised from \texttt{ft-mse}) on about
+2{,}700 non-held-out H\&E patches (MITOS slides of both scanners, TCGA, PanNuke and the A03/H03 crops)
+with an L1 + 0.3\,LPIPS~\cite{zhang2018lpips} loss for 3{,}000 steps. Checkpoints are selected on whole
+non-held-out validation slides.
+
+\subsection{Baselines}
+\label{sec:baselines}
+Three classical normalisers (Macenko, Reinhard, histogram matching) use one reference image each. Three
+learned normalisers are trained on exactly the same 50 A03/H03 pairs as the colour LoRA, so every trained
+method has the same data budget. StainNet~\cite{kang2021stainnet} is a three-layer 1$\times$1 convolutional
+colour map (1{,}283 parameters) trained with a paired L1 loss; ParamNet~\cite{kang2024paramnet} uses a
+ResNet18 to predict the weights of a per-image 1$\times$1 colour map, trained with its CycleGAN-style recipe;
+StainGAN~\cite{shaban2019staingan} is a standard CycleGAN~\cite{zhu2017cyclegan} (ResNet-9 generator,
+PatchGAN discriminator), trained here because its authors released no weights. Public MITOS-trained
+checkpoints were deliberately not used, because their training splits are unknown and could include our
+held-out slides. All baselines use final-step weights (no held-out checkpoint selection) and are scored by
+the same crop and registration pipeline as the diffusion methods.
+
+\subsection{SDXL transfer and exploratory probes}
+The best SD\,1.5 design is ported to SDXL~\cite{podell2023sdxl} with its own rank-8 LoRA, a
+source-conditioned ControlNet and an fp32 VAE (SDXL's VAE produces NaNs in fp16), at 512\,px and natively at
+1024\,px, without repeating the ablation ladder. Because the 1024\,px model is data-starved at 50 pairs, two
+supplementary runs use 96 non-overlapping and 144 overlapping crop pairs from the same A03/H03 frames.
+
+Two newer backbones were probed for feasibility only. SD\,3.5-large, a transformer-based latent model with a
+16-channel VAE, was tested for LoRA training cost and colour transfer. PixCell, a 0.6B-parameter
+histopathology diffusion transformer that uses the same 16-channel VAE and is conditioned on a single UNI2-h
+image embedding rather than text, was tested for cost, reconstruction ceiling and zero-fine-tuning
+generation. PixCell is outside the proposal's scope and is reported as exploration only.
