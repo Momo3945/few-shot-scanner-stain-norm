@@ -1,6 +1,10 @@
 # P1-18 — Raising the VAE Ceiling: Decoder-Only Fine-Tune, then Full-VAE Fine-Tune
 
-**Status:** 🔄 IN PROGRESS — proposed 2026-10-05, **supervisor-directed**
+**Status (2026-10-19):** Stage 1 DONE — G1.0/G1.1 pass, G1.2 fails (over-smoothing),
+G1.3 SSIM passes but wLAB fails, G1.4 fails (see results below). **Still open:** G1.5
+(CAMELYON17 off-domain check) and **Stage 2 (full-VAE fine-tune), awaiting the
+supervisor's decision**; both listed as not done in the paper.
+*Earlier status:* 🔄 IN PROGRESS — proposed 2026-10-05, **supervisor-directed**
 (Richard Klein asked for both steps, in this order: decoder-only first, then
 full VAE). **Stage 0: 0.1, 0.2, 0.4, 0.5 done (job 64246); 0.3 (overfit control)
 pending the training script.** No training run yet. Headline so far: `ft_mse`

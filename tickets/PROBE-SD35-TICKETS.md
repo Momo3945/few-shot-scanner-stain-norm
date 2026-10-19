@@ -172,7 +172,9 @@ Whether it holds on typical slides is untested — out of this ticket's scope
 to check.
 
 ## PR-03 — Structural conditioning test
-**Status:** TODO — blocked on PR-00 (ControlNet) + P2-08 (needs HoVer-Net boundary
+**Status (2026-10-19):** NOT RUN — the SD3.5 probe is auxiliary/descopable per the
+proposal; this check was never started and is listed as not done in the paper's
+limitations. *Original status line:* TODO — blocked on PR-00 (ControlNet) + P2-08 (needs HoVer-Net boundary
 maps, which P2-08 builds for the main structural-safety eval — reuse, don't duplicate)
 **Source:** `sec:sd35_probe`, third measurement
 **Description:** Can SD3.5's Canny ControlNet use HoVer-Net-derived nuclear boundary
@@ -180,7 +182,8 @@ maps without obvious structural drift? Qualitative/visual assessment per the pro
 (no formal Relative Dice threshold specified for the probe).
 
 ## PR-04 — SD3.5 Turbo few-step reference
-**Status:** TODO — blocked on PR-00
+**Status (2026-10-19):** NOT RUN — never started; listed as not done in the paper's
+limitations. *Original status line:* TODO — blocked on PR-00
 **Source:** `sec:sd35_probe`, fourth measurement
 **Description:** Whether SD3.5 Turbo provides a useful modern few-step reference.
 **IMPORTANT (proposal is explicit):** this is NOT treated as an LCM-LoRA equivalent —
@@ -188,7 +191,9 @@ different distillation mechanism (adversarial diffusion distillation vs consiste
 distillation). Do not conflate the two in reporting.
 
 ## PR-05 — Report outcome
-**Status:** TODO — blocked on PR-01 through PR-04
+**Status (2026-10-19):** DONE in substance — the probe's outcome (PR-01 cost, PR-02 colour
+check, PR-03/PR-04 not run) is reported as auxiliary evidence in the paper draft
+(`report/`, "Newer backbones" subsection). *Original status line:* TODO — blocked on PR-01 through PR-04
 **Source:** proposal §"Time Plan" — "A successful probe is reported as auxiliary
 evidence... an unsuccessful probe is reported as a compute or compatibility
 limitation and does not affect the success criteria of the main project."

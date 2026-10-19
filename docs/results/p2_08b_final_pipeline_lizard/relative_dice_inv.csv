@@ -1,0 +1,2 @@
+this_dice,baseline_dice,relative_dice,threshold,pass
+0.62341,0.69818,0.8929,0.95,False

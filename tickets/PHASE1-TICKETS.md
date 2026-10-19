@@ -1677,7 +1677,12 @@ mechanism already proven to work via the H2A fraction fix.
 
 ## P1-12 — P1-10 + LCM-LoRA acceleration: strength/steps/guidance exploration
 
-**Status:** 🔄 IN PROGRESS (2026-08-22) -- data-driven follow-up, not from
+**Status:** ✅ DONE (status corrected 2026-10-19; work finished 2026-08-23) — strength
+sweep (jobs 45026/45027), final combination (jobs 45650/45692) and few-step DDIM vs LCM
+diagnostic (jobs 45654/45700) all completed and the acceptance criterion is evaluated below:
+generic LCM-LoRA is a speed/quality trade-off, best at 6 steps / guidance 2.0 / strength
+0.70, not a match for 50-step DDIM inversion. Reported in the paper draft (H4).
+*Original status line:* 🔄 IN PROGRESS (2026-08-22) -- data-driven follow-up, not from
 the proposal or the P1-11 task file; motivated by wanting a few-step
 (fast-inference) operating point for the P1-10 source-conditioned
 checkpoint, mirroring A4's LCM acceleration of the original target-only
@@ -2749,7 +2754,8 @@ the A06 outlier slide. Full-run data + qualitative panel archived at
 
 ## P1-18 — Raising the VAE Ceiling: Decoder-Only Fine-Tune, then Full-VAE Fine-Tune
 
-**Status:** 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
+**Status (2026-10-19):** Stage 1 DONE (gates reported below); G1.5 and Stage 2 (full VAE)
+still open, Stage 2 awaiting the supervisor. *Earlier status:* 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
 partly done (job 64246): `sd-vae-ft-mse`'s encoder is bit-identical to stock's,
 i.e. it is already a decoder-only fine-tune; LPIPS + VGG16 weights ready; data
 inventory done (diversity is the 3,000-patch `hist_lora_pool`, the A03 pair sets

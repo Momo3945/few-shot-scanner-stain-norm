@@ -152,7 +152,9 @@ COMPLETED 20:23) — see P3-04 below for the result.
 scoring). P3-05 (A5-on-SDXL) remains a separate, still-unstarted ticket.
 
 ## P3-03b — Supplementary: SDXL training at native 1024×1024 resolution (contingent)
-**Status:** TODO — contingent, not started. Only pursue if P3-03's 512×512
+**Status:** ⏭️ SUPERSEDED (2026-10-19) — never run as written; its native-1024 SDXL idea
+was retargeted onto the source-conditioned architecture as **P3-07** (done, below).
+*Original status line:* TODO — contingent, not started. Only pursue if P3-03's 512×512
 result underperforms or looks structurally degraded; do not start this
 pre-emptively.
 **Source:** derived from P3-03's planning pass (2026-08-10) — SDXL was
@@ -393,7 +395,9 @@ it's a fundamentally different result from SD1.5's A5:
   colour-negative on every slide.
 
 ## P3-06 — Transfer P1-10 (source-conditioned colour LoRA + fresh ControlNet) to SDXL
-**Status:** 🔄 IN PROGRESS (2026-08-23).
+**Status:** ✅ DONE (status corrected 2026-10-19) — full 496-crop x 3-seed held-out run
+(job 46226, scored by `score_p3_06.slurm`): ALL SSIM 0.3920, recovery Δlab +1.22; see the
+results below and `docs/results/p3_06_sdxl_source_cond/`. *Original status line:* 🔄 IN PROGRESS (2026-08-23).
 **Source:** `sec:phase3_sdxl`'s "transfer the best-performing SD1.5 configuration"
 principle — P3-03/P3-05 transferred A4/A5 because those were the best SD1.5
 configs *when Phase 3 started*. Since then, `tickets/PHASE1-TICKETS.md` P1-10
@@ -651,7 +655,10 @@ P2-12_atypia_classifier_evaluation_hardening.md` §0. Not valid clinical-
 utility evidence until P2-12 lands.**
 
 ## P3-06b / P3-07 H2A — extend the SDXL source-conditioned transfer to H2A
-**Status:** TODO — not started (scoped 2026-09-15).
+**Status:** ✅ DONE (status corrected 2026-10-19) — H2A at 512 px: full held-out run
+job 57599 (COMPLETED 2:32:55), scored by job 58459 + aggregation 58469: ALL recovery
+Δlab **+9.47**, SSIM 0.3555; see below and `docs/results/p3_06_p3_07_h2a_extension/`.
+*Original status line:* TODO — not started (scoped 2026-09-15).
 **Source:** direct extension of P3-06/P3-07's own descope note ("H2A stays
 out of scope, matching P3-03/P3-05's own descope") now that
 `tickets/PHASE1-TICKETS.md` P1-10/P1-11 has completed the equivalent H2A
@@ -830,7 +837,10 @@ the pooled number isn't A06-driven).
 section's original staged sequence — not started, awaiting go-ahead.
 
 ## P3-07 — P3-06 at native 1024×1024 resolution (retargets P3-03b onto P1-10)
-**Status:** 🔄 IN PROGRESS (2026-08-25).
+**Status:** ✅ DONE (status corrected 2026-10-19) — native 1024 px, ≤50 pairs: full
+held-out run job 47029: ALL SSIM 0.4313, recovery Δlab −5.60 (negative on every slide); the
+96- and 144-pair follow-ups are P3-07b/P3-07c. See below and
+`docs/results/p3_07_sdxl_native1024/`. *Original status line:* 🔄 IN PROGRESS (2026-08-25).
 **Source:** `sec:phase3_sdxl`; retargets the already-drafted-but-never-started
 **P3-03b** contingency (native-1024 SDXL training) onto P1-10/P3-06's
 architecture instead of A4 -- P3-03b was written when A4 was the transfer
@@ -1617,7 +1627,10 @@ Reading, in order of confidence:
   is the open item). Not run: P3-07b, the prodigy variant, ablation dirs.
 
 ## P3-07 H2A — extend the native-1024 SDXL transfer to H2A
-**Status:** 🔄 IN PROGRESS (started 2026-09-25).
+**Status:** ✅ DONE (status corrected 2026-10-19) — H2A at 1024 px: full held-out run
+job 60752 (COMPLETED 5:53:50), scoring job 60929 + aggregation 60971: ALL recovery Δlab
+**+9.20**, SSIM 0.3865; see below and `docs/results/p3_06_p3_07_h2a_extension/`.
+*Original status line:* 🔄 IN PROGRESS (started 2026-09-25).
 **Source:** the 1024px, ≤50-pair follow-on to P3-06b/P3-07 H2A (above),
 completing the same H2A extension for P3-07's resolution variant, per
 this section's own scope note ("P3-07 H2A ... remains a separate,

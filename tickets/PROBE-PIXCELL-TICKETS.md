@@ -160,9 +160,11 @@ supervisor first.
 
 ## PXC-01 — LoRA training time + peak VRAM measurement (mirrors PR-01)
 
-**Status:** 🔄 IN PROGRESS — PXC-01a (wiring probe) ✅ DONE (2026-09-27,
-job 61121, `src/eval/probe_pixcell_pipeline.py`), PXC-01b (real LoRA
-training) not yet started.
+**Status:** ✅ DONE (status corrected 2026-10-19) — PXC-01a wiring probe (job 61121) and
+PXC-01b real LoRA training cost (2026-09-28, job 61314 smoke + full run below): 130.3 s per
+1,000 steps, 4.20 GB peak VRAM. *Original status line:* 🔄 IN PROGRESS — PXC-01a (wiring
+probe) ✅ DONE (2026-09-27, job 61121, `src/eval/probe_pixcell_pipeline.py`), PXC-01b (real
+LoRA training) not yet started.
 
 **PXC-01a result — the documented API works, with two real bugs found
 and fixed en route (both via direct primary-source reads, not guessing):**
@@ -241,8 +243,10 @@ compute cost, independent of the harder question below.
 
 ## PXC-02 — Structural-fidelity floor check (the real open question — do this before anything else past PXC-01)
 
-**Status:** 🔄 IN PROGRESS — Part A done (2026-09-27, job 61089), Part B
-blocked on PXC-01a's wiring probe.
+**Status:** ✅ DONE (status corrected 2026-10-19) — Part A VAE floor (job 61089): SSIM
+0.7732; Part B embedding-only generation (job 61123): SSIM 0.0451 against the registered
+target, decisively negative. *Original status line:* 🔄 IN PROGRESS — Part A done
+(2026-09-27, job 61089), Part B blocked on PXC-01a's wiring probe.
 
 **Part A result — PixCell's VAE-only self-reconstruction floor is
 dramatically higher than every other backbone in this project's own
@@ -326,7 +330,9 @@ any usable number exists — worth knowing before, not after, that build.
 
 ## PXC-03 — Source-conditioning ControlNet build (only if PXC-02 motivates it)
 
-**Status:** BLOCKED on PXC-02's result.
+**Status (2026-10-19):** NOT STARTED, deliberately — PXC-02 motivated it, but building a
+source-conditioning branch for a DiT is a new scope decision that was not taken; listed as
+not done in the paper. *Original status line:* BLOCKED on PXC-02's result.
 **Description:** If PXC-02 shows embedding-only conditioning can't hold
 structure, build a fresh source-RGB-conditioned branch for PixCell's DiT —
 conceptually the same idea as P1-10 (SD1.5) and P3-06/P3-07 (SDXL), but

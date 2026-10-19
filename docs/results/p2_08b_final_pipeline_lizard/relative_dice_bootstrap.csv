@@ -1,0 +1,3 @@
+method,n_images,dice_A,dice_B,relative_dice,ci95_lo,ci95_hi,p_ge_0.95,ci_excludes_0.95,frac_images_B_ge_A
+"Final pipeline: DDIM inversion + F3 fusion (sigma=8, beta=0.5)",130,0.69818,0.69421,0.9943,0.9921,0.9966,1.0,True,0.2
+"DDIM inversion only (P1-11, unfused)",130,0.69818,0.62341,0.8929,0.886,0.8996,0.0,True,0.0077

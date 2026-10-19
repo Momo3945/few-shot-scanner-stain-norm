@@ -463,6 +463,54 @@ or literal ControlNet-only A1) changes the verdict is untested — could be a
 worthwhile discussion-section caveat or a small follow-up ablation, not
 currently scoped as a ticket.
 
+## P2-08b — Relative Dice for the final SD1.5 pipeline (DDIM inversion ± F3 fusion)
+**Status:** ✅ DONE (2026-10-19). **H3 PASSES for the final pipeline: Relative Dice 0.9943,
+95% CI [0.9921, 0.9966]** (fused); unfused DDIM inversion FAILS at 0.8929 [0.8860, 0.8996].
+
+**Evidence (all COMPLETED, exit 0, logs read):** smoke 71233 (2 images, 4:04, `mscluster63`);
+normalise 71238 (130/130 images both arms, 1:30:16, `mscluster63`, no errors); HoVer-Net 71239
+(fused, 8:44) and 71240 (unfused, 8:53), 130 instance maps each; scoring 71548 (fused) and 71549
+(unfused) on `bigbatch` `mscluster78` — the original `stampede` scoring jobs 71241/71242 were
+cancelled (with approval) because 18 of 20 `stampede` nodes were `down*`. Visual check on
+dpath_1/dpath_63: exact input shape, no visible 512 px tile seams, layout unchanged.
+
+| B side | Dice(B,G) | Relative Dice | 95% CI | images with Dice(B) ≥ Dice(A) |
+|---|---|---|---|---|
+| Inversion + F3 (σ=8, β=0.5) | 0.6942 | **0.9943 PASS** | [0.9921, 0.9966] | 26/130 |
+| Inversion only (unfused) | 0.6234 | 0.8929 FAIL | [0.8860, 0.8996] | 1/130 |
+| *(P2-08, A4-type LCM 0.20)* | — | 0.8745 FAIL | [0.8667, 0.8818] | — |
+
+Dice(A,G) = 0.6982 (`lizard_original`). Fused − unfused Dice: +0.0708, 95% CI [+0.0668, +0.0749],
+fused higher on 129/130 images. Paired bootstrap, 10,000 resamples, seed 0, same procedure as
+P2-11b. **Interpretation:** the pass comes from fusion, not from the diffusion output — F3 keeps
+the source's high frequencies and adds only a σ=8-blurred colour change, so nucleus boundaries
+are the source's. The unfused output alone loses ~11% of the segmenter's agreement.
+Files: `docs/results/p2_08b_final_pipeline_lizard/` (per-image + summary CSVs,
+`bootstrap_relative_dice.py`, `relative_dice_bootstrap.csv`, `run_metadata.json`).
+Paper updated: `tab:reldice` (2 new rows), H3 row of `tab:hyp`, results text, abstract,
+conclusion, limitations.
+**Source:** `sec:experiments` "Structural Safety"; H3/RQ2 (Relative Dice ≥ 0.95).
+**Why:** P2-08 tested H3 only at the P1-09 operating point (colour LoRA + ControlNet + LCM,
+strength 0.20): 0.8745, FAIL. The configuration the paper reports as its best is P1-11 DDIM
+inversion + P1-16 F3 fusion, which keeps the source pixels, so its structural safety was never
+measured. This is the one open experiment that can change a hypothesis verdict.
+**Protocol (identical to P2-08 apart from the normaliser):** the same 130 Lizard dpath/glas
+images, HoVer-Net `hovernet_fast-pannuke` in the `stainnorm-hovernet` env, binary Dice against
+the Lizard masks, Relative Dice = Dice(B,G)/Dice(A,G) against the existing `lizard_original`
+run (Dice(A,G) = 0.6982). Tiling mirrors `normalize_lizard.py` (reflect-pad to a multiple of
+512, disjoint 512 tiles, crop back). Per tile: P1-10 checkpoint `lora/a2h_cond_r8/best`, DDIM
+inversion f=1.0, 50+50 steps, guidance 1.0/2.0, correct source; F3 (σ=8, β=0.5) applied once
+on the stitched full image with the validated `fuse_f3`. Two B arms from one GPU pass: fused
+(`eval/lizard_normalised_images_inv_f3/`) and unfused (`eval/lizard_normalised_images_inv/`).
+Bootstrap 95% CI over images from `per_image.csv`, as in P2-11b.
+**Code:** `src/eval/normalize_lizard_inversion_fusion.py` (standalone; the validated
+P1-11 script is not edited), `slurm/normalize_lizard_inversion_fusion.slurm`; then the
+existing `infer_hovernet.slurm` and `score_lizard.slurm`.
+**Acceptance:** both arms scored on all 130 images; result reported in the paper's
+structural-safety table and H3 row whether it passes or fails.
+
+---
+
 ## P2-09 — Clinical utility: downstream classifier delta
 **Status:** ✅ DONE (2026-08-19) — classifier trained (val_acc 0.9468), scored
 against all 26 methods. **Genuinely new finding: diffusion beats every
