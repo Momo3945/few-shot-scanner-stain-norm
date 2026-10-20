@@ -33,13 +33,19 @@ fig, axs = plt.subplots(1, 2, figsize=(10.4, 4.0), sharey=True)
 for ax, dom, title in zip(axs, ("aperio", "hamamatsu"), ("Aperio crops", "Hamamatsu crops")):
     ax.axhline(1.0, color="#444444", ls=":", lw=2.0, zorder=1)
     ax.text(-0.2, 0.985, "lossless autoencoder (SSIM = 1.0)", va="top", ha="left", fontsize=8, color="#444444")
+    ends = []
     for key, label, colour, marker in LINES:
         d = df[(df.vae == key) & (df.domain == dom)]
         ys = [d[d.slide == s].ssim.mean() for s in SLIDES] + [d.ssim.mean()]
         ax.plot(x, ys, color=colour, marker=marker, lw=2, ms=6, mfc=colour, mec="white", mew=1.2,
                 label=label, zorder=3)
-        ax.text(len(SLIDES) + 0.15, ys[-1], f"{ys[-1]:.3f}", va="center", ha="left", fontsize=8,
-                color="#222222")
+        ends.append(ys[-1])
+    # End labels, pushed apart so close values (e.g. 0.779 / 0.757) do not overlap
+    MIN_GAP, prev = 0.03, None
+    for i in sorted(range(len(ends)), key=lambda i: ends[i]):
+        y = ends[i] if prev is None else max(ends[i], prev + MIN_GAP)
+        ax.text(len(SLIDES) + 0.15, y, f"{ends[i]:.3f}", va="center", ha="left", fontsize=8, color="#222222")
+        prev = y
     ax.axvline(len(SLIDES) - 0.5, color="#bbbbbb", lw=0.8, zorder=0)
     for g in (0.4, 0.5, 0.6, 0.7, 0.8, 0.9):  # manual grid: no solid line under the dotted ideal at 1.0
         ax.axhline(g, color="#e5e5e5", lw=0.6, zorder=0)
