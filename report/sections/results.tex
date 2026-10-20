@@ -216,7 +216,9 @@ StainNet & 0.622 & [0.567, 0.675]\\
 
 \subsection{Structural safety and unseen centres}
 Two normalisers pass the Relative Dice gate (Table~\ref{tab:reldice}): ParamNet and our final pipeline
-(0.994, 95\% CI $[0.992, 0.997]$, entirely above 0.95). The pass comes from fusion, not from the diffusion
+(0.994, 95\% CI $[0.992, 0.997]$, entirely above 0.95). Our interval excludes 1.0, so a small loss of about
+0.6\% is still resolved; only ParamNet, whose interval contains 1.0, also meets the stricter condition of no
+statistically significant degradation. The pass comes from fusion, not from the diffusion
 output itself: the unfused inversion output fails at 0.893, and fusion raises Dice on 129 of the 130 images
 (mean $+0.071$). This is expected from Eq.~\eqref{eq:f3}, which keeps the source's high frequencies and adds
 only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
@@ -224,7 +226,9 @@ the original images, the fused output keeps IoU (0.535 against 0.539), object-le
 the predicted-to-true nucleus count ratio (0.686 against 0.668), while StainGAN lowers object F1 to 0.503 and
 the count ratio to 0.384. The earlier A4-type operating point
 loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 28\%,
-which is consistent with GANs altering nuclei. On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
+which is consistent with GANs altering nuclei. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
+back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance
+28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
 mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches, $D_{\mathrm{pre}}=56.70$), no
 SD\,1.5 configuration brings the centres closer. The final pipeline is neutral with fusion
 ($\Delta D=+0.14$, 95\% bootstrap CI $[-0.22, 0.51]$, 4 of 10 centre pairs improved) and worse without it
@@ -242,7 +246,8 @@ then failed their own pre-registered validity gates, so no atypia number is used
 \subsection{Few-step inference}
 Generic LCM-LoRA on the source-conditioned model is a speed--quality trade-off rather than a match: its best
 setting (6 steps, guidance 2.0, strength 0.70) gives A06 SSIM 0.334 and $\dlab=+9.7$, against 0.373 and
-$+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. Distilling a task-specific
+$+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. It is 12.5$\times$ faster
+(0.50\,s against 6.27\,s per crop, Table~\ref{tab:app-speed}). Distilling a task-specific
 LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule
 (paired win rate 30 of 80 crops against 50 of 80).
 
@@ -256,7 +261,9 @@ recovery turns positive, but each extra $\sim$48 pairs adds only about 0.1 in $\
 the 144-pair model (SSIM 0.318 correct, 0.114 shuffled, 0.109 zero) confirms that it uses the source. F3
 fusion transfers unchanged (SSIM 0.732), and with the 144-pair model SDXL passes the CAMELYON17 test with a
 small effect ($D_{\mathrm{post}}=54.32$ against $D_{\mathrm{pre}}=56.67$, $\Delta D=-2.35$ $[-2.97, -1.57]$,
-9 of 10 centre pairs closer; $-0.67$ $[-0.96, -0.34]$, 8 of 10, with F3 fusion). In
+9 of 10 centre pairs closer; $-0.67$ $[-0.96, -0.34]$, 8 of 10, with F3 fusion). A 1024\,px SDXL crop takes
+12.1\,s and 13.3\,GB of GPU memory, against 6.27\,s and 3.1\,GB for an SD\,1.5 crop of a quarter of the area
+(Table~\ref{tab:app-speed}). In
 the \HtoA{} direction, where SD\,1.5 fails ($\dlab=-15.6$), SDXL succeeds at both resolutions. Fig.~\ref{fig:sdxl}
 shows one crop across the SDXL configurations.
 

@@ -21,12 +21,12 @@ A08 loses both colour fidelity and structure.}
 
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.42\textwidth]{controlnet_input.png}\hfill
-\includegraphics[width=0.56\textwidth]{controlnet_canny_comparison.png}
-\caption{What the source-conditioned ControlNet sees (training crop A03\_00A). Left: the six-channel input,
-source RGB and its Canny edges. Right: the source with our Otsu-adaptive Canny threshold and a fixed 100/200
-threshold. Dense H\&E gives a busy edge map either way; the source RGB is the signal that lets the model learn
-$p(H\mid A)$.}
+\includegraphics[width=\textwidth]{controlnet_conditioning.jpg}
+\caption{ControlNet conditioning on one training crop (A03\_00A). Left: Canny-only conditioning, the edge map a
+pretrained Canny ControlNet receives, with the textbook fixed 100/200 thresholds and with the Otsu-adaptive
+thresholds used for A1/A3. Right: our source-conditioned ControlNet's six-channel input, the source RGB stacked
+with the same Otsu-adaptive edges. Dense H\&E gives a busy edge map either way (28--32\% of pixels are edges)
+and the edges carry no colour; the source RGB channels are what let the model learn $p(H\mid A)$.}
 \label{fig:app-controlnet}
 \end{figure}
 

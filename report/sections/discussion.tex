@@ -27,7 +27,8 @@ H3 & Relative Dice $\geq 0.95$ &
 for the A4-type point).\\
 \midrule
 H4 & 4-step LCM matches 50-step DDIM &
-\textbf{Not supported}: generic LCM loses quality; task-specific distillation is worse.\\
+\textbf{Not supported}: generic LCM is 12.5$\times$ faster but loses quality; task-specific distillation
+is worse.\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -45,10 +46,13 @@ matching wins it on A06 by construction while scoring worse than doing nothing o
 windowed variant and per-slide reporting were essential to avoid reading that as a real gain. Pixelwise
 $\Delta E_{2000}$ tracks SSIM almost rank for rank, so it is not an independent colour check.
 
-\textbf{Cost.} At 50 inversion and 50 denoising steps the final pipeline takes about 6.3\,s per 512\,px
-crop on an RTX~3090. A 100{,}000$\times$100{,}000 pixel whole-slide image holds about 38{,}000 such
-crops, roughly 67 GPU-hours per slide, and the few-step LCM path that was meant to remove this cost did not
-hold its quality (H4).
+\textbf{Cost.} Timed on one RTX~3090 with loading excluded (Table~\ref{tab:app-speed}), the final pipeline
+takes 6.27\,s per 512\,px crop, generic LCM at four steps 0.50\,s (12.5$\times$ faster), and SDXL 12.1\,s per
+1024\,px crop, about 3.0\,s per 512\,px of tissue. The learned baselines take 2--25\,ms and the classical
+ones 6--42\,ms. A 100{,}000$\times$100{,}000 pixel whole-slide image holds about 38{,}000 crops of
+512\,px, so the final pipeline needs about 66 GPU-hours per slide, LCM 5.3 and SDXL 32, against
+minutes for every baseline; the few-step LCM path that was meant to remove this cost did not hold its
+quality (H4).
 
 \textbf{Limitations.} All training data comes from one slide pair (A03/H03), so slide-level variation is
 not represented in training. The learned baselines were trained once, with one seed each. Structural
@@ -61,6 +65,8 @@ rests on two inspected crops.
 them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
 detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a fine-tune of the
 full VAE (encoder and decoder), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
-source-image conditioning branch for PixCell. Two choices also departed from the plan: ControlNet was
+source-image conditioning branch for PixCell. Three choices also departed from the plan: ControlNet was
 conditioned on Canny edges throughout, not on the HoVer-Net nuclear-boundary maps planned as the final
-structural signal, and the TCGA-BRCA colour reference was not used as a secondary colour target.
+structural signal; the TCGA-BRCA colour reference was not used as a secondary colour target; and the
+attention-residual method~\cite{madusanka2025attentionresidual}, planned as the state-of-the-art colour
+baseline, was not reproduced, so it is cited but not compared.

@@ -1490,6 +1490,33 @@ the protocol forbids.
 
 ---
 
+## P2-16 — Per-crop inference speed, all methods, one node
+**Status:** ✅ DONE (2026-10-20) — smoke job 72151 (4:27) and full job 72152 (11:24), both on
+`mscluster88` (RTX 3090), all 10 methods x 16 timed crops (160 rows in `timings.csv`). Per crop:
+final SD1.5 6.27 s (3.1 GB peak); generic LCM 0.50 s at 4 real steps (both settings), 12.5x faster;
+SDXL 144-pair 12.06 s per 1024 px crop (13.3 GB); StainGAN 25 ms, ParamNet 3.4 ms, StainNet 2.3 ms;
+Macenko 42 ms, Reinhard 15 ms, histogram matching 6 ms (CPU). Per 100k x 100k slide: ~66 h, 5.3 h,
+32 h, and minutes for every baseline. Results: `docs/results/p2_16_inference_speed/`. In the paper:
+appendix Table VIII, cost paragraph, few-step and SDXL results, H4 row.
+**Source:** proposal abstract/introduction ("fast inference" requirement), H4 ("quantify the 4-step LCM
+quality/speed trade-off"), Phase 3 ("compared against its SD 1.5 counterpart using the same colour,
+structure, and speed metrics").
+**Why:** speed was never measured head to head. The paper quotes ~6.3 s per crop for the final pipeline
+and calls LCM a speed–quality trade-off with no LCM timing; ticket timings include model loading and
+ECC registration.
+**Protocol:** `src/eval/benchmark_inference_speed.py` + `slurm/benchmark_inference_speed.slurm`. Same
+node, same held-out Aperio crops (top-left 512 px, 1024 px for SDXL, of the first 18 held-out frames;
+no registration, no outputs written). Each method built once, 2 warm-up crops, 16 timed crops,
+`torch.cuda.synchronize()` around each call. Methods, construction copied from each validated script:
+final SD1.5 (DDIM inversion 50+50 + A_V + F3), generic LCM on P1-10 at the P1-12 best point (6 steps,
+s=0.70) and at 4 steps s=1.0 (both 4 real steps), SDXL P3-07c 144-pair @1024 (s=0.50, 50-step DDIM),
+StainNet/ParamNet/StainGAN (GPU), Macenko/Reinhard/histogram matching (CPU, fit once, not timed).
+**Runs:** smoke (2 timed crops, 4 methods) → full (16 timed crops, all 10 methods).
+**Acceptance:** `summary.csv` with mean/sd/median s per crop, real denoising steps, crop size and peak
+GPU memory for every method; paper's cost paragraph and H4 text updated with these numbers.
+
+---
+
 **Reminder (CLAUDE.md):** always report both the pooled `ALL` aggregate and the
 robust-outlier-excluded aggregate. A06 is a confirmed genuine colour-gap outlier —
 never let it silently dominate a headline number.

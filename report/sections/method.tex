@@ -37,12 +37,21 @@ A4 adds the generic LCM-LoRA (8 steps); A5 initialises from a LoRA warm-started 
 histopathology patches (MITOS, PanNuke~\cite{gamper2019pannuke} and TCGA).
 
 \subsection{Source-conditioned translation}
-A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore train a fresh
-ControlNet, cloned from the U-Net encoder, whose input is the source RGB image stacked with its
-Otsu-adaptive Canny edges (6 channels), jointly with the colour LoRA (12.6M trainable parameters). The
-loss is the standard noise-prediction loss on the latent of the paired Hamamatsu crop. Shuffled- and
-zero-source controls confirm that the model uses the source (SSIM 0.147 with the correct source against
-0.047 with a shuffled one, in training-domain control runs).
+A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a
+source-conditioning branch: a ControlNet initialised from the SD\,1.5 U-Net encoder, with its conditioning
+input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges. The cloned
+encoder stays frozen (349M parameters); only the new conditioning encoder and the zero-initialised residual
+output layers are trained (12.6M), jointly with a new rank-8 colour LoRA on the U-Net attention projections
+(1.6M), so 14.2M parameters are trained in all. The loss is the standard noise-prediction loss on the latent
+of the paired Hamamatsu crop, conditioned on its Aperio crop. Because the pairs are not pixel-exact, the source
+is shifted by a random offset of up to 8\,px at each step, so the model cannot rely on exact alignment. Of the
+50 pairs, 39 train the model and 11, from five whole frames, form a validation set; training uses AdamW at
+learning rate $10^{-4}$, batch size 1 and bf16 for 4{,}000 steps (25\,min on one RTX~3090), and the
+checkpoint with the lowest validation loss (step 3{,}750) is kept. Before this run the recipe had to overfit an
+8-pair subset: it failed at 300 steps, before the zero-initialised layers had moved, and passed at 2{,}000.
+The \HtoA{} model is trained the same way with the roles swapped. Shuffled- and zero-source controls confirm
+that the model uses the source (SSIM 0.147 with the correct source against 0.047 with a shuffled one, in
+training-domain control runs).
 
 At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM

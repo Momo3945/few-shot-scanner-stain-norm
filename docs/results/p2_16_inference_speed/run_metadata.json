@@ -1,0 +1,27 @@
+{
+  "root": "/datasets/mhoosen/stain-norm/mitos_heldout",
+  "heldout": "/datasets/mhoosen/stain-norm/pairs/heldout_frames.csv",
+  "sd15_ckpt": "/datasets/mhoosen/stain-norm/lora/a2h_cond_r8/best",
+  "sdxl_ckpt": "/datasets/mhoosen/stain-norm/lora/a2h_cond_r8_sdxl_1024_overlap144/best",
+  "baselines_dir": "/datasets/mhoosen/stain-norm/baselines",
+  "sd15_model": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+  "sdxl_model": "stabilityai/stable-diffusion-xl-base-1.0",
+  "out": "/datasets/mhoosen/stain-norm/eval/p2_16_inference_speed",
+  "n": 16,
+  "warmup": 2,
+  "methods": [
+    "sd15_inv_f3",
+    "sd15_lcm_s6",
+    "sd15_lcm_4step",
+    "sdxl_1024",
+    "stainnet",
+    "paramnet",
+    "staingan",
+    "macenko",
+    "reinhard",
+    "histmatch"
+  ],
+  "prompt": "H&E stained histopathology tissue",
+  "gpu": "NVIDIA GeForce RTX 3090",
+  "node": "mscluster88"
+}

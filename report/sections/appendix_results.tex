@@ -95,3 +95,33 @@ six comparisons consistent), and SDXL at 1024\,px \HtoA{} remains an open counte
 leans the wrong way, yet it recovers $\dlab=+9.20$.
 
 \clearpage
+
+\subsection{Inference speed}
+Table~\ref{tab:app-speed} times every method's per-crop call on one node (RTX~3090, mscluster88) and the
+same held-out Aperio crops, excluding model loading, registration and file input/output: two warm-up crops,
+then 16 timed crops with the GPU synchronised around each call. The classical methods run on the CPU and are
+fitted once, untimed. Whole-slide times assume a 100{,}000$\times$100{,}000 pixel image tiled into about
+38{,}000 crops of 512\,px (about 9{,}500 of 1024\,px for SDXL).
+
+\begin{table}[!htbp]
+\centering
+\caption{Per-crop inference time (mean $\pm$ s.d.\ over 16 crops) and projected whole-slide time.}
+\label{tab:app-speed}
+\footnotesize
+\begin{tabular}{llrrrr}
+\toprule
+Method & Network passes & Crop & s per crop & Peak GPU (GB) & Per slide\\
+\midrule
+Final SD\,1.5 (DDIM inversion + F3) & 50 inversion + 50 denoising & 512 & $6.27\pm0.10$ & 3.1 & 66\,h\\
+Generic LCM, P1-12 best (6 steps, $s=0.70$) & 4 & 512 & $0.50\pm0.005$ & 3.5 & 5.3\,h\\
+Generic LCM, 4 steps ($s=1.0$) & 4 & 512 & $0.50\pm0.007$ & 3.5 & 5.3\,h\\
+SDXL 144-pair (50-step DDIM, $s=0.50$) & 25 & 1024 & $12.06\pm0.34$ & 13.3 & 32\,h\\
+StainGAN & 1 & 512 & $0.025\pm0.001$ & 0.24 & 16\,min\\
+ParamNet & 1 & 512 & $0.0034\pm0.0003$ & 0.07 & 2\,min\\
+StainNet & 1 & 512 & $0.0023\pm0.0004$ & 0.07 & 1.5\,min\\
+Macenko (CPU) & -- & 512 & $0.042\pm0.004$ & -- & 27\,min\\
+Reinhard (CPU) & -- & 512 & $0.015\pm0.001$ & -- & 10\,min\\
+Histogram matching (CPU) & -- & 512 & $0.006\pm0.001$ & -- & 4\,min\\
+\bottomrule
+\end{tabular}
+\end{table}

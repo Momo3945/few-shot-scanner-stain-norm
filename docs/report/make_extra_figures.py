@@ -124,3 +124,25 @@ for r, (y0, slide) in enumerate([(0, "A08"), (522, "A16")]):
             s.set_visible(False)
     axs[r, 0].set_ylabel(slide, fontsize=11)
 save(fig, "p1_11_h2a.jpg", dpi=150)
+
+# 12. ControlNet conditioning: raw Canny vs the A1/A3 Canny input vs our 6-channel source-conditioned input
+# (training crop A03_00A c000). The source RGB is cut from the P1-10 panel (x 0-512, y 34-546); both edge maps
+# are recomputed here -- canny.py's Otsu map matches that panel's channels 3-5 pixel for pixel.
+import cv2, sys
+sys.path.insert(0, "src/eval")
+from canny import extract_canny_control_image
+cnp = np.asarray(rgb(R / "p1_10_source_conditioning/images/controlnet_input_p1_10_a03_00a_c000.png"))
+src = cnp[34:546, 0:512]
+raw = cv2.Canny(cv2.cvtColor(src, cv2.COLOR_RGB2GRAY), 100, 200)  # textbook fixed thresholds, no blur
+otsu = extract_canny_control_image(src)[:, :, 0]
+fig = plt.figure(figsize=(10.4, 3.25), layout="constrained")
+left, right = fig.subfigures(1, 2, wspace=0.04)
+left.suptitle("Canny-only conditioning (3 channels, edges only)", fontsize=9)
+right.suptitle("Ours: source-conditioned ControlNet input (6 channels)", fontsize=9)
+la, ra = left.subplots(1, 2), right.subplots(1, 2)
+for ax, im, t in [(la[0], raw, f"Raw Canny, fixed 100/200\n({(raw > 0).mean():.0%} edge pixels)"),
+                  (la[1], otsu, f"Otsu-adaptive Canny (A1/A3)\n({(otsu > 0).mean():.0%} edge pixels)"),
+                  (ra[0], src, "Source RGB\n(channels 0-2)"),
+                  (ra[1], otsu, "Otsu-adaptive Canny\n(channels 3-5)")]:
+    ax.imshow(im, cmap="gray" if im.ndim == 2 else None, vmin=0, vmax=255); ax.set_title(t, fontsize=8); ax.axis("off")
+save(fig, "controlnet_conditioning.jpg", dpi=150)
