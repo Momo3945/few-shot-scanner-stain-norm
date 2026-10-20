@@ -30,14 +30,22 @@ DATA_ROOT=/datasets/mhoosen/stain-norm
 CHECKPOINT_DIR=${DATA_ROOT}/lora/a2h_cond_r8/best
 export HF_HOME=/datasets/mhoosen/hf_cache
 
-RUN=${1:?"Usage: sbatch normalize_lizard_inversion_fusion.slurm smoke|full"}
-if [[ "${RUN}" == "smoke" ]]; then
-    SUFFIX="_smoke"; LIMIT=${LIMIT:-2}
-else
-    SUFFIX=""; LIMIT=${LIMIT:-0}
-fi
-OUT_FUSED=${DATA_ROOT}/eval/lizard_normalised_images_inv_f3${SUFFIX}
-OUT_UNFUSED=${DATA_ROOT}/eval/lizard_normalised_images_inv${SUFFIX}
+RUN=${1:?"Usage: sbatch normalize_lizard_inversion_fusion.slurm smoke|full|camelyon_smoke|camelyon"}
+# P2-10b: camelyon / camelyon_smoke run the same pipeline over the 2103 CAMELYON17 patches
+# (nested centre_*_patient_*/ layout kept). SHARD/NUM_SHARDS (env) split it across parallel jobs.
+SHARD=${SHARD:-0}; NUM_SHARDS=${NUM_SHARDS:-1}
+IMAGES_DIR=${DATA_ROOT}/lizard_heldout/images; PATTERN_ARGS=()
+case "${RUN}" in
+    smoke) SUFFIX="_smoke"; LIMIT=${LIMIT:-2}; STEM=lizard_normalised_images ;;
+    full)  SUFFIX="";       LIMIT=${LIMIT:-0}; STEM=lizard_normalised_images ;;
+    camelyon_smoke|camelyon)
+        if [[ "${RUN}" == "camelyon_smoke" ]]; then SUFFIX="_smoke"; LIMIT=${LIMIT:-4}; else SUFFIX=""; LIMIT=${LIMIT:-0}; fi
+        STEM=camelyon17_sd15; IMAGES_DIR=${DATA_ROOT}/camelyon17_patches
+        PATTERN_ARGS=(--pattern "centre_*_patient_*/*.png") ;;
+    *) echo "ABORT: unknown run mode ${RUN}"; exit 1 ;;
+esac
+OUT_FUSED=${DATA_ROOT}/eval/${STEM}_inv_f3${SUFFIX}
+OUT_UNFUSED=${DATA_ROOT}/eval/${STEM}_inv${SUFFIX}
 
 if [[ ! -f "${CHECKPOINT_DIR}/pytorch_lora_weights.safetensors" ]]; then
     echo "ABORT: P1-10 checkpoint not found at ${CHECKPOINT_DIR}"; exit 1
@@ -49,7 +57,7 @@ conda activate stainnorm
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P2-08b -- run=${RUN} limit=${LIMIT}"
+echo "P2-08b/P2-10b -- run=${RUN} limit=${LIMIT} shard=${SHARD}/${NUM_SHARDS} images=${IMAGES_DIR}"
 echo "Fused -> ${OUT_FUSED}   Unfused -> ${OUT_UNFUSED}"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
@@ -60,9 +68,9 @@ echo "------------------------------------------------------------------"
 cd "${CODE_DIR}/src/eval"
 python normalize_lizard_inversion_fusion.py \
     --lora "${CHECKPOINT_DIR}" --controlnet "${CHECKPOINT_DIR}/controlnet" \
-    --images-dir "${DATA_ROOT}/lizard_heldout/images" \
+    --images-dir "${IMAGES_DIR}" ${PATTERN_ARGS[@]+"${PATTERN_ARGS[@]}"} \
     --out-fused "${OUT_FUSED}" --out-unfused "${OUT_UNFUSED}" \
-    --limit "${LIMIT}"
+    --limit "${LIMIT}" --shard "${SHARD}" --num-shards "${NUM_SHARDS}"
 
 echo "------------------------------------------------------------------"
 echo "Done. Next: infer_hovernet.slurm on each output dir, then score_lizard.slurm <tag> lizard_original."

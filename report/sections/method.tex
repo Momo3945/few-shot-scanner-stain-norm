@@ -25,7 +25,9 @@ histogram matching optimises it by construction, so we also report a windowed ve
 registered target. Structural safety is the Relative Dice
 $\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\cite{graham2019hovernet} nuclei on 130 Lizard
 images~\cite{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
-pre-committed pass threshold of 0.95. Diffusion training loss is never used as a success signal.
+pre-committed pass threshold of 0.95. HoVer-Net was first checked as an instrument: on the original images it
+reaches $\mathrm{Dice}(A,G)=0.698$, which is the reference every normaliser is divided by. Diffusion training loss
+is never used as a success signal.
 
 \subsection{Ablation ladder (A0--A5)}
 All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, the best strength for four of five

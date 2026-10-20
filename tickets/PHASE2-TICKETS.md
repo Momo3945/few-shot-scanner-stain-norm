@@ -928,6 +928,36 @@ table.
 
 **Status: DONE.**
 
+## P2-10b — CAMELYON17 on the final SD1.5 pipeline (DDIM inversion ± F3 fusion)
+**Status:** ✅ DONE (2026-10-20) — **FAIL in both arms.** Fused D_post 56.84 (ΔD +0.14, 95% CI
+[-0.22, 0.51], 4/10 pairs improved, sign p=0.754); unfused 57.98 (ΔD +1.29 [0.24, 2.49], 3/10,
+p=0.344); D_pre 56.70. 2103/2103 patches in both arms. Jobs: smoke 71595; shards 71596 (s0, OK),
+71597/71598/71599 (s1–s3, FAILED on a shared-subdir `mkdir` race, fixed with `ensure_dir`),
+reruns 71719/71720/71721 (resumed, 362/240/445 written); scoring 71722 (fused), 71723 (unfused)
+(the first scoring pair, 71600/71601, was cancelled after its dependency failed). Results and the
+effect-size table for every CAMELYON17 run: `docs/results/p2_10b_camelyon17_final_pipeline/`
+(`camelyon_effect_sizes.csv`).
+**Source:** `sec:experiments` "Colour Accuracy" (CAMELYON17, $D_{post} < D_{pre}$); H2/RQ4.
+**Why:** P2-10 tested SD1.5 on CAMELYON17 only at the P1-09 operating point (FAIL, 56.70 →
+57.52, 1/10 pairs). The final SD1.5 pipeline was never run there; only its SDXL counterpart was
+(P3-09, PASS: fused 56.00 8/10, unfused 54.32 9/10). Same gap P2-08b closed for H3.
+**Protocol:** the same 2103 patches (`camelyon17_patches/`, 512 px, native SD1.5 resolution so
+no upscaling, unlike P3-09) and the same scorer as P2-10, against P2-10's own D_pre run
+(`eval/camelyon17_patches/pairwise.csv`, 56.6969). Pipeline identical to P2-08b: P1-10
+`lora/a2h_cond_r8/best`, DDIM inversion f=1.0, 50+50 steps, guidance 1.0/2.0, correct source,
+F3 σ=8 β=0.5 against the stock-decoder A_V. One pass writes fused
+(`eval/camelyon17_sd15_inv_f3/`) and unfused (`eval/camelyon17_sd15_inv/`).
+**Code:** `normalize_lizard_inversion_fusion.py` gained `--pattern` (nested layout kept) and
+`--shard/--num-shards` (defaults reproduce P2-08b exactly); its slurm gained `camelyon` /
+`camelyon_smoke` modes and `SHARD`/`NUM_SHARDS` env. Scoring: unmodified
+`score_camelyon_wasserstein.slurm`, on `bigbatch` while `stampede` is down.
+**Runs:** smoke (4 patches) → 4 parallel shards (~526 patches each, ~7.0 s/patch measured on
+P2-08b → ~65 min each) → score fused and unfused.
+**Acceptance:** 2103/2103 patches in both arms; D_post, pairs improved and sign test reported
+for both; H2 row and CAMELYON17 text in the paper updated whichever way it goes.
+
+---
+
 ## P2-11 — Baseline method comparisons
 **Status:** ✅ Macenko/Reinhard/Histogram Matching DONE (2026-08-10, jobs 40521/
 40619/40628 score). ✅ StainNet/StainGAN/ParamNet DONE for colour + SSIM scoring,

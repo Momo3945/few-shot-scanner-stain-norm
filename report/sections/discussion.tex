@@ -19,7 +19,8 @@ not for SDXL at 1024\,px, which needed 144 pairs.\\
 \midrule
 H2 & Colour improves over raw input and classical baselines, on MITOS and CAMELYON17 &
 \textbf{Partly.} Beats raw everywhere and classical on typical slides; loses to Macenko on A06 and to
-ParamNet/StainGAN everywhere; CAMELYON17 fails for SD\,1.5, passes narrowly for SDXL.\\
+ParamNet/StainGAN everywhere; CAMELYON17 fails for every SD\,1.5 configuration, final pipeline
+included, and passes narrowly for SDXL.\\
 \midrule
 H3 & Relative Dice $\geq 0.95$ &
 \textbf{Supported with fusion}: 0.994 for inversion + F3; not without it (0.893 unfused, 0.875
@@ -60,4 +61,6 @@ rests on two inspected crops.
 them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
 detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a fine-tune of the
 full VAE (encoder and decoder), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
-source-image conditioning branch for PixCell.
+source-image conditioning branch for PixCell. Two choices also departed from the plan: ControlNet was
+conditioned on Canny edges throughout, not on the HoVer-Net nuclear-boundary maps planned as the final
+structural signal, and the TCGA-BRCA colour reference was not used as a secondary colour target.

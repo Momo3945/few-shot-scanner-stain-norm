@@ -282,6 +282,12 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   score 1024px methods with `TILE_SIZE=512 CROP=1024` (`score_atypia_classifier.py
   --tile-size 512`). And the classifier itself is not a valid instrument (P2-14
   gate failed): treat every atypia recovery_delta as noise around the class prior.
+- **Concurrent shards creating the same subdirs on `/datasets` can crash on
+  `Path.mkdir(parents=True, exist_ok=True)` with `FileExistsError`** (2026-10-19, P2-10b jobs
+  71597/71598/71599, 3 of 4 shards died; the race-free shard survived). The `exist_ok` check calls
+  `is_dir()`, which can briefly return False on this filesystem. For sharded jobs that write into
+  shared subfolders, create all output dirs before the main loop with a retry-on-FileExistsError
+  helper (see `ensure_dir` in `normalize_lizard_inversion_fusion.py`).
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 

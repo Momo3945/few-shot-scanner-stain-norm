@@ -1,0 +1,5 @@
+metric,value,n
+mean_lab_total,56.83648,10
+d_pre_mean,56.69685,10
+n_pairs_improved,4,10
+verdict,FAIL (D_post_mean >= D_pre_mean),

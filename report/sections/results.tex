@@ -219,11 +219,17 @@ Two normalisers pass the Relative Dice gate (Table~\ref{tab:reldice}): ParamNet 
 (0.994, 95\% CI $[0.992, 0.997]$, entirely above 0.95). The pass comes from fusion, not from the diffusion
 output itself: the unfused inversion output fails at 0.893, and fusion raises Dice on 129 of the 130 images
 (mean $+0.071$). This is expected from Eq.~\eqref{eq:f3}, which keeps the source's high frequencies and adds
-only a blurred colour change, so nucleus boundaries come from the source. The earlier A4-type operating point
+only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
+the original images, the fused output keeps IoU (0.535 against 0.539), object-level F1 (0.738 against 0.733) and
+the predicted-to-true nucleus count ratio (0.686 against 0.668), while StainGAN lowers object F1 to 0.503 and
+the count ratio to 0.384. The earlier A4-type operating point
 loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 28\%,
 which is consistent with GANs altering nuclei. On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
-mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches), the SD\,1.5 operating point
-fails ($D_{\mathrm{pre}}=56.70$, $D_{\mathrm{post}}=57.52$, 1 of 10 centre pairs improved).
+mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches, $D_{\mathrm{pre}}=56.70$), no
+SD\,1.5 configuration brings the centres closer. The final pipeline is neutral with fusion
+($\Delta D=+0.14$, 95\% bootstrap CI $[-0.22, 0.51]$, 4 of 10 centre pairs improved) and worse without it
+($+1.29$ $[0.24, 2.49]$, 3 of 10), as is the A4-type operating point ($+0.83$ $[0.44, 1.19]$, 1 of 10). The CIs
+resample the 10 centre pairs, which share centres, so they are supportive only.
 
 \subsection{Downstream clinical utility}
 The planned clinical test, an atypia classifier trained on Aperio and scored on normalised Hamamatsu
@@ -249,7 +255,8 @@ that removing its LoRA makes colour worse still, so the adapter helps but is too
 recovery turns positive, but each extra $\sim$48 pairs adds only about 0.1 in $\dlab$. A source ablation on
 the 144-pair model (SSIM 0.318 correct, 0.114 shuffled, 0.109 zero) confirms that it uses the source. F3
 fusion transfers unchanged (SSIM 0.732), and with the 144-pair model SDXL passes the CAMELYON17 test with a
-small effect ($D_{\mathrm{post}}=54.32$ against $D_{\mathrm{pre}}=56.67$, 9 of 10 centre pairs closer). In
+small effect ($D_{\mathrm{post}}=54.32$ against $D_{\mathrm{pre}}=56.67$, $\Delta D=-2.35$ $[-2.97, -1.57]$,
+9 of 10 centre pairs closer; $-0.67$ $[-0.96, -0.34]$, 8 of 10, with F3 fusion). In
 the \HtoA{} direction, where SD\,1.5 fails ($\dlab=-15.6$), SDXL succeeds at both resolutions. Fig.~\ref{fig:sdxl}
 shows one crop across the SDXL configurations.
 

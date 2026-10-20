@@ -17,6 +17,11 @@ imported; that validated script is not edited. Fusion runs once on the STITCHED 
 validated fuse_f3 imported from fuse_source_detail.py, so the fusion step adds no tile seams.
 A_V (the VAE-only reconstruction F3 subtracts) is the stock decoder's, matching P1-16.
 
+Also used for P2-10b (final pipeline on CAMELYON17): --pattern "centre_*_patient_*/*.png" reads that
+nested layout and writes the same relative paths under each output dir, which is the layout
+score_camelyon_wasserstein.py reads; --shard K --num-shards N splits the sorted image list so N GPU
+jobs can run in parallel into the same output dirs. Defaults (flat dir, one shard) are the P2-08b run.
+
 Usage
 -----
     python normalize_lizard_inversion_fusion.py \
@@ -31,6 +36,7 @@ import argparse
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 
 
@@ -54,6 +60,11 @@ def parse_args():
     ap.add_argument("--beta", type=float, default=0.50, help="F3 residual weight (P1-16 frozen value).")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--limit", type=int, default=0, help="Max images (0 = all).")
+    ap.add_argument("--pattern", default=None,
+                    help="Glob under --images-dir (e.g. 'centre_*_patient_*/*.png'); relative paths are kept "
+                         "in the outputs. Default: the flat image files of --images-dir (Lizard).")
+    ap.add_argument("--shard", type=int, default=0, help="This job's shard index (0-based).")
+    ap.add_argument("--num-shards", type=int, default=1, help="Total shards; image i goes to shard i %% N.")
     ap.add_argument("--online", action="store_true")
     return ap.parse_args()
 
@@ -185,19 +196,46 @@ def main():
         mode = "reflect" if ph < h and pw < w else "edge"
         return np.pad(rgb, ((0, ph), (0, pw), (0, 0)), mode=mode)
 
-    image_paths = sorted(p for p in Path(args.images_dir).iterdir()
-                         if p.suffix.lower() in {".png", ".tif", ".tiff", ".jpg", ".jpeg"})
+    images_dir = Path(args.images_dir)
+    if args.pattern:
+        image_paths = sorted(images_dir.glob(args.pattern))
+    else:
+        image_paths = sorted(p for p in images_dir.iterdir()
+                             if p.suffix.lower() in {".png", ".tif", ".tiff", ".jpg", ".jpeg"})
     if args.limit:
         image_paths = image_paths[: args.limit]
+    if not 0 <= args.shard < args.num_shards:
+        raise SystemExit(f"--shard {args.shard} out of range for --num-shards {args.num_shards}")
+    image_paths = image_paths[args.shard::args.num_shards]
     if not image_paths:
         raise SystemExit(f"No images found in {args.images_dir}")
-    print(f"P2-08b: {len(image_paths)} images, crop={args.crop}, f={args.inversion_fraction}, "
+    print(f"P2-08b: {len(image_paths)} images (shard {args.shard}/{args.num_shards}), crop={args.crop}, "
+          f"f={args.inversion_fraction}, "
           f"steps={args.inversion_steps}+{args.translation_steps}, guidance inv/rec="
           f"{args.inversion_guidance}/{args.guidance}, F3 sigma={args.sigma} beta={args.beta}", flush=True)
 
+    def ensure_dir(dirpath):
+        # Shards interleave images, so several shards create the same subdirs at once. On /datasets,
+        # mkdir(exist_ok=True) can still raise FileExistsError when is_dir() lags (P2-10b jobs 71597-99).
+        for attempt in range(10):
+            try:
+                dirpath.mkdir(parents=True, exist_ok=True)
+                return
+            except FileExistsError:
+                if dirpath.is_dir():
+                    return
+                time.sleep(1 + attempt)
+        raise RuntimeError(f"could not create output dir {dirpath}")
+
+    # Create every output subdir up front, so the per-image loop never races another shard.
+    for d in (out_fused, out_unfused):
+        for parent in sorted({(d / p.relative_to(images_dir)).parent for p in image_paths}):
+            ensure_dir(parent)
+
     crop, n_done, n_skip = args.crop, 0, 0
     for p in image_paths:
-        if (out_fused / f"{p.stem}.png").exists() and (out_unfused / f"{p.stem}.png").exists():
+        rel = p.relative_to(images_dir).with_suffix(".png")
+        if (out_fused / rel).exists() and (out_unfused / rel).exists():
             n_skip += 1
             continue
         src = np.asarray(Image.open(p).convert("RGB"))
@@ -207,7 +245,7 @@ def main():
         pred_canvas, av_canvas = np.zeros_like(padded), np.zeros_like(padded)
         for y in range(0, ph, crop):
             for x in range(0, pw, crop):
-                hp, av = run_tile(padded[y:y + crop, x:x + crop], f"{p.stem}_x{x}_y{y}")
+                hp, av = run_tile(padded[y:y + crop, x:x + crop], f"{rel.with_suffix('')}_x{x}_y{y}")
                 pred_canvas[y:y + crop, x:x + crop] = hp
                 av_canvas[y:y + crop, x:x + crop] = av
         h_pred, a_v = pred_canvas[:h, :w], av_canvas[:h, :w]
@@ -215,13 +253,14 @@ def main():
         for arr, d in ((fused, out_fused), (h_pred, out_unfused)):
             if arr.shape[:2] != (h, w):
                 raise RuntimeError(f"{p.name}: output shape {arr.shape[:2]} != source {(h, w)}")
-            Image.fromarray(arr).save(d / f"{p.stem}.png")
+            Image.fromarray(arr).save(d / rel)
         n_done += 1
-        print(f"  {p.stem}: {h}x{w} -> {(ph // crop) * (pw // crop)} tiles", flush=True)
+        print(f"  {rel.with_suffix('')}: {h}x{w} -> {(ph // crop) * (pw // crop)} tiles", flush=True)
 
     meta = {**vars(args), "n_images": len(image_paths), "n_written": n_done, "n_skipped_existing": n_skip}
+    meta_name = "run_metadata.json" if args.num_shards == 1 else f"run_metadata_shard{args.shard}.json"
     for d in (out_fused, out_unfused):
-        json.dump(meta, open(d / "run_metadata.json", "w"), indent=2)
+        json.dump(meta, open(d / meta_name, "w"), indent=2)
     print(f"\nDone: {n_done} written, {n_skip} already present -> {out_fused} and {out_unfused}")
 
 
