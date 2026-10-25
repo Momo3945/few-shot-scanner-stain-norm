@@ -2,7 +2,7 @@
 \label{sec:method}
 
 \subsection{Data and evaluation protocol}
-MITOS-ATYPIA-14~\cite{roux2014mitos} provides $\times$20 frames of the same breast-cancer slides scanned
+MITOS-ATYPIA-14~\citep{roux2014mitos} provides $\times$20 frames of the same breast-cancer slides scanned
 on an Aperio and a Hamamatsu scanner, and frame identifiers match across scanners. All training uses at
 most 50 512\,px crop pairs taken from 24 frames of slide A03/H03. The pairs are
 \emph{coordinate-corresponding}, not pixel-exact, so no training loss compares pixels across scanners. The
@@ -21,10 +21,10 @@ W_{\mathrm{LAB}}(X,Y)=\sum_{c\in\{L,a,b\}}\int_{\mathbb{R}}\bigl|F_{X_c}(t)-F_{Y
 \end{equation}
 where $F$ is the empirical CDF of a channel. Because Eq.~\eqref{eq:wlab} ignores spatial layout,
 histogram matching optimises it by construction, so we also report a windowed version averaged over
-64$\times$64 tiles (wLAB). Structure is measured by grayscale SSIM~\cite{wang2004ssim} against the
+64$\times$64 tiles (wLAB). Structure is measured by grayscale SSIM~\citep{wang2004ssim} against the
 registered target. Structural safety is the Relative Dice
-$\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\cite{graham2019hovernet} nuclei on 130 Lizard
-images~\cite{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
+$\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\citep{graham2019hovernet} nuclei on 130 Lizard
+images~\citep{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
 pre-committed pass threshold of 0.95. HoVer-Net was first checked as an instrument: on the original images it
 reaches $\mathrm{Dice}(A,G)=0.698$, which is the reference every normaliser is divided by. Diffusion training loss
 is never used as a success signal.
@@ -34,7 +34,7 @@ All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, the best s
 slides. A0 is the frozen base; A1 adds a Canny ControlNet; A2 adds a rank-8 colour LoRA trained with the
 denoising loss on Hamamatsu crops only, so direction comes from img2img; A3 combines ControlNet and LoRA;
 A4 adds the generic LCM-LoRA (8 steps); A5 initialises from a LoRA warm-started on 3{,}000 unpaired
-histopathology patches (MITOS, PanNuke~\cite{gamper2019pannuke} and TCGA).
+histopathology patches (MITOS, PanNuke~\citep{gamper2019pannuke} and TCGA).
 
 \subsection{Source-conditioned translation}
 A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a
@@ -53,7 +53,7 @@ The \HtoA{} model is trained the same way with the roles swapped. Shuffled- and 
 that the model uses the source (SSIM 0.147 with the correct source against 0.047 with a shuffled one, in
 training-domain control runs).
 
-At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
+At inference, random img2img noise is replaced by deterministic DDIM inversion~\citep{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM
 steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}).
 
@@ -131,24 +131,24 @@ caught, and the corrected run was checked against the raw source.
 \textbf{Decoder fine-tune.} With the encoder frozen, so that the latent space and every trained component
 remain valid, we fine-tune only the decoder (49.5M parameters, initialised from \texttt{ft-mse}) on about
 2{,}700 non-held-out H\&E patches (MITOS slides of both scanners, TCGA, PanNuke and the A03/H03 crops)
-with an L1 + 0.3\,LPIPS~\cite{zhang2018lpips} loss for 3{,}000 steps. Checkpoints are selected on whole
+with an L1 + 0.3\,LPIPS~\citep{zhang2018lpips} loss for 3{,}000 steps. Checkpoints are selected on whole
 non-held-out validation slides.
 
 \subsection{Baselines}
 \label{sec:baselines}
 Three classical normalisers (Macenko, Reinhard, histogram matching) use one reference image each. Three
 learned normalisers are trained on exactly the same 50 A03/H03 pairs as the colour LoRA, so every trained
-method has the same data budget. StainNet~\cite{kang2021stainnet} is a three-layer 1$\times$1 convolutional
-colour map (1{,}283 parameters) trained with a paired L1 loss; ParamNet~\cite{kang2024paramnet} uses a
+method has the same data budget. StainNet~\citep{kang2021stainnet} is a three-layer 1$\times$1 convolutional
+colour map (1{,}283 parameters) trained with a paired L1 loss; ParamNet~\citep{kang2024paramnet} uses a
 ResNet18 to predict the weights of a per-image 1$\times$1 colour map, trained with its CycleGAN-style recipe;
-StainGAN~\cite{shaban2019staingan} is a standard CycleGAN~\cite{zhu2017cyclegan} (ResNet-9 generator,
+StainGAN~\citep{shaban2019staingan} is a standard CycleGAN~\citep{zhu2017cyclegan} (ResNet-9 generator,
 PatchGAN discriminator), trained here because its authors released no weights. Public MITOS-trained
 checkpoints were deliberately not used, because their training splits are unknown and could include our
 held-out slides. All baselines use final-step weights (no held-out checkpoint selection) and are scored by
 the same crop and registration pipeline as the diffusion methods.
 
 \subsection{SDXL transfer and exploratory probes}
-The best SD\,1.5 design is ported to SDXL~\cite{podell2023sdxl} with its own rank-8 LoRA, a
+The best SD\,1.5 design is ported to SDXL~\citep{podell2023sdxl} with its own rank-8 LoRA, a
 source-conditioned ControlNet and an fp32 VAE (SDXL's VAE produces NaNs in fp16), at 512\,px and natively at
 1024\,px, without repeating the ablation ladder. Because the 1024\,px model is data-starved at 50 pairs, two
 supplementary runs use 96 non-overlapping and 144 overlapping crop pairs from the same A03/H03 frames.

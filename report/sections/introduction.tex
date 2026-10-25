@@ -4,23 +4,23 @@
 Haematoxylin and eosin (H\&E) slides of the same tissue look different when they are digitised on
 different whole-slide scanners. Light source, sensor and colour calibration all shift the pixel colour
 distribution, and computational pathology models learn features that are partly entangled with it, so
-accuracy can fall when a model trained on one scanner meets another~\cite{breen2024gans}. Stain
+accuracy can fall when a model trained on one scanner meets another~\citep{breen2024gans}. Stain
 normalisation addresses this as a preprocessing step: it maps each input towards a target colour
 distribution before any downstream model sees it, without retraining that model.
 
-Classical normalisers~\cite{macenko2009normalisation,reinhard2001colortransfer} are fast and need no
+Classical normalisers~\citep{macenko2009normalisation,reinhard2001colortransfer} are fast and need no
 training data, but they assume a linear stain model. GAN-based methods such as
-StainGAN~\cite{shaban2019staingan} learn non-linear mappings but may alter tissue structure, and fast
-learned colour maps such as StainNet~\cite{kang2021stainnet} and ParamNet~\cite{kang2024paramnet} are
-usually trained on large collections. Latent diffusion models~\cite{rombach2022ldm} offer a strong image
-prior and a mature adapter ecosystem: LoRA~\cite{hu2021lora} for data-efficient adaptation,
-ControlNet~\cite{zhang2023controlnet} for spatial conditioning and LCM-LoRA~\cite{luo2023lcmlora} for
+StainGAN~\citep{shaban2019staingan} learn non-linear mappings but may alter tissue structure, and fast
+learned colour maps such as StainNet~\citep{kang2021stainnet} and ParamNet~\citep{kang2024paramnet} are
+usually trained on large collections. Latent diffusion models~\citep{rombach2022ldm} offer a strong image
+prior and a mature adapter ecosystem: LoRA~\citep{hu2021lora} for data-efficient adaptation,
+ControlNet~\citep{zhang2023controlnet} for spatial conditioning and LCM-LoRA~\citep{luo2023lcmlora} for
 few-step inference. A similar combination has been used for domain-targeted style transfer in plant
-imagery~\cite{hartley2024plant}, but not, to our knowledge, for scanner normalisation in histopathology.
+imagery~\citep{hartley2024plant}, but not, to our knowledge, for scanner normalisation in histopathology.
 
 This paper tests that combination under a deliberately strict few-shot budget: at most 50
 coordinate-corresponding (not pixel-exact) crop pairs from a single MITOS-ATYPIA-14
-slide~\cite{roux2014mitos}, evaluated on five held-out slide pairs that no model ever sees in training.
+slide~\citep{roux2014mitos}, evaluated on five held-out slide pairs that no model ever sees in training.
 Our contributions are:
 \begin{enumerate}
 \item a six-rung ablation (A0--A5) that isolates what ControlNet, a colour LoRA, LCM-LoRA and a
@@ -32,7 +32,7 @@ earlier rungs;
 and a decoder fine-tune that raises the ceiling mainly by smoothing;
 \item a matched-budget comparison against three classical and three learned baselines, including a
 structure-safety test with a pretrained nucleus segmenter; and
-\item a portability test on SDXL~\cite{podell2023sdxl}.
+\item a portability test on SDXL~\citep{podell2023sdxl}.
 \end{enumerate}
 We report negative results as negative. In particular, two learned baselines trained on the same 50 pairs
 outperform every diffusion configuration we built.

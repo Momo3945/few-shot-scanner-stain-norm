@@ -1,23 +1,23 @@
 \section{Related Work}
 \label{sec:related}
 
-\textbf{Classical normalisation.} Reinhard et al.~\cite{reinhard2001colortransfer} match per-channel
-statistics in a decorrelated colour space; Macenko et al.~\cite{macenko2009normalisation} estimate stain
+\textbf{Classical normalisation.} \citet{reinhard2001colortransfer} match per-channel
+statistics in a decorrelated colour space; \citet{macenko2009normalisation} estimate stain
 vectors in optical-density space and rescale stain concentrations. Both need one reference image and no
 training, and both rely on assumptions that non-linear scanner differences can break. Using several
-reference images improves robustness to varied staining~\cite{ivanov2024multitarget}.
+reference images improves robustness to varied staining~\citep{ivanov2024multitarget}.
 
-\textbf{Learned normalisation.} StainGAN~\cite{shaban2019staingan} casts normalisation as unpaired
-CycleGAN translation~\cite{zhu2017cyclegan}; GAN-based methods transfer colour well but can change
-structure~\cite{breen2024gans}. StainNet~\cite{kang2021stainnet} distils a normaliser into a tiny
-per-pixel network, and ParamNet~\cite{kang2024paramnet} predicts the weights of a per-image 1$\times$1
+\textbf{Learned normalisation.} StainGAN~\citep{shaban2019staingan} casts normalisation as unpaired
+CycleGAN translation~\citep{zhu2017cyclegan}; GAN-based methods transfer colour well but can change
+structure~\citep{breen2024gans}. StainNet~\citep{kang2021stainnet} distils a normaliser into a tiny
+per-pixel network, and ParamNet~\citep{kang2024paramnet} predicts the weights of a per-image 1$\times$1
 colour-mapping network from a low-resolution view. On MITOS-ATYPIA-14, a recent attention-guided residual
-method reports high structural similarity with the full paired training set~\cite{madusanka2025attentionresidual}.
+method reports high structural similarity with the full paired training set~\citep{madusanka2025attentionresidual}.
 
-\textbf{Diffusion and adapters.} Denoising diffusion~\cite{ho2020ddpm} and its latent variant~\cite{rombach2022ldm}
-generate images by reversing a noise process in the latent space of a VAE; DDIM~\cite{song2021ddim} makes
-the sampler deterministic and invertible. LoRA~\cite{hu2021lora} adds trainable low-rank updates
-$h=W_0x+BAx$ to frozen layers, ControlNet~\cite{zhang2023controlnet} injects a spatial condition through a
-trainable copy of the encoder, and latent consistency models~\cite{luo2023lcm,luo2023lcmlora} distil
+\textbf{Diffusion and adapters.} Denoising diffusion~\citep{ho2020ddpm} and its latent variant~\citep{rombach2022ldm}
+generate images by reversing a noise process in the latent space of a VAE; DDIM~\citep{song2021ddim} makes
+the sampler deterministic and invertible. LoRA~\citep{hu2021lora} adds trainable low-rank updates
+$h=W_0x+BAx$ to frozen layers, ControlNet~\citep{zhang2023controlnet} injects a spatial condition through a
+trainable copy of the encoder, and latent consistency models~\citep{luo2023lcm,luo2023lcmlora} distil
 sampling into a few steps. These pieces are mature for natural images; their behaviour on paired scanner
 data with a tiny training set is what this work measures.
