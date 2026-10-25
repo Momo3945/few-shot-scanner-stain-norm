@@ -2794,6 +2794,63 @@ open questions for the supervisor: `tickets/P1-18_vae_decoder_finetune.md`.
 
 ---
 
+## P1-19 — HoVer-Net nuclear-boundary conditioning for the source-conditioned ControlNet
+
+**Status:** ✅ CLOSED (2026-10-25) — negative result. HoVer-Net boundaries do not beat Canny; the
+Canny model stays the final pipeline. Fused (F3) pooled SSIM 0.7287 vs 0.7290 (Δ −0.0003, CI
+[−0.0003, −0.0003]), windowed LAB 28.41 vs 27.08 (Δ +1.33 [+1.28, +1.38]), worse on every slide;
+recovery Δlab +6.40 vs +7.81. Unfused SSIM 0.4915 vs 0.4960 (Δ −0.0045 [−0.0055, −0.0035]), wLAB
+27.02 vs 26.01. Pre-stated "better" criterion not met. Leak guard: fused A08_00A_x0_y0 is 3.51/255
+from raw Aperio and 19.85 from Hamamatsu (raw–Hamamatsu 20.49). Jobs: maps 74420/74421, controls
+74422–74424 (overfit loss 0.124 at steps 1,900–2,000 vs Canny 0.119, no NaNs), full chain 74812
+(train, 25 min, best val 0.0483) → 74813 (infer, 1:55, 496 crops) → 74814 (fuse) → 74815/74816
+(score). Lizard Relative Dice (step 4) not run: no gain to protect, and the check would be circular.
+Data: `docs/results/p1_19_hovernet_boundary/`; paper Appendix A-C, Table VIII.
+
+**Proposal:** `docs/proposal_draft(6).tex` sec. on ControlNet geometry conditioning (l.347–366:
+Canny is the "prototype signal", HoVer-Net-derived "black-background, white-outline nuclear
+boundary maps" the "final structural signal") and H3/RQ2 (l.263). Every earlier model used Canny.
+
+**Change (one variable):** the structural half of P1-10's 6-channel condition (source RGB +
+Canny) becomes source RGB + HoVer-Net boundaries (`hovernet_fast-pannuke`, 1 px outlines,
+`src/eval/nuclear_boundaries.py`). Everything else is the final SD1.5 recipe: A2H, rank 8,
+jitter ±8 px (applied identically to RGB and boundary map), 4,000 steps, best-val checkpoint,
+DDIM inversion f=1.0 50+50 steps (guidance 1.0/2.0), F3 σ=8 β=0.5. One seed: the existing
+held-out outputs are byte-identical across seeds 0/1/2 (eta=0 DDIM, md5-checked).
+Flags `--structure hovernet --hovernet-dir` (default `canny`, every earlier run unchanged);
+slurm env overrides `STRUCTURE=hovernet HOVERNET_DIR=...`.
+
+**Leak check:** HoVer-Net is pretrained (PanNuke) and runs only on source (Aperio) crops — training
+`pairs/train/` and the 496 held-out source crops (`identity_full_heldout/reference/`, raw-Aperio
+checksum-verified in P1-16). The Hamamatsu target never feeds the condition.
+
+**Steps:**
+1. Boundary maps: `infer_hovernet.slurm` → `eval/hovernet_maps/{train,heldout}/` (jobs 74305;
+   74306 died on the /datasets `mkdir -p` race, resubmitted as 74308). **Visual check FAILED at
+   1×:** off-the-shelf `hovernet_fast-pannuke` (×40-trained) on ×20 crops misses almost every
+   nucleus on Aperio — mean nuclei/crop: training Aperio 17.5 vs Hamamatsu 112.1 for the same
+   tissue; held-out A06 0.56 (40/64 crops empty), A16 5.6 (15 empty), A08 18.7, A09 22.7, A13 147.9.
+   (A scanner-shift effect on a downstream model in its own right.) **Fix: `--upsample 2`**
+   (`hovernet_wrapper.py`, default 1; crops upscaled to the ×40 scale, outlines mapped back).
+   Test jobs 74391/74392 (`eval/hovernet_maps_up2_test/`): training Aperio 76.2 nuclei/crop,
+   A06 19.7, no empty crops. The drawn outlines sit accurately on nuclei, but coverage is partial
+   (dark nuclei found, pale vesicular ones often missed), so this run compares *sparse, accurate
+   nuclear outlines* against *dense Canny edges*. Production maps: `eval/hovernet_maps_up2/
+   {train,heldout}/` (jobs 74420/74421).
+2. Controls: SMOKE=1, then OVERFIT_N=8 at 2,000 steps (must pass as the Canny run did), then an
+   inference smoke from the overfit checkpoint.
+3. Full: train → translate (496 crops) → F3 fusion → `score_outputs` (fused) +
+   `score_p1_10_ddim_inversion` (unfused).
+4. Optional (only if 3 is scored by 2026-10-26): Lizard Relative Dice — partly circular, since
+   HoVer-Net both conditions and scores.
+
+**Pre-stated comparison:** same 496 crops, Canny vs HoVer-Net, unfused and fused; per-slide,
+typical-slide and pooled SSIM / LAB / wLAB; paired bootstrap 95% CI over crops. "Better" only if
+the fused pooled ΔSSIM CI excludes 0 with wLAB no worse; otherwise reported as no difference or
+worse. Reported in the paper either way.
+
+---
+
 **Decision gate (proposal §"Time Plan"):** at the end of Phase 1, formally review
 A0–A5 results and the SDXL compute-contingency evidence before proceeding to Phase 3
 (see PHASE3-TICKETS.md, P3-01).

@@ -85,7 +85,24 @@ def parse_args():
     ap.add_argument("--num-loader-workers", type=int, default=2)
     ap.add_argument("--num-postproc-workers", type=int, default=2)
     ap.add_argument("--limit", type=int, default=0, help="Max images to process (0 = all).")
+    ap.add_argument("--glob", default="*", help="Filename pattern within --images-dir (default all).")
+    ap.add_argument("--upsample", type=int, default=1,
+                    help="P1-19: upscale each image by this factor before HoVer-Net and map the "
+                         "predictions back to the original grid. PanNuke is x40; MITOS crops are x20, "
+                         "where 1 (default, every earlier run) misses most nuclei.")
     return ap.parse_args()
+
+
+def rescale_instances(inst_dict: dict, factor: float) -> dict:
+    """Map tiatoolbox predictions made on an upscaled image back to the original grid."""
+    out = {}
+    for k, inst in inst_dict.items():
+        inst = dict(inst)
+        for key in ("contour", "centroid", "box"):
+            if key in inst:
+                inst[key] = np.round(np.asarray(inst[key], dtype=np.float64) / factor).astype(np.int32)
+        out[k] = inst
+    return out
 
 
 def main():
@@ -113,13 +130,28 @@ def main():
     mask_dir.mkdir(parents=True, exist_ok=True)
 
     image_paths = sorted(
-        p for p in images_dir.iterdir()
+        p for p in images_dir.glob(args.glob)
         if p.suffix.lower() in {".png", ".tif", ".tiff", ".jpg", ".jpeg"}
     )
     if args.limit:
         image_paths = image_paths[: args.limit]
     if not image_paths:
         raise SystemExit(f"No images found in {images_dir}")
+
+    # Upscaled copies go to <out>/_upsampled/ under the same stem, so the
+    # per-image loop below still keys everything by the original filename.
+    seg_paths = image_paths
+    if args.upsample > 1:
+        up_dir = out_dir / "_upsampled"
+        up_dir.mkdir(parents=True, exist_ok=True)
+        seg_paths = []
+        for p in progress(image_paths, desc=f"upsampling x{args.upsample}"):
+            img = cv2.imread(str(p), cv2.IMREAD_COLOR)
+            up = cv2.resize(img, None, fx=args.upsample, fy=args.upsample, interpolation=cv2.INTER_CUBIC)
+            dest = up_dir / f"{p.stem}.png"
+            cv2.imwrite(str(dest), up)
+            seg_paths.append(dest)
+    orig_by_stem = {p.stem: p for p in image_paths}
 
     print(f"Running {args.pretrained_model} over {len(image_paths)} images "
           f"from {images_dir} (device={args.device})")
@@ -135,7 +167,7 @@ def main():
     # so this script's --out contract doesn't depend on tiatoolbox internals.
     raw_out = out_dir / "_tiatoolbox_raw"
     results = segmentor.predict(
-        imgs=[str(p) for p in image_paths],
+        imgs=[str(p) for p in seg_paths],
         save_dir=str(raw_out),
         mode="tile",
         device=args.device,
@@ -156,7 +188,10 @@ def main():
                 continue
 
             inst_dict = joblib.load(src_dat)
+            if args.upsample > 1:
+                inst_dict = rescale_instances(inst_dict, args.upsample)
 
+            img_path = orig_by_stem[stem]  # shape from the original, not the upscaled copy
             img = cv2.imread(str(img_path), cv2.IMREAD_COLOR)
             if img is None:
                 print(f"  WARNING: could not re-read {img_path} for shape -- skipping.")

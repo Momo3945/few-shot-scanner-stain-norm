@@ -37,6 +37,10 @@ TAG=${1:?"Usage: sbatch infer_hovernet.slurm TAG [IMAGES_DIR] [PRETRAINED_MODEL]
 IMAGES_DIR=${2:-${DATA_ROOT}/lizard_heldout/images}
 PRETRAINED_MODEL=${3:-hovernet_fast-pannuke}
 LIMIT=${4:-0}
+# P1-19 env overrides (unset -> identical to every earlier run):
+#   UPSAMPLE=2 (x20 crops -> PanNuke's x40 scale), GLOB='*_aperio.png' (file subset)
+UPSAMPLE=${UPSAMPLE:-1}
+GLOB=${GLOB:-*}
 
 OUT_DIR=${DATA_ROOT}/eval/${TAG}
 
@@ -53,7 +57,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "Images=$IMAGES_DIR  Model=$PRETRAINED_MODEL  Limit=$LIMIT"
+echo "Images=$IMAGES_DIR  Model=$PRETRAINED_MODEL  Limit=$LIMIT  Upsample=$UPSAMPLE  Glob=$GLOB"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed"
@@ -68,7 +72,9 @@ python hovernet_wrapper.py \
     --out              "${OUT_DIR}" \
     --pretrained-model "${PRETRAINED_MODEL}" \
     --device cuda \
-    --limit "${LIMIT}"
+    --limit "${LIMIT}" \
+    --glob "${GLOB}" \
+    --upsample "${UPSAMPLE}"
 
 echo "------------------------------------------------------------------"
 echo "HoVer-Net inference done. instances/ + masks/ + manifest.csv in ${OUT_DIR}"

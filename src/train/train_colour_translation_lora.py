@@ -201,6 +201,12 @@ def parse_args():
     ap.add_argument("--smoke", action="store_true",
                     help="5-step dry run: overrides train-steps/save-every for a quick env+loop "
                          "check. NOT the mandatory overfit control -- use --overfit-n for that.")
+    ap.add_argument("--structure", choices=["canny", "hovernet"], default="canny",
+                    help="P1-19: structural half of the 6-channel condition. 'canny' (default, every "
+                         "run before P1-19) or 'hovernet' (nuclear-boundary maps, the proposal's "
+                         "final structural signal; needs --hovernet-dir).")
+    ap.add_argument("--hovernet-dir", default=None,
+                    help="hovernet_wrapper.py --out dir for the SOURCE crops (its instances/<stem>.pkl).")
     ap.add_argument("--overfit-n", type=int, default=0,
                     help="P1-10's mandatory first diagnostic control: restrict to the first N "
                          "pairs (e.g. 8) and train longer. Loss must approach near-zero with no "
@@ -216,6 +222,8 @@ def main():
         args.log_every = 1
     if args.lora_alpha == 0:
         args.lora_alpha = args.rank
+    if args.structure == "hovernet" and not args.hovernet_dir:
+        raise SystemExit("--structure hovernet needs --hovernet-dir.")
 
     if not args.online:
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -235,6 +243,7 @@ def main():
     from peft.utils import get_peft_model_state_dict
 
     from canny import extract_canny_control_image
+    from nuclear_boundaries import boundary_control_image, load_instances
 
     random.seed(args.seed); np.random.seed(args.seed); torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -296,6 +305,13 @@ def main():
             p = self.pairs[i]
             src_rgb = self._load(p[src_key])
             tgt_rgb = self._load(p[tgt_key])
+            # P1-19: HoVer-Net boundaries come from the unjittered source crop
+            # and get the same jitter offset as the RGB below.
+            struct = None
+            if args.structure == "hovernet":
+                stem = os.path.basename(p[src_key])[: -len(".png")]
+                struct = boundary_control_image(load_instances(Path(args.hovernet_dir) / "instances", stem),
+                                                src_rgb.shape[:2])
 
             # Spatial-jitter tolerance: independently perturb the conditioning
             # (source) image's effective crop window via padding+re-crop, NOT
@@ -305,18 +321,20 @@ def main():
             if self.jitter > 0:
                 dx = random.randint(-self.jitter, self.jitter)
                 dy = random.randint(-self.jitter, self.jitter)
-                padded = np.pad(src_rgb, ((self.jitter, self.jitter), (self.jitter, self.jitter), (0, 0)),
-                                mode="reflect")
+                pad = ((self.jitter, self.jitter), (self.jitter, self.jitter), (0, 0))
                 y0, x0 = self.jitter + dy, self.jitter + dx
-                src_rgb = padded[y0:y0 + self.res, x0:x0 + self.res]
+                src_rgb = np.pad(src_rgb, pad, mode="reflect")[y0:y0 + self.res, x0:x0 + self.res]
+                if struct is not None:
+                    struct = np.pad(struct, pad, mode="reflect")[y0:y0 + self.res, x0:x0 + self.res]
 
             # 6-channel conditioning: source RGB (appearance, ticket step 3) +
-            # source Canny (explicit structure, ticket step 4) -- complementary
-            # signals, not alternatives (see module docstring).
-            canny = extract_canny_control_image(src_rgb)  # HxWx3 uint8, 0-255
+            # source structure (ticket step 4: Canny, or P1-19's HoVer-Net
+            # boundaries) -- complementary signals, not alternatives (see module docstring).
+            if struct is None:
+                struct = extract_canny_control_image(src_rgb)  # HxWx3 uint8, 0-255
             rgb_t = torch.from_numpy(src_rgb.astype(np.float32) / 255.0).permute(2, 0, 1)
-            canny_t = torch.from_numpy(canny.astype(np.float32) / 255.0).permute(2, 0, 1)
-            control = torch.cat([rgb_t, canny_t], dim=0)  # 6xHxW
+            struct_t = torch.from_numpy(struct.astype(np.float32) / 255.0).permute(2, 0, 1)
+            control = torch.cat([rgb_t, struct_t], dim=0)  # 6xHxW
 
             tgt_arr = np.asarray(tgt_rgb, dtype=np.float32) / 127.5 - 1.0
             target = torch.from_numpy(tgt_arr).permute(2, 0, 1)

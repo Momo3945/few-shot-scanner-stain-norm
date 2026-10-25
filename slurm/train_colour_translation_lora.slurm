@@ -43,9 +43,20 @@ if [[ "${SMOKE:-0}" == "1" ]]; then
 fi
 OVERFIT_FLAG=""
 OUT_SUFFIX="cond_r${RANK}"
+# P1-19 (env override, unset -> Canny, identical to every prior run):
+#   STRUCTURE=hovernet HOVERNET_DIR=/datasets/mhoosen/stain-norm/eval/hovernet_maps/train
+STRUCTURE=${STRUCTURE:-canny}
+STRUCT_FLAGS=""
+if [[ "${STRUCTURE}" == "hovernet" ]]; then
+    STRUCT_FLAGS="--structure hovernet --hovernet-dir ${HOVERNET_DIR:?STRUCTURE=hovernet needs HOVERNET_DIR}"
+    OUT_SUFFIX="${OUT_SUFFIX}_hovernet"
+fi
 if [[ -n "${OVERFIT_N:-}" ]]; then
     OVERFIT_FLAG="--overfit-n ${OVERFIT_N}"
-    OUT_SUFFIX="cond_r${RANK}_overfit${OVERFIT_N}"
+    OUT_SUFFIX="${OUT_SUFFIX}_overfit${OVERFIT_N}"
+fi
+if [[ -n "${SMOKE_FLAG}" && "${STRUCTURE}" == "hovernet" ]]; then
+    OUT_SUFFIX="${OUT_SUFFIX}_smoke"  # keep the 5-step run out of the real P1-19 checkpoint dir
 fi
 
 OUT_DIR="${OUT_ROOT}/${DIRECTION,,}_${OUT_SUFFIX}"
@@ -63,7 +74,7 @@ fi
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-10 -- Direction=$DIRECTION  Rank=$RANK  Steps=$STEPS  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}'"
+echo "P1-10 -- Direction=$DIRECTION  Rank=$RANK  Steps=$STEPS  Smoke='${SMOKE_FLAG}' Overfit='${OVERFIT_FLAG}' Structure='${STRUCT_FLAGS:-canny}'"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
@@ -80,7 +91,7 @@ python src/train/train_colour_translation_lora.py \
     --train-steps "${STEPS}" \
     --output-dir  "${OUT_DIR}" \
     --seed 0 \
-    ${SMOKE_FLAG} ${OVERFIT_FLAG}
+    ${SMOKE_FLAG} ${OVERFIT_FLAG} ${STRUCT_FLAGS}
 
 echo "------------------------------------------------------------------"
 echo "Job $SLURM_JOB_ID finished. LoRA + ControlNet in ${OUT_DIR}/final"

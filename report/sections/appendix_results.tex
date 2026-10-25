@@ -74,6 +74,53 @@ motivated fusion outside the U-Net.
 0.20) gives SSIM 0.143, PSNR 13.1\,dB and LAB distance 28.2 against the original
 over 64 crops: the round trip does not return the input (Fig.~\ref{fig:app-roundtrip}).
 
+\subsection{HoVer-Net boundary conditioning}
+\label{app:hovernet}
+The proposal planned HoVer-Net nuclear-boundary maps as the final structural signal, with Canny edges as the
+prototype. We retrained the source-conditioned model with the Canny half of its six-channel input replaced by
+1\,px HoVer-Net outlines (\texttt{hovernet\_fast-pannuke}, run on the source crop only), kept every other
+setting of the final recipe, and ran the same inversion, fusion and scoring on the 496 held-out crops.
+Applied directly to the $\times$20 crops, the PanNuke model, trained at $\times$40, missed almost every
+nucleus on Aperio: it found 17.5 nuclei per training crop against 112 on the Hamamatsu scan of the same
+tissue, and 0.6 per crop on A06, where 40 of 64 crops had none. Upsampling each crop $2\times$ before
+segmentation raised this to 76 per training crop and 19.7 on A06, with no empty crops. The outlines then lie
+on nuclei but still miss many pale ones, so the comparison is between sparse nuclear outlines and dense Canny
+edges. This segmentation failure is itself an example of the scanner shift this work addresses.
+
+Table~\ref{tab:app-hovernet} gives the result. After fusion, structure is unchanged; before it, pooled SSIM is
+slightly lower (lower on A08, A13 and A16, higher on A06 and A09). Windowed LAB is worse on every slide, both before and after fusion.
+The pre-stated criterion for calling HoVer-Net better, a fused SSIM gain whose 95\% CI excludes zero with
+windowed LAB no worse, is not met, so the Canny model remains the final pipeline. One possible reason, not
+tested here, is that dense Canny edges follow stain intensity and so carry a colour cue that sparse outlines
+do not. Each structure was trained once, with one seed.
+
+\begin{table}[!htbp]
+\centering
+\caption{Canny against HoVer-Net boundary conditioning on the same 496 held-out crops. $\Delta$ is HoVer-Net
+minus Canny, with a paired bootstrap 95\% CI over crops; higher SSIM and lower windowed LAB (wLAB) are better.}
+\label{tab:app-hovernet}
+\footnotesize
+\begin{tabular}{llcccc}
+\toprule
+& & \multicolumn{2}{c}{DDIM inversion (unfused)} & \multicolumn{2}{c}{+ F3 fusion}\\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+Scope & Structure & SSIM & wLAB & SSIM & wLAB\\
+\midrule
+ALL (496) & Canny & 0.496 & 26.01 & 0.729 & 27.08\\
+ & HoVer-Net & 0.492 & 27.02 & 0.729 & 28.41\\
+ & $\Delta$ & $-0.005$ [$-0.006$, $-0.004$] & $+1.02$ [$+0.91$, $+1.12$] & $-0.0003$ [$-0.0003$, $-0.0003$] & $+1.33$ [$+1.28$, $+1.38$]\\
+\midrule
+Typical (432) & Canny & 0.514 & 18.92 & 0.746 & 18.65\\
+ & HoVer-Net & 0.508 & 19.76 & 0.745 & 20.00\\
+ & $\Delta$ & $-0.006$ [$-0.007$, $-0.005$] & $+0.83$ [$+0.74$, $+0.92$] & $-0.0002$ [$-0.0003$, $-0.0002$] & $+1.35$ [$+1.30$, $+1.39$]\\
+\midrule
+A06 (64) & Canny & 0.373 & 73.82 & 0.617 & 83.94\\
+ & HoVer-Net & 0.379 & 76.07 & 0.617 & 85.15\\
+ & $\Delta$ & $+0.006$ [$+0.004$, $+0.008$] & $+2.25$ [$+1.91$, $+2.59$] & $-0.0006$ [$-0.0007$, $-0.0004$] & $+1.22$ [$+1.04$, $+1.41$]\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{SDXL diagnostics and the decision gate}
 \textbf{Decision gate.} At the end of Phase~1 the ladder configuration A4 was chosen as the base for SDXL,
 and the A5 warm-start transfer was also run because A5 beat A4 on A06 by 2.6--8.7 in LAB distance, far above

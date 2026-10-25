@@ -22,13 +22,13 @@ Group & Method & ALL & typical & A06 & ALL & typical & A06\\
 \midrule
 Reference & Raw Aperio (no normalisation) & 33.83 & 25.41 & 94.84 & 0.733 & 0.748 & 0.627\\
 \midrule
-Classical & Macenko~\cite{macenko2009normalisation} & 24.80 & 21.02 & 50.30 & 0.628 & 0.649 & 0.479\\
- & Reinhard~\cite{reinhard2001colortransfer} & 28.02 & 26.79 & 36.34 & 0.681 & 0.701 & 0.545\\
+Classical & Macenko~\citep{macenko2009normalisation} & 24.80 & 21.02 & 50.30 & 0.628 & 0.649 & 0.479\\
+ & Reinhard~\citep{reinhard2001colortransfer} & 28.02 & 26.79 & 36.34 & 0.681 & 0.701 & 0.545\\
  & Histogram matching & 30.61 & 31.33 & \textbf{25.72} & 0.651 & 0.664 & 0.562\\
 \midrule
-Learned & StainNet~\cite{kang2021stainnet} & 55.51 & 58.02 & 38.58 & 0.512 & 0.518 & 0.471\\
- & ParamNet~\cite{kang2024paramnet} & 17.27 & \textbf{8.55} & 76.15 & 0.753 & 0.769 & 0.644\\
- & StainGAN~\cite{shaban2019staingan} & \textbf{15.66} & 13.55 & 29.92 & \textbf{0.764} & \textbf{0.772} & \textbf{0.709}\\
+Learned & StainNet~\citep{kang2021stainnet} & 55.51 & 58.02 & 38.58 & 0.512 & 0.518 & 0.471\\
+ & ParamNet~\citep{kang2024paramnet} & 17.27 & \textbf{8.55} & 76.15 & 0.753 & 0.769 & 0.644\\
+ & StainGAN~\citep{shaban2019staingan} & \textbf{15.66} & 13.55 & 29.92 & \textbf{0.764} & \textbf{0.772} & \textbf{0.709}\\
 \midrule
 SD\,1.5 ladder & A0 frozen img2img & 32.89 & 23.65 & 95.22 & 0.285 & 0.299 & 0.186\\
  & A1 + ControlNet (Canny) & 33.10 & 23.88 & 95.35 & 0.389 & 0.408 & 0.260\\
@@ -69,7 +69,9 @@ Conditioning on the source image gives a real but modest gain over the ladder ($
 Replacing random img2img noise with DDIM inversion is the largest single improvement: LAB distance falls to
 25.10 pooled and 17.98 on typical slides, every held-out slide moves towards the target (A06 recovery
 $+21.7$), and SSIM rises to 0.496. In the reverse direction (\HtoA) the same model fails
-($\dlab=-15.6$, a magenta drift), so the gain is direction-dependent.
+($\dlab=-15.6$, a magenta drift), so the gain is direction-dependent. Replacing the Canny half of the
+condition with HoVer-Net nuclear outlines, the planned final structural signal, does not help: fused SSIM is
+unchanged (0.729) and windowed LAB is 1.3 worse (Appendix~\ref{app:hovernet}).
 
 \subsection{The VAE ceiling}
 \label{sec:vae}
@@ -228,7 +230,7 @@ the count ratio to 0.384. The earlier A4-type operating point
 loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 28\%,
 which is consistent with GANs altering nuclei. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
 back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance
-28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
+28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). On CAMELYON17~\citep{bandi2018camelyon17}, measured as the
 mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches, $D_{\mathrm{pre}}=56.70$), no
 SD\,1.5 configuration brings the centres closer. The final pipeline is neutral with fusion
 ($\Delta D=+0.14$, 95\% bootstrap CI $[-0.22, 0.51]$, 4 of 10 centre pairs improved) and worse without it

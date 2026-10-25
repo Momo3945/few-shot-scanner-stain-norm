@@ -175,6 +175,12 @@ def parse_args():
                     help="--mode identity only: img2img strength for the existing-pathway comparison "
                          "point, matching P1-10's established operating point.")
     ap.add_argument("--controlnet-scale", type=float, default=1.0)
+    ap.add_argument("--structure", choices=["canny", "hovernet"], default="canny",
+                    help="P1-19: structural half of the 6-channel condition -- must match the "
+                         "checkpoint's training_config.json 'structure' (absent = canny).")
+    ap.add_argument("--hovernet-dir", default=None,
+                    help="hovernet_wrapper.py --out dir for the SOURCE crops (instances/<stem>.pkl; "
+                         "stem = crop_id held-out, <pair_id>_aperio|_hamamatsu with --pairs-dir).")
     ap.add_argument("--strength", type=float, default=None,
                     help="NOT used by DDIM inversion -- passing this raises an error. Use "
                          "--inversion-fraction instead.")
@@ -226,6 +232,9 @@ def main():
     from PIL import Image
 
     from canny import extract_canny_control_image
+    from nuclear_boundaries import boundary_control_image, load_instances
+    if args.structure == "hovernet" and not args.hovernet_dir:
+        raise SystemExit("--structure hovernet needs --hovernet-dir.")
     if using_pairs_dir:
         import sys as _sys
         _sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "train"))
@@ -277,6 +286,7 @@ def main():
             ref_c = np.asarray(Image.open(p[ref_key]).convert("RGB"))
             crops.append({"slide": p["slide"], "frame": p["frame_id"], "x": 0, "y": 0,
                          "tag_id": p["pair_id"],
+                         "src_stem": os.path.basename(p[src_key])[: -len(".png")],
                          "src": src_c, "ref": ref_c, "aperio_path": p["aperio_path"]})
         print(f"  {args.pairs_dir}: {len(crops)} training pairs (overfit_n={args.overfit_n or 'all'})")
     else:
@@ -317,6 +327,15 @@ def main():
     if not crops:
         raise SystemExit("No tissue crops selected -- check --tissue-thresh / heldout / pairs-dir inventory.")
 
+    # Structural half of each crop's condition, computed once from that crop's own
+    # source (Canny, or P1-19's HoVer-Net boundaries keyed by crop stem).
+    for c in crops:
+        if args.structure == "hovernet":
+            inst = load_instances(Path(args.hovernet_dir) / "instances", c.get("src_stem", c["tag_id"]))
+            c["struct"] = boundary_control_image(inst, c["src"].shape[:2])
+        else:
+            c["struct"] = extract_canny_control_image(c["src"])
+
     rng = np.random.default_rng(0)
     shuffled_idx = rng.permutation(len(crops))
     for i in range(len(crops)):
@@ -327,21 +346,21 @@ def main():
     def control_source_for(i):
         # translate-mode reconstruction conditioning per --source-mode --
         # identical semantics to infer_colour_translation.py's control_source_for.
+        # Returns a crop dict (its src + struct) or None.
         if args.source_mode == "correct":
-            return crops[i]["src"]
+            return crops[i]
         if args.source_mode == "zero":
             return None
-        return crops[shuffled_idx[i]]["src"]
+        return crops[shuffled_idx[i]]
 
-    def build_control_tensor(rgb):
-        canny = extract_canny_control_image(rgb)
-        rgb_t = torch.from_numpy(rgb.astype(np.float32) / 255.0).permute(2, 0, 1)
-        canny_t = torch.from_numpy(canny.astype(np.float32) / 255.0).permute(2, 0, 1)
-        return torch.cat([rgb_t, canny_t], dim=0).unsqueeze(0)  # 1x6xHxW, [0,1]
+    def build_control_tensor(cc):
+        rgb_t = torch.from_numpy(cc["src"].astype(np.float32) / 255.0).permute(2, 0, 1)
+        struct_t = torch.from_numpy(cc["struct"].astype(np.float32) / 255.0).permute(2, 0, 1)
+        return torch.cat([rgb_t, struct_t], dim=0).unsqueeze(0)  # 1x6xHxW, [0,1]
 
-    def control_tensor_or_zero(rgb):
+    def control_tensor_or_zero(cc):
         t = (torch.zeros(1, 6, args.crop, args.crop, dtype=dtype)
-             if rgb is None else build_control_tensor(rgb).to(dtype=dtype))
+             if cc is None else build_control_tensor(cc).to(dtype=dtype))
         return t.to(device)
 
     def seed_for(pair_key: str, seed: int) -> int:
@@ -507,13 +526,13 @@ def main():
         return decode_latent(encode_latent(source_rgb))
 
     @torch.no_grad()
-    def run_img2img_baseline(source_rgb, control_rgb, seed):
+    def run_img2img_baseline(source_rgb, control_crop, seed):
         # The EXISTING P1-10 pathway, replicated via the already-loaded pipeline's
         # normal __call__ (not a code change to infer_colour_translation.py) so the
         # identity-mode comparison uses the exact same in-memory crop/seed as the
         # new inversion pathway (task file sec. 14).
         control_tensor = (torch.zeros(1, 6, args.crop, args.crop, dtype=torch.float32)
-                          if control_rgb is None else build_control_tensor(control_rgb))
+                          if control_crop is None else build_control_tensor(control_crop))
         gen = torch.Generator(device=device).manual_seed(seed)
         out = pipe(prompt=args.prompt, image=Image.fromarray(source_rgb), strength=args.baseline_strength,
                    num_inference_steps=args.translation_steps, guidance_scale=args.guidance,
@@ -548,8 +567,8 @@ def main():
             run_tag = f"{tag}_seed{s}"
 
             if args.mode == "identity":
-                inv_ctrl_rgb = c["src"] if args.inversion_condition == "source" else None
-                rec_ctrl_rgb = c["src"]  # self-conditioned throughout -- no A->H
+                inv_ctrl_rgb = c if args.inversion_condition == "source" else None
+                rec_ctrl_rgb = c  # self-conditioned throughout -- no A->H
 
                 out_vae = run_vae_only(c["src"], seed_val)
                 p = out_dir / "outputs" / f"{run_tag}_vae_only.png"
@@ -582,7 +601,7 @@ def main():
                 man.flush()
                 n_out += 1
             else:  # translate
-                inv_ctrl_rgb = c["src"] if args.inversion_condition == "source" else None
+                inv_ctrl_rgb = c if args.inversion_condition == "source" else None
                 rec_ctrl_rgb = control_source_for(i)
 
                 out_inv, t_end, k_actual, n_rec = run_ddim_inversion(
@@ -631,6 +650,8 @@ def main():
         "guidance": args.guidance,
         "baseline_strength": args.baseline_strength if args.mode == "identity" else None,
         "controlnet_conditioning_scale": args.controlnet_scale,
+        "structure": args.structure,
+        "hovernet_dir": args.hovernet_dir,
         "seeds": args.seeds,
         "dtype": str(dtype),
         "model": args.model,

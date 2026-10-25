@@ -98,6 +98,16 @@ CONTROLNET_SCALE=${CONTROLNET_SCALE:-1.0}
 # P1-16's mandatory internal-validation parameter search (upstream P1-11
 # outputs on those same crops), since every prior P1-11 invocation of this
 # launcher only ever targeted the held-out set.
+# P1-19 (env override, unset -> Canny, identical to every prior run): HoVer-Net
+# boundary conditioning; must match the checkpoint's training structure.
+#   STRUCTURE=hovernet HOVERNET_DIR=/datasets/mhoosen/stain-norm/eval/hovernet_maps/heldout \
+#   CHECKPOINT_DIR=/datasets/mhoosen/stain-norm/lora/a2h_cond_r8_hovernet/best
+STRUCTURE=${STRUCTURE:-canny}
+STRUCT_FLAGS=""
+if [[ "${STRUCTURE}" == "hovernet" ]]; then
+    STRUCT_FLAGS="--structure hovernet --hovernet-dir ${HOVERNET_DIR:?STRUCTURE=hovernet needs HOVERNET_DIR}"
+fi
+
 DATA_FLAGS="--root ${MITOS_ROOT} --heldout ${HELDOUT}"
 if [[ "${PAIRS_DIR:-0}" == "1" ]]; then
     DATA_FLAGS="--pairs-dir ${TRAIN_PAIRS_DIR}"
@@ -143,7 +153,7 @@ python -c "from diffusers import DDIMInverseScheduler" \
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION  ControlNetScale=$CONTROLNET_SCALE"
+echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION  ControlNetScale=$CONTROLNET_SCALE  Structure=$STRUCTURE"
 echo "Checkpoint=$CHECKPOINT_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -158,7 +168,7 @@ python infer_colour_source_ddim_inversion.py \
     ${DATA_FLAGS} --out "${OUT_DIR}" \
     --mode "${MODE}" --source-mode "${SOURCE_MODE}" --direction "${DIRECTION}" \
     --inversion-fraction "${FRACTION}" --controlnet-scale "${CONTROLNET_SCALE}" \
-    --limit "${LIMIT}" --max-crops-per-frame 4 \
+    --limit "${LIMIT}" --max-crops-per-frame 4 ${STRUCT_FLAGS} \
     --seeds ${SEEDS} \
     --debug-inversion
 

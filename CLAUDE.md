@@ -288,6 +288,10 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   `is_dir()`, which can briefly return False on this filesystem. For sharded jobs that write into
   shared subfolders, create all output dirs before the main loop with a retry-on-FileExistsError
   helper (see `ensure_dir` in `normalize_lizard_inversion_fusion.py`).
+  **The same race hits bash `mkdir -p` in a `.slurm` header** (2026-10-25, job 74306: two
+  `infer_hovernet.slurm` jobs submitted together with TAGs under a NEW shared parent
+  `eval/hovernet_maps/`; one died at 0 s with only "mkdir: Already exists" in the log). Create a new
+  shared parent dir first (or stagger submissions) when parallel jobs write under it.
 - Load shedding is real: prefer checkpointed/resumable jobs; run long downloads via `sbatch`.
 - A job leaving `squeue` is NOT proof of success — always read the `.out`/`.err` logs.
 
