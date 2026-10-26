@@ -13,6 +13,7 @@
 #                 full-496 --mode identity run that P1-16's held-out fusion used)
 #   sbatch --exclude=<BAD_NODES> --time=00:30:00 -J p1_18_g14_av vae_only_newdecoder.slurm \
 #       /datasets/mhoosen/stain-norm/vae/d1_pn03/best_val vae_only_d1_pn03
+#   FULL_VAE=1  encode with the new VAE's own encoder (P1-18 Stage 2a full-VAE dirs); default stock.
 # =====================================================================
 
 #SBATCH --job-name=p1_18_vae_only
@@ -49,7 +50,9 @@ conda activate stainnorm
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-18 G1.4 A_V -- decoder=${DECODER_DIR}  identity=${IDENTITY_REL}  out=${OUT_DIR}"
+FULL_FLAG=""
+if [[ "${FULL_VAE:-0}" == "1" ]]; then FULL_FLAG="--full-vae"; fi
+echo "P1-18 G1.4 A_V -- decoder=${DECODER_DIR}  identity=${IDENTITY_REL}  out=${OUT_DIR}  full_vae=${FULL_VAE:-0}"
 echo "=================================================================="
 nvidia-smi || echo "WARNING: nvidia-smi failed -- no GPU visible?"
 python -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)" \
@@ -60,7 +63,7 @@ cd "${CODE_DIR}/src/eval"
 python vae_only_newdecoder.py \
     --identity-manifest "${DATA_ROOT}/eval/${IDENTITY_REL}" \
     --decoder-path "${DECODER_DIR}" \
-    --out "${OUT_DIR}"
+    --out "${OUT_DIR}" ${FULL_FLAG}
 
 echo "------------------------------------------------------------------"
 echo "Done. Manifest + reconstructions in ${OUT_DIR}"

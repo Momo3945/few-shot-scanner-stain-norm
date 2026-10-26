@@ -1,0 +1,286 @@
+{
+  "vae_info": {
+    "ft_mse": {
+      "repo": "stabilityai/sd-vae-ft-mse",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "d1_pn03_best": {
+      "repo": "/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "f2a_l1": {
+      "repo": "/datasets/mhoosen/stain-norm/vae/f2a_l1/best_val",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "f2a_l10": {
+      "repo": "/datasets/mhoosen/stain-norm/vae/f2a_l10/best_val",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    }
+  },
+  "summary": {
+    "ft_mse": {
+      "aperio": {
+        "lab_total": 5.346924072580647,
+        "wlab_mean": 5.7974718001581005,
+        "de2000_mean": 6.7883927257853935,
+        "ssim": 0.6181691013650343,
+        "psnr": 20.93716922190013,
+        "mae": 16.750845240008427
+      },
+      "hamamatsu": {
+        "lab_total": 2.525706139112904,
+        "wlab_mean": 3.289922821906305,
+        "de2000_mean": 4.718352724890896,
+        "ssim": 0.7573012468947615,
+        "psnr": 24.449494977610886,
+        "mae": 11.229015232414326
+      }
+    },
+    "d1_pn03_best": {
+      "aperio": {
+        "lab_total": 5.559689193548381,
+        "wlab_mean": 6.219912275191276,
+        "de2000_mean": 6.4231589658258725,
+        "ssim": 0.6459572074577095,
+        "psnr": 21.684983108762268,
+        "mae": 15.192636948759848
+      },
+      "hamamatsu": {
+        "lab_total": 3.100990383064512,
+        "wlab_mean": 3.903964688701014,
+        "de2000_mean": 4.381438855776933,
+        "ssim": 0.77869599469203,
+        "psnr": 24.98153330184711,
+        "mae": 10.346414753185798
+      }
+    },
+    "f2a_l1": {
+      "aperio": {
+        "lab_total": 5.299961532258066,
+        "wlab_mean": 5.918427113563784,
+        "de2000_mean": 6.350802878162976,
+        "ssim": 0.6477629441382674,
+        "psnr": 21.753800643956602,
+        "mae": 15.11163497483858
+      },
+      "hamamatsu": {
+        "lab_total": 4.332988790322583,
+        "wlab_mean": 4.790298638805266,
+        "de2000_mean": 4.359057362359238,
+        "ssim": 0.77982170448578,
+        "psnr": 25.10233380699425,
+        "mae": 10.241864865826022
+      }
+    },
+    "f2a_l10": {
+      "aperio": {
+        "lab_total": 4.874560796370971,
+        "wlab_mean": 5.499829984480335,
+        "de2000_mean": 6.346416151330196,
+        "ssim": 0.6494607781811773,
+        "psnr": 21.72733582660484,
+        "mae": 15.149758062055039
+      },
+      "hamamatsu": {
+        "lab_total": 3.4085082157258046,
+        "wlab_mean": 3.9803591620537544,
+        "de2000_mean": 4.329623019835224,
+        "ssim": 0.7795288317509298,
+        "psnr": 25.151942170978366,
+        "mae": 10.189309222723843
+      }
+    }
+  },
+  "paired": {},
+  "paired_extra": {
+    "d1_pn03_best": {
+      "reference": "ft_mse",
+      "aperio": {
+        "mean_delta_ssim": 0.027788106092674972,
+        "median_delta_ssim": 0.027767642798018133,
+        "mean_delta_psnr": 0.747813886862145,
+        "mean_delta_mae": -1.5582082912486086,
+        "mean_delta_lab_total": 0.21276512096774197,
+        "ssim_delta_bootstrap_ci95": [
+          0.027557905364522413,
+          0.028012900353859504
+        ],
+        "frac_crops_ssim_improved": 1.0,
+        "n_crops": 496
+      },
+      "hamamatsu": {
+        "mean_delta_ssim": 0.02139474779726893,
+        "median_delta_ssim": 0.021545729889160148,
+        "mean_delta_psnr": 0.532038324236189,
+        "mean_delta_mae": -0.8826004792285221,
+        "mean_delta_lab_total": 0.575284243951613,
+        "ssim_delta_bootstrap_ci95": [
+          0.020793758146427546,
+          0.021932424152034197
+        ],
+        "frac_crops_ssim_improved": 0.9838709677419355,
+        "n_crops": 496
+      }
+    },
+    "f2a_l1": {
+      "reference": "ft_mse",
+      "aperio": {
+        "mean_delta_ssim": 0.029593842773232838,
+        "median_delta_ssim": 0.029449025638578097,
+        "mean_delta_psnr": 0.8166314220564554,
+        "mean_delta_mae": -1.6392102651698612,
+        "mean_delta_lab_total": -0.04696254032258069,
+        "ssim_delta_bootstrap_ci95": [
+          0.029332697180085028,
+          0.02984709931734131
+        ],
+        "frac_crops_ssim_improved": 1.0,
+        "n_crops": 496
+      },
+      "hamamatsu": {
+        "mean_delta_ssim": 0.022520457591018533,
+        "median_delta_ssim": 0.022769156920110667,
+        "mean_delta_psnr": 0.6528388293833676,
+        "mean_delta_mae": -0.9871503665883055,
+        "mean_delta_lab_total": 1.8072826512096771,
+        "ssim_delta_bootstrap_ci95": [
+          0.02194534615802679,
+          0.023014434897063656
+        ],
+        "frac_crops_ssim_improved": 0.9838709677419355,
+        "n_crops": 496
+      }
+    },
+    "f2a_l10": {
+      "reference": "ft_mse",
+      "aperio": {
+        "mean_delta_ssim": 0.03129167681614309,
+        "median_delta_ssim": 0.03131988260814922,
+        "mean_delta_psnr": 0.7901666047046892,
+        "mean_delta_mae": -1.6010871779534124,
+        "mean_delta_lab_total": -0.47236327620967744,
+        "ssim_delta_bootstrap_ci95": [
+          0.031057069303684858,
+          0.03152436305022664
+        ],
+        "frac_crops_ssim_improved": 1.0,
+        "n_crops": 496
+      },
+      "hamamatsu": {
+        "mean_delta_ssim": 0.022227584856167736,
+        "median_delta_ssim": 0.022424901318564783,
+        "mean_delta_psnr": 0.7024471933675089,
+        "mean_delta_mae": -1.0397060096904793,
+        "mean_delta_lab_total": 0.8828020766129032,
+        "ssim_delta_bootstrap_ci95": [
+          0.021655355622675933,
+          0.022755344518271
+        ],
+        "frac_crops_ssim_improved": 0.9838709677419355,
+        "n_crops": 496
+      }
+    }
+  },
+  "stage": "heldout",
+  "n_crops": 496
+}

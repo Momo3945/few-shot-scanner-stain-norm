@@ -20,6 +20,12 @@
 # Other env overrides (each read as ${VAR:-default}; default behaviour unchanged):
 #   INIT=ft_mse|stock   MODE=decoder|full   LR=1e-5   BATCH=8   CROP=256|512
 #   NO_AUGMENT=1 (no rot/flip; use for the capacity control)
+#   INIT_PATH=<saved AutoencoderKL dir> (overrides INIT; Stage 2a starts from vae/d1_pn03/best_val)
+#   GRAD_CKPT=1 (gradient checkpointing, if --mode full runs out of memory)
+#   Stage 2a (anchored full-VAE fine-tune):
+#     MODE=full ANCHOR_LAMBDA=1 INIT_PATH=/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val LR=1e-4 \
+#     PANNUKE_W=0.3 VAL_EVERY=250 PYTHONUNBUFFERED=1 sbatch --exclude=<BAD_NODES> --time=04:00:00 \
+#     -J p1_18_f2a slurm/train_vae_decoder.slurm f2a_l1 3000
 #   LPIPS_W=0.3   L1_W=1.0   SSIM_W=0.0   ANCHOR_LAMBDA=0.0   MITOS_W=3.0   PANNUKE_W=1.0   VAL_EVERY=500
 # =====================================================================
 
@@ -49,6 +55,8 @@ EXTRA=""
 if [[ "${SMOKE:-0}" == "1" ]]; then EXTRA="${EXTRA} --smoke"; fi
 if [[ -n "${OVERFIT_N:-}" ]]; then EXTRA="${EXTRA} --overfit-n ${OVERFIT_N}"; fi
 if [[ "${NO_AUGMENT:-0}" == "1" ]]; then EXTRA="${EXTRA} --no-augment"; fi
+if [[ -n "${INIT_PATH:-}" ]]; then EXTRA="${EXTRA} --init-path ${INIT_PATH}"; fi
+if [[ "${GRAD_CKPT:-0}" == "1" ]]; then EXTRA="${EXTRA} --grad-checkpointing"; fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"
 

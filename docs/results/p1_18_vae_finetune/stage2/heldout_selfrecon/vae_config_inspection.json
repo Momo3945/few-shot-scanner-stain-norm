@@ -1,0 +1,118 @@
+{
+  "ft_mse": {
+    "repo": "stabilityai/sd-vae-ft-mse",
+    "subfolder": null,
+    "dtype_requested": "float16",
+    "diffusers_version": "0.39.0",
+    "latent_channels": 4,
+    "block_out_channels": [
+      128,
+      256,
+      512,
+      512
+    ],
+    "down_block_types": [
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D"
+    ],
+    "up_block_types": [
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D"
+    ],
+    "sample_size": 256,
+    "param_count": 83653863,
+    "dtype": "torch.float16",
+    "scaling_factor": 0.18215
+  },
+  "d1_pn03_best": {
+    "repo": "/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val",
+    "subfolder": null,
+    "dtype_requested": "float16",
+    "diffusers_version": "0.39.0",
+    "latent_channels": 4,
+    "block_out_channels": [
+      128,
+      256,
+      512,
+      512
+    ],
+    "down_block_types": [
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D"
+    ],
+    "up_block_types": [
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D"
+    ],
+    "sample_size": 256,
+    "param_count": 83653863,
+    "dtype": "torch.float16",
+    "scaling_factor": 0.18215
+  },
+  "f2a_l1": {
+    "repo": "/datasets/mhoosen/stain-norm/vae/f2a_l1/best_val",
+    "subfolder": null,
+    "dtype_requested": "float16",
+    "diffusers_version": "0.39.0",
+    "latent_channels": 4,
+    "block_out_channels": [
+      128,
+      256,
+      512,
+      512
+    ],
+    "down_block_types": [
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D"
+    ],
+    "up_block_types": [
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D"
+    ],
+    "sample_size": 256,
+    "param_count": 83653863,
+    "dtype": "torch.float16",
+    "scaling_factor": 0.18215
+  },
+  "f2a_l10": {
+    "repo": "/datasets/mhoosen/stain-norm/vae/f2a_l10/best_val",
+    "subfolder": null,
+    "dtype_requested": "float16",
+    "diffusers_version": "0.39.0",
+    "latent_channels": 4,
+    "block_out_channels": [
+      128,
+      256,
+      512,
+      512
+    ],
+    "down_block_types": [
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D",
+      "DownEncoderBlock2D"
+    ],
+    "up_block_types": [
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D",
+      "UpDecoderBlock2D"
+    ],
+    "sample_size": 256,
+    "param_count": 83653863,
+    "dtype": "torch.float16",
+    "scaling_factor": 0.18215
+  }
+}

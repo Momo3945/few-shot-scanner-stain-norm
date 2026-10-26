@@ -181,6 +181,9 @@ def parse_args():
     ap.add_argument("--hovernet-dir", default=None,
                     help="hovernet_wrapper.py --out dir for the SOURCE crops (instances/<stem>.pkl; "
                          "stem = crop_id held-out, <pair_id>_aperio|_hamamatsu with --pairs-dir).")
+    ap.add_argument("--vae-path", default=None,
+                    help="P1-18 Stage 2a: replace the pipeline VAE (encoder AND decoder) with a saved "
+                         "AutoencoderKL dir; LoRA/ControlNet unchanged. Default: the model's own VAE.")
     ap.add_argument("--strength", type=float, default=None,
                     help="NOT used by DDIM inversion -- passing this raises an error. Use "
                          "--inversion-fraction instead.")
@@ -370,7 +373,7 @@ def main():
     # ------------------------------------------------------------------
     # Pipeline + schedulers
     # ------------------------------------------------------------------
-    from diffusers import (ControlNetModel, DDIMInverseScheduler,
+    from diffusers import (AutoencoderKL, ControlNetModel, DDIMInverseScheduler,
                            DDIMScheduler, StableDiffusionControlNetImg2ImgPipeline)
 
     print(f"Loading P1-10 pipeline: LoRA={args.lora}  ControlNet={args.controlnet}  "
@@ -379,6 +382,9 @@ def main():
     pipe = StableDiffusionControlNetImg2ImgPipeline.from_pretrained(
         args.model, controlnet=controlnet, torch_dtype=dtype,
         safety_checker=None, requires_safety_checker=False)
+    if args.vae_path:
+        pipe.vae = AutoencoderKL.from_pretrained(args.vae_path, torch_dtype=dtype)
+        print(f"VAE replaced: {args.vae_path} (scaling_factor={pipe.vae.config.scaling_factor})")
     # Build the forward DDIM scheduler exactly like infer_colour_translation.py does
     # (from the pipeline's own loaded config), THEN derive the inverse scheduler from
     # THAT resolved config -- inherits num_train_timesteps/beta_*/steps_offset/
@@ -652,6 +658,7 @@ def main():
         "controlnet_conditioning_scale": args.controlnet_scale,
         "structure": args.structure,
         "hovernet_dir": args.hovernet_dir,
+        "vae_path": args.vae_path,
         "seeds": args.seeds,
         "dtype": str(dtype),
         "model": args.model,

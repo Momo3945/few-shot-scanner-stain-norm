@@ -263,6 +263,11 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   mtime (`stat -c %Y`), a job needs ~10 min of inference before the rate is
   readable. (A monitor script must not call `python3` on this Windows host -- it
   resolves to the Microsoft Store stub and exits 49; use `python`.)
+  A polling monitor of the form `s=$(ssh host '...; ... | grep -c X') || continue` goes silently
+  blind: when the count is 0, `grep -c` exits 1, so the ssh call "fails" and every poll is skipped
+  (2026-10-26, P1-18 Stage 2a: two 30-min monitors reported nothing while 13 jobs ran). End the
+  remote command with `; true`, and still read `sacct` directly when a monitor expires with no events.
+  The cluster login node also has no `python` on PATH outside a conda env.
 - **`stampede` nodes have ~30,000 MB RAM** (`sinfo -p stampede -N -o "%N %m"`):
   `sbatch --mem=32G` is rejected ("Memory specification can not be satisfied");
   the maximum usable request is `--mem=28G` (2026-10-04).

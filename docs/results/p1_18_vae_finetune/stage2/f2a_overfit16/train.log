@@ -1,0 +1,73 @@
+==================================================================
+Job 75611 on mscluster60.ms.wits.ac.za
+P1-18 -- run=f2a_overfit16 steps=600 mode=full init=ft_mse extra=' --overfit-n 16 --no-augment --init-path /datasets/mhoosen/stain-norm/vae/d1_pn03/best_val'
+Out=/datasets/mhoosen/stain-norm/vae/f2a_overfit16
+==================================================================
+Mon Oct 26 10:30:22 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 595.71.05              Driver Version: 595.71.05      CUDA Version: 13.2     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 3090        Off |   00000000:17:00.0 Off |                  N/A |
+| 43%   58C    P5            135W /  350W |       1MiB /  24576MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+torch 2.5.1+cu121 | cuda available: True
+------------------------------------------------------------------
+Leak check OK: no held-out slide in train (2715) or val (385); no overlap.
+OVERFIT control: train == val == 16 MITOS crops (8 Aperio / 8 Hamamatsu).
+train 16 {'aperio': 8, 'hamamatsu': 8, 'tcga': 0, 'pannuke': 0} | val 16 {'aperio': 8, 'hamamatsu': 8, 'tcga': 0, 'pannuke': 0}
+init=path (/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val) scaling_factor=0.18215 params=83,653,863
+trainable params: 83,653,863
+[val init (step 0)] aperio: ssim=0.6283 psnr=21.12 mae=16.80 (n=8) z_rel_mse=0.00000 z_cos=1.00000 | hamamatsu: ssim=0.6859 psnr=22.98 mae=13.49 (n=8) z_rel_mse=0.00000 z_cos=1.00000 | select_ssim=0.6571
+step 1/600 loss=0.1800 l1=0.1232 lpips=0.1890 lr=2.00e-06 0.99s/step
+step 2/600 loss=0.1859 l1=0.1289 lpips=0.1874 lr=3.00e-06 0.88s/step
+step 3/600 loss=0.1739 l1=0.1138 lpips=0.1966 lr=4.00e-06 0.85s/step
+step 4/600 loss=0.1753 l1=0.1148 lpips=0.1982 lr=5.00e-06 0.84s/step
+step 5/600 loss=0.1794 l1=0.1198 lpips=0.1896 lr=6.00e-06 0.83s/step
+step 25/600 loss=0.2044 l1=0.1063 lpips=0.1696 lr=2.60e-05 0.73s/step
+step 50/600 loss=0.2219 l1=0.1146 lpips=0.1744 lr=5.10e-05 0.72s/step
+step 75/600 loss=0.2758 l1=0.1276 lpips=0.1818 lr=7.60e-05 0.72s/step
+step 100/600 loss=0.2843 l1=0.1121 lpips=0.1569 lr=1.00e-04 0.72s/step
+step 125/600 loss=0.2971 l1=0.1165 lpips=0.1598 lr=1.00e-04 0.72s/step
+step 150/600 loss=0.3204 l1=0.1181 lpips=0.1693 lr=1.00e-04 0.72s/step
+step 175/600 loss=0.2847 l1=0.1032 lpips=0.1491 lr=1.00e-04 0.72s/step
+step 200/600 loss=0.2932 l1=0.1165 lpips=0.1414 lr=1.00e-04 0.72s/step
+[val step 200] aperio: ssim=0.6553 psnr=21.50 mae=16.05 (n=8) z_rel_mse=0.00747 z_cos=0.99620 | hamamatsu: ssim=0.7067 psnr=23.42 mae=12.75 (n=8) z_rel_mse=0.00798 z_cos=0.99628 | select_ssim=0.6810
+saved /datasets/mhoosen/stain-norm/vae/f2a_overfit16/best_val
+step 225/600 loss=0.3008 l1=0.1079 lpips=0.1430 lr=1.00e-04 0.75s/step
+step 250/600 loss=0.3303 l1=0.1102 lpips=0.1472 lr=1.00e-04 0.75s/step
+step 275/600 loss=0.2846 l1=0.1084 lpips=0.1402 lr=1.00e-04 0.75s/step
+step 300/600 loss=0.2518 l1=0.1165 lpips=0.1336 lr=1.00e-04 0.75s/step
+step 325/600 loss=0.2501 l1=0.1123 lpips=0.1363 lr=1.00e-04 0.75s/step
+step 350/600 loss=0.3012 l1=0.1076 lpips=0.1307 lr=1.00e-04 0.75s/step
+step 375/600 loss=0.2684 l1=0.1023 lpips=0.1200 lr=1.00e-04 0.75s/step
+step 400/600 loss=0.2189 l1=0.0900 lpips=0.1096 lr=1.00e-04 0.75s/step
+[val step 400] aperio: ssim=0.7124 psnr=22.10 mae=14.82 (n=8) z_rel_mse=0.00680 z_cos=0.99654 | hamamatsu: ssim=0.7460 psnr=23.97 mae=11.88 (n=8) z_rel_mse=0.00630 z_cos=0.99704 | select_ssim=0.7292
+saved /datasets/mhoosen/stain-norm/vae/f2a_overfit16/best_val
+step 425/600 loss=0.2403 l1=0.0848 lpips=0.1099 lr=1.00e-04 0.76s/step
+step 450/600 loss=0.2335 l1=0.0900 lpips=0.0979 lr=1.00e-04 0.76s/step
+step 475/600 loss=0.2519 l1=0.0900 lpips=0.1024 lr=1.00e-04 0.76s/step
+step 500/600 loss=0.2208 l1=0.0835 lpips=0.1087 lr=1.00e-04 0.76s/step
+step 525/600 loss=0.2055 l1=0.0767 lpips=0.0881 lr=1.00e-04 0.78s/step
+step 550/600 loss=0.2615 l1=0.1030 lpips=0.1197 lr=1.00e-04 0.77s/step
+step 575/600 loss=0.2749 l1=0.0940 lpips=0.1204 lr=1.00e-04 0.77s/step
+step 600/600 loss=0.1835 l1=0.0805 lpips=0.0845 lr=1.00e-04 0.77s/step
+[val step 600] aperio: ssim=0.7509 psnr=22.62 mae=13.80 (n=8) z_rel_mse=0.00625 z_cos=0.99688 | hamamatsu: ssim=0.7780 psnr=24.48 mae=11.09 (n=8) z_rel_mse=0.00588 z_cos=0.99728 | select_ssim=0.7644
+saved /datasets/mhoosen/stain-norm/vae/f2a_overfit16/best_val
+saved /datasets/mhoosen/stain-norm/vae/f2a_overfit16/final
+ENCODER CHECK: {"enc_hash_before": "18892a8949ae59ccdf6c4033a1731a71d35bdbf0737d2d377186f533050f05f5", "enc_hash_after": "b2d624bde4fd0c6aae9d6ec0f6ff9f98b4383799aecd1424b6c1b32a0a2ea070", "encoder_unchanged": false}
+DONE. best_val select_ssim=0.7644; final + best_val in /datasets/mhoosen/stain-norm/vae/f2a_overfit16
+------------------------------------------------------------------
+Job 75611 finished. final/ and best_val/ in /datasets/mhoosen/stain-norm/vae/f2a_overfit16

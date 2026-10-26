@@ -108,6 +108,15 @@ if [[ "${STRUCTURE}" == "hovernet" ]]; then
     STRUCT_FLAGS="--structure hovernet --hovernet-dir ${HOVERNET_DIR:?STRUCTURE=hovernet needs HOVERNET_DIR}"
 fi
 
+# P1-18 Stage 2a (env override, unset -> the model's own VAE, identical to every prior run):
+# swap in a fine-tuned full VAE (encoder + decoder), LoRA/ControlNet unchanged.
+#   VAE_PATH=/datasets/mhoosen/stain-norm/vae/f2a_l1/best_val
+VAE_FLAGS=""
+if [[ -n "${VAE_PATH:-}" ]]; then
+    [[ -f "${VAE_PATH}/config.json" ]] || { echo "ABORT: ${VAE_PATH} is not a saved AutoencoderKL dir."; exit 1; }
+    VAE_FLAGS="--vae-path ${VAE_PATH}"
+fi
+
 DATA_FLAGS="--root ${MITOS_ROOT} --heldout ${HELDOUT}"
 if [[ "${PAIRS_DIR:-0}" == "1" ]]; then
     DATA_FLAGS="--pairs-dir ${TRAIN_PAIRS_DIR}"
@@ -153,7 +162,7 @@ python -c "from diffusers import DDIMInverseScheduler" \
 
 echo "=================================================================="
 echo "Job $SLURM_JOB_ID on $(hostname)"
-echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION  ControlNetScale=$CONTROLNET_SCALE  Structure=$STRUCTURE"
+echo "P1-11 DDIM inversion -- Mode=$MODE  Fraction=$FRACTION  SourceMode=$SOURCE_MODE  Limit=$LIMIT  Seeds=$SEEDS  Direction=$DIRECTION  ControlNetScale=$CONTROLNET_SCALE  Structure=$STRUCTURE  VAE=${VAE_PATH:-model default}"
 echo "Checkpoint=$CHECKPOINT_DIR"
 echo "Out=$OUT_DIR"
 echo "=================================================================="
@@ -168,7 +177,7 @@ python infer_colour_source_ddim_inversion.py \
     ${DATA_FLAGS} --out "${OUT_DIR}" \
     --mode "${MODE}" --source-mode "${SOURCE_MODE}" --direction "${DIRECTION}" \
     --inversion-fraction "${FRACTION}" --controlnet-scale "${CONTROLNET_SCALE}" \
-    --limit "${LIMIT}" --max-crops-per-frame 4 ${STRUCT_FLAGS} \
+    --limit "${LIMIT}" --max-crops-per-frame 4 ${STRUCT_FLAGS} ${VAE_FLAGS} \
     --seeds ${SEEDS} \
     --debug-inversion
 

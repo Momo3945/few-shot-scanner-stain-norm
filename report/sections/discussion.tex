@@ -63,8 +63,8 @@ rests on two inspected crops.
 
 \textbf{Planned but not run.} Several planned items were not carried out and no result is claimed for
 them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
-detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a fine-tune of the
-full VAE (encoder and decoder), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
+detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a full-VAE fine-tune
+with the LoRA and ControlNet retrained on its new latents (only the anchored version was run), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
 source-image conditioning branch for PixCell. Two choices also departed from the plan: the TCGA-BRCA colour
 reference was not used as a secondary colour target, and the
 attention-residual method~\citep{madusanka2025attentionresidual}, planned as the state-of-the-art colour

@@ -1,0 +1,176 @@
+==================================================================
+Job 75631 on mscluster86.ms.wits.ac.za
+P1-18 -- run=f2a_l10 steps=3000 mode=full init=ft_mse extra=' --init-path /datasets/mhoosen/stain-norm/vae/d1_pn03/best_val'
+Out=/datasets/mhoosen/stain-norm/vae/f2a_l10
+==================================================================
+Mon Oct 26 10:52:14 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 595.71.05              Driver Version: 595.71.05      CUDA Version: 13.2     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 3090        Off |   00000000:17:00.0 Off |                  N/A |
+| 30%   39C    P8             20W /  350W |       1MiB /  24576MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+torch 2.5.1+cu121 | cuda available: True
+------------------------------------------------------------------
+Leak check OK: no held-out slide in train (2715) or val (385); no overlap.
+train 2715 {'aperio': 257, 'hamamatsu': 252, 'tcga': 1306, 'pannuke': 900} | val 385 {'aperio': 46, 'hamamatsu': 45, 'tcga': 194, 'pannuke': 100}
+init=path (/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val) scaling_factor=0.18215 params=83,653,863
+trainable params: 83,653,863
+[val init (step 0)] aperio: ssim=0.6385 psnr=22.49 mae=13.91 (n=46) z_rel_mse=0.00000 z_cos=1.00000 | hamamatsu: ssim=0.7088 psnr=23.22 mae=12.65 (n=45) z_rel_mse=0.00000 z_cos=1.00000 | tcga: ssim=0.7414 psnr=24.22 mae=11.52 (n=194) z_rel_mse=0.00000 z_cos=1.00000 | pannuke: ssim=0.9636 psnr=35.29 mae=3.67 (n=100) z_rel_mse=0.00000 z_cos=1.00000 | select_ssim=0.6736
+step 1/3000 loss=0.1442 l1=0.0952 lpips=0.1627 lr=2.00e-06 10.60s/step
+step 2/3000 loss=0.1636 l1=0.1036 lpips=0.1810 lr=3.00e-06 5.94s/step
+step 3/3000 loss=0.1352 l1=0.0790 lpips=0.1637 lr=4.00e-06 4.34s/step
+step 4/3000 loss=0.1573 l1=0.0974 lpips=0.1760 lr=5.00e-06 3.56s/step
+step 5/3000 loss=0.1946 l1=0.1277 lpips=0.1956 lr=6.00e-06 3.10s/step
+step 25/3000 loss=0.3042 l1=0.0964 lpips=0.1700 lr=2.60e-05 1.36s/step
+step 50/3000 loss=0.6073 l1=0.0922 lpips=0.1661 lr=5.10e-05 1.13s/step
+step 75/3000 loss=1.2086 l1=0.1044 lpips=0.1684 lr=7.60e-05 1.05s/step
+step 100/3000 loss=1.4552 l1=0.0953 lpips=0.1580 lr=1.00e-04 0.99s/step
+step 125/3000 loss=2.1221 l1=0.1048 lpips=0.1809 lr=1.00e-04 0.95s/step
+step 150/3000 loss=2.0937 l1=0.0933 lpips=0.1637 lr=1.00e-04 0.92s/step
+step 175/3000 loss=2.0099 l1=0.0985 lpips=0.1806 lr=1.00e-04 0.90s/step
+step 200/3000 loss=1.8630 l1=0.0772 lpips=0.1500 lr=1.00e-04 0.89s/step
+step 225/3000 loss=2.1801 l1=0.1012 lpips=0.1775 lr=1.00e-04 0.87s/step
+step 250/3000 loss=1.7230 l1=0.0809 lpips=0.1398 lr=1.00e-04 0.86s/step
+[val step 250] aperio: ssim=0.6398 psnr=22.54 mae=13.87 (n=46) z_rel_mse=0.00907 z_cos=0.99532 | hamamatsu: ssim=0.7093 psnr=23.33 mae=12.53 (n=45) z_rel_mse=0.00896 z_cos=0.99573 | tcga: ssim=0.7423 psnr=24.28 mae=11.47 (n=194) z_rel_mse=0.01018 z_cos=0.99539 | pannuke: ssim=0.9643 psnr=35.60 mae=3.61 (n=100) z_rel_mse=0.00389 z_cos=0.99741 | select_ssim=0.6745
+saved /datasets/mhoosen/stain-norm/vae/f2a_l10/best_val
+step 275/3000 loss=1.4910 l1=0.0739 lpips=0.1511 lr=1.00e-04 1.24s/step
+step 300/3000 loss=2.2257 l1=0.0922 lpips=0.1804 lr=1.00e-04 1.20s/step
+step 325/3000 loss=2.0682 l1=0.0793 lpips=0.1413 lr=1.00e-04 1.17s/step
+step 350/3000 loss=1.8058 l1=0.0946 lpips=0.1642 lr=1.00e-04 1.14s/step
+step 375/3000 loss=2.2559 l1=0.0939 lpips=0.1671 lr=1.00e-04 1.11s/step
+step 400/3000 loss=1.7763 l1=0.0748 lpips=0.1399 lr=1.00e-04 1.09s/step
+step 425/3000 loss=2.5386 l1=0.0903 lpips=0.1767 lr=1.00e-04 1.07s/step
+step 450/3000 loss=2.1983 l1=0.0821 lpips=0.1610 lr=1.00e-04 1.05s/step
+step 475/3000 loss=2.1191 l1=0.0886 lpips=0.1524 lr=1.00e-04 1.04s/step
+step 500/3000 loss=1.8722 l1=0.0852 lpips=0.1569 lr=1.00e-04 1.02s/step
+[val step 500] aperio: ssim=0.6381 psnr=22.60 mae=13.84 (n=46) z_rel_mse=0.00840 z_cos=0.99568 | hamamatsu: ssim=0.7081 psnr=23.36 mae=12.49 (n=45) z_rel_mse=0.00866 z_cos=0.99587 | tcga: ssim=0.7417 psnr=24.31 mae=11.46 (n=194) z_rel_mse=0.00968 z_cos=0.99561 | pannuke: ssim=0.9648 psnr=35.12 mae=3.86 (n=100) z_rel_mse=0.00377 z_cos=0.99745 | select_ssim=0.6731
+step 525/3000 loss=1.9198 l1=0.0807 lpips=0.1623 lr=1.00e-04 1.22s/step
+step 550/3000 loss=2.2962 l1=0.0966 lpips=0.1730 lr=1.00e-04 1.20s/step
+step 575/3000 loss=2.2039 l1=0.0885 lpips=0.1673 lr=1.00e-04 1.18s/step
+step 600/3000 loss=2.3239 l1=0.0978 lpips=0.1761 lr=1.00e-04 1.16s/step
+step 625/3000 loss=2.1071 l1=0.1099 lpips=0.1799 lr=1.00e-04 1.15s/step
+step 650/3000 loss=1.6761 l1=0.0722 lpips=0.1393 lr=1.00e-04 1.13s/step
+step 675/3000 loss=1.5363 l1=0.0495 lpips=0.1076 lr=1.00e-04 1.12s/step
+step 700/3000 loss=2.1654 l1=0.0905 lpips=0.1687 lr=1.00e-04 1.10s/step
+step 725/3000 loss=1.7069 l1=0.0636 lpips=0.1353 lr=1.00e-04 1.09s/step
+step 750/3000 loss=1.6040 l1=0.0830 lpips=0.1542 lr=1.00e-04 1.08s/step
+[val step 750] aperio: ssim=0.6303 psnr=22.50 mae=13.96 (n=46) z_rel_mse=0.00873 z_cos=0.99551 | hamamatsu: ssim=0.7019 psnr=23.30 mae=12.54 (n=45) z_rel_mse=0.00936 z_cos=0.99556 | tcga: ssim=0.7363 psnr=24.29 mae=11.52 (n=194) z_rel_mse=0.00992 z_cos=0.99550 | pannuke: ssim=0.9650 psnr=33.80 mae=4.39 (n=100) z_rel_mse=0.00557 z_cos=0.99566 | select_ssim=0.6661
+step 775/3000 loss=2.3653 l1=0.1052 lpips=0.1883 lr=1.00e-04 1.20s/step
+step 800/3000 loss=1.8478 l1=0.0973 lpips=0.1829 lr=1.00e-04 1.19s/step
+step 825/3000 loss=2.1077 l1=0.1084 lpips=0.1827 lr=1.00e-04 1.17s/step
+step 850/3000 loss=2.1358 l1=0.0912 lpips=0.1632 lr=1.00e-04 1.16s/step
+step 875/3000 loss=2.5268 l1=0.0975 lpips=0.1821 lr=1.00e-04 1.15s/step
+step 900/3000 loss=2.0129 l1=0.0924 lpips=0.1580 lr=1.00e-04 1.14s/step
+step 925/3000 loss=2.3431 l1=0.0843 lpips=0.1640 lr=1.00e-04 1.13s/step
+step 950/3000 loss=2.3804 l1=0.1192 lpips=0.1975 lr=1.00e-04 1.11s/step
+step 975/3000 loss=2.1358 l1=0.1019 lpips=0.1875 lr=1.00e-04 1.11s/step
+step 1000/3000 loss=1.8630 l1=0.0936 lpips=0.1689 lr=1.00e-04 1.10s/step
+[val step 1000] aperio: ssim=0.6366 psnr=22.54 mae=14.00 (n=46) z_rel_mse=0.00872 z_cos=0.99549 | hamamatsu: ssim=0.7050 psnr=23.29 mae=12.72 (n=45) z_rel_mse=0.00946 z_cos=0.99547 | tcga: ssim=0.7400 psnr=24.24 mae=11.67 (n=194) z_rel_mse=0.01036 z_cos=0.99530 | pannuke: ssim=0.9650 psnr=34.46 mae=4.12 (n=100) z_rel_mse=0.00374 z_cos=0.99756 | select_ssim=0.6708
+step 1025/3000 loss=2.2904 l1=0.0876 lpips=0.1622 lr=1.00e-04 1.20s/step
+step 1050/3000 loss=1.8924 l1=0.0857 lpips=0.1532 lr=1.00e-04 1.19s/step
+step 1075/3000 loss=1.6326 l1=0.0588 lpips=0.1208 lr=1.00e-04 1.18s/step
+step 1100/3000 loss=2.0277 l1=0.0739 lpips=0.1438 lr=1.00e-04 1.17s/step
+step 1125/3000 loss=1.9110 l1=0.0933 lpips=0.1657 lr=1.00e-04 1.16s/step
+step 1150/3000 loss=1.9552 l1=0.0841 lpips=0.1596 lr=1.00e-04 1.15s/step
+step 1175/3000 loss=1.8334 l1=0.0848 lpips=0.1646 lr=1.00e-04 1.14s/step
+step 1200/3000 loss=2.0389 l1=0.1002 lpips=0.1742 lr=1.00e-04 1.13s/step
+step 1225/3000 loss=1.7925 l1=0.0577 lpips=0.1178 lr=1.00e-04 1.12s/step
+step 1250/3000 loss=1.9497 l1=0.0973 lpips=0.1776 lr=1.00e-04 1.11s/step
+[val step 1250] aperio: ssim=0.6369 psnr=22.62 mae=13.81 (n=46) z_rel_mse=0.00909 z_cos=0.99530 | hamamatsu: ssim=0.7046 psnr=23.35 mae=12.52 (n=45) z_rel_mse=0.00992 z_cos=0.99531 | tcga: ssim=0.7387 psnr=24.35 mae=11.41 (n=194) z_rel_mse=0.01072 z_cos=0.99515 | pannuke: ssim=0.9651 psnr=35.77 mae=3.52 (n=100) z_rel_mse=0.00424 z_cos=0.99727 | select_ssim=0.6708
+step 1275/3000 loss=2.2253 l1=0.0945 lpips=0.1712 lr=1.00e-04 1.19s/step
+step 1300/3000 loss=2.0901 l1=0.0725 lpips=0.1474 lr=1.00e-04 1.18s/step
+step 1325/3000 loss=1.9795 l1=0.0950 lpips=0.1606 lr=1.00e-04 1.17s/step
+step 1350/3000 loss=2.0262 l1=0.0740 lpips=0.1403 lr=1.00e-04 1.16s/step
+step 1375/3000 loss=2.2830 l1=0.1087 lpips=0.1852 lr=1.00e-04 1.15s/step
+step 1400/3000 loss=2.2100 l1=0.1060 lpips=0.1954 lr=1.00e-04 1.15s/step
+step 1425/3000 loss=1.8034 l1=0.0963 lpips=0.1804 lr=1.00e-04 1.14s/step
+step 1450/3000 loss=2.4956 l1=0.0795 lpips=0.1554 lr=1.00e-04 1.13s/step
+step 1475/3000 loss=2.0050 l1=0.0925 lpips=0.1643 lr=1.00e-04 1.13s/step
+step 1500/3000 loss=1.6996 l1=0.1019 lpips=0.1738 lr=1.00e-04 1.12s/step
+[val step 1500] aperio: ssim=0.6341 psnr=22.60 mae=13.99 (n=46) z_rel_mse=0.00872 z_cos=0.99549 | hamamatsu: ssim=0.7054 psnr=23.37 mae=12.61 (n=45) z_rel_mse=0.00875 z_cos=0.99582 | tcga: ssim=0.7390 psnr=24.32 mae=11.63 (n=194) z_rel_mse=0.00962 z_cos=0.99563 | pannuke: ssim=0.9639 psnr=34.81 mae=3.88 (n=100) z_rel_mse=0.00413 z_cos=0.99722 | select_ssim=0.6697
+step 1525/3000 loss=2.0078 l1=0.0810 lpips=0.1658 lr=1.00e-04 1.19s/step
+step 1550/3000 loss=1.8824 l1=0.0850 lpips=0.1498 lr=1.00e-04 1.18s/step
+step 1575/3000 loss=1.6273 l1=0.0881 lpips=0.1610 lr=1.00e-04 1.17s/step
+step 1600/3000 loss=1.8829 l1=0.0955 lpips=0.1735 lr=1.00e-04 1.17s/step
+step 1625/3000 loss=1.8662 l1=0.0793 lpips=0.1486 lr=1.00e-04 1.16s/step
+step 1650/3000 loss=1.5898 l1=0.0667 lpips=0.1216 lr=1.00e-04 1.15s/step
+step 1675/3000 loss=1.8253 l1=0.0827 lpips=0.1489 lr=1.00e-04 1.15s/step
+step 1700/3000 loss=1.8183 l1=0.0966 lpips=0.1638 lr=1.00e-04 1.14s/step
+step 1725/3000 loss=1.4443 l1=0.0574 lpips=0.1019 lr=1.00e-04 1.13s/step
+step 1750/3000 loss=1.7130 l1=0.0957 lpips=0.1539 lr=1.00e-04 1.13s/step
+[val step 1750] aperio: ssim=0.6390 psnr=22.58 mae=13.97 (n=46) z_rel_mse=0.00905 z_cos=0.99531 | hamamatsu: ssim=0.7090 psnr=23.30 mae=12.68 (n=45) z_rel_mse=0.00901 z_cos=0.99568 | tcga: ssim=0.7425 psnr=24.29 mae=11.61 (n=194) z_rel_mse=0.01029 z_cos=0.99533 | pannuke: ssim=0.9653 psnr=34.79 mae=3.86 (n=100) z_rel_mse=0.00413 z_cos=0.99736 | select_ssim=0.6740
+step 1775/3000 loss=1.6471 l1=0.0864 lpips=0.1541 lr=1.00e-04 1.18s/step
+step 1800/3000 loss=2.0648 l1=0.0882 lpips=0.1668 lr=1.00e-04 1.18s/step
+step 1825/3000 loss=2.4769 l1=0.1143 lpips=0.1870 lr=1.00e-04 1.17s/step
+step 1850/3000 loss=1.6820 l1=0.0864 lpips=0.1650 lr=1.00e-04 1.16s/step
+step 1875/3000 loss=2.0453 l1=0.0981 lpips=0.1634 lr=1.00e-04 1.16s/step
+step 1900/3000 loss=2.4961 l1=0.0936 lpips=0.1711 lr=1.00e-04 1.15s/step
+step 1925/3000 loss=1.5027 l1=0.0652 lpips=0.1251 lr=1.00e-04 1.15s/step
+step 1950/3000 loss=2.0747 l1=0.0974 lpips=0.1627 lr=1.00e-04 1.14s/step
+step 1975/3000 loss=1.9189 l1=0.0824 lpips=0.1512 lr=1.00e-04 1.14s/step
+step 2000/3000 loss=2.0852 l1=0.1093 lpips=0.1720 lr=1.00e-04 1.13s/step
+[val step 2000] aperio: ssim=0.6348 psnr=22.53 mae=14.05 (n=46) z_rel_mse=0.00867 z_cos=0.99555 | hamamatsu: ssim=0.7033 psnr=23.31 mae=12.62 (n=45) z_rel_mse=0.00890 z_cos=0.99580 | tcga: ssim=0.7385 psnr=24.19 mae=11.81 (n=194) z_rel_mse=0.01042 z_cos=0.99533 | pannuke: ssim=0.9650 psnr=34.44 mae=4.08 (n=100) z_rel_mse=0.00479 z_cos=0.99676 | select_ssim=0.6691
+step 2025/3000 loss=1.9652 l1=0.0922 lpips=0.1778 lr=1.00e-04 1.18s/step
+step 2050/3000 loss=1.6677 l1=0.1149 lpips=0.1869 lr=1.00e-04 1.18s/step
+step 2075/3000 loss=1.5334 l1=0.0816 lpips=0.1544 lr=1.00e-04 1.17s/step
+step 2100/3000 loss=2.0424 l1=0.0914 lpips=0.1596 lr=1.00e-04 1.17s/step
+step 2125/3000 loss=1.8305 l1=0.0681 lpips=0.1470 lr=1.00e-04 1.16s/step
+step 2150/3000 loss=1.7570 l1=0.0886 lpips=0.1723 lr=1.00e-04 1.16s/step
+step 2175/3000 loss=2.0260 l1=0.0991 lpips=0.1726 lr=1.00e-04 1.15s/step
+step 2200/3000 loss=1.9958 l1=0.1045 lpips=0.1798 lr=1.00e-04 1.15s/step
+step 2225/3000 loss=2.2318 l1=0.0946 lpips=0.1743 lr=1.00e-04 1.14s/step
+step 2250/3000 loss=1.6257 l1=0.0769 lpips=0.1472 lr=1.00e-04 1.14s/step
+[val step 2250] aperio: ssim=0.6420 psnr=22.55 mae=13.89 (n=46) z_rel_mse=0.00854 z_cos=0.99558 | hamamatsu: ssim=0.7102 psnr=23.28 mae=12.58 (n=45) z_rel_mse=0.00940 z_cos=0.99550 | tcga: ssim=0.7415 psnr=24.26 mae=11.49 (n=194) z_rel_mse=0.01054 z_cos=0.99525 | pannuke: ssim=0.9652 psnr=35.46 mae=3.67 (n=100) z_rel_mse=0.00599 z_cos=0.99534 | select_ssim=0.6761
+saved /datasets/mhoosen/stain-norm/vae/f2a_l10/best_val
+step 2275/3000 loss=2.0605 l1=0.1048 lpips=0.1812 lr=1.00e-04 1.18s/step
+step 2300/3000 loss=1.7214 l1=0.0841 lpips=0.1496 lr=1.00e-04 1.18s/step
+step 2325/3000 loss=1.5783 l1=0.0808 lpips=0.1530 lr=1.00e-04 1.17s/step
+step 2350/3000 loss=1.9044 l1=0.0798 lpips=0.1526 lr=1.00e-04 1.17s/step
+step 2375/3000 loss=1.7765 l1=0.0739 lpips=0.1560 lr=1.00e-04 1.16s/step
+step 2400/3000 loss=1.8965 l1=0.0950 lpips=0.1679 lr=1.00e-04 1.16s/step
+step 2425/3000 loss=1.8287 l1=0.0912 lpips=0.1719 lr=1.00e-04 1.15s/step
+step 2450/3000 loss=1.9102 l1=0.1014 lpips=0.1729 lr=1.00e-04 1.15s/step
+step 2475/3000 loss=1.7208 l1=0.0976 lpips=0.1656 lr=1.00e-04 1.14s/step
+step 2500/3000 loss=1.8629 l1=0.1093 lpips=0.1809 lr=1.00e-04 1.14s/step
+[val step 2500] aperio: ssim=0.6362 psnr=22.58 mae=13.83 (n=46) z_rel_mse=0.00864 z_cos=0.99552 | hamamatsu: ssim=0.7070 psnr=23.35 mae=12.50 (n=45) z_rel_mse=0.00908 z_cos=0.99566 | tcga: ssim=0.7408 psnr=24.34 mae=11.42 (n=194) z_rel_mse=0.01040 z_cos=0.99527 | pannuke: ssim=0.9644 psnr=34.25 mae=4.03 (n=100) z_rel_mse=0.00472 z_cos=0.99661 | select_ssim=0.6716
+step 2525/3000 loss=2.1672 l1=0.1066 lpips=0.1730 lr=1.00e-04 1.18s/step
+step 2550/3000 loss=2.0729 l1=0.1007 lpips=0.1700 lr=1.00e-04 1.18s/step
+step 2575/3000 loss=1.4600 l1=0.0758 lpips=0.1538 lr=1.00e-04 1.17s/step
+step 2600/3000 loss=1.6887 l1=0.0744 lpips=0.1588 lr=1.00e-04 1.17s/step
+step 2625/3000 loss=1.6712 l1=0.0874 lpips=0.1603 lr=1.00e-04 1.16s/step
+step 2650/3000 loss=1.6765 l1=0.0774 lpips=0.1464 lr=1.00e-04 1.16s/step
+step 2675/3000 loss=2.4920 l1=0.1017 lpips=0.1841 lr=1.00e-04 1.16s/step
+step 2700/3000 loss=1.7494 l1=0.0716 lpips=0.1496 lr=1.00e-04 1.15s/step
+step 2725/3000 loss=1.9373 l1=0.0861 lpips=0.1660 lr=1.00e-04 1.15s/step
+step 2750/3000 loss=1.4036 l1=0.0889 lpips=0.1444 lr=1.00e-04 1.14s/step
+[val step 2750] aperio: ssim=0.6423 psnr=22.47 mae=14.01 (n=46) z_rel_mse=0.00788 z_cos=0.99595 | hamamatsu: ssim=0.7085 psnr=23.25 mae=12.64 (n=45) z_rel_mse=0.00832 z_cos=0.99605 | tcga: ssim=0.7411 psnr=24.25 mae=11.57 (n=194) z_rel_mse=0.00941 z_cos=0.99577 | pannuke: ssim=0.9650 psnr=34.86 mae=4.09 (n=100) z_rel_mse=0.00404 z_cos=0.99708 | select_ssim=0.6754
+step 2775/3000 loss=2.2408 l1=0.1168 lpips=0.1828 lr=1.00e-04 1.18s/step
+step 2800/3000 loss=1.9686 l1=0.1078 lpips=0.1796 lr=1.00e-04 1.17s/step
+step 2825/3000 loss=1.5540 l1=0.1041 lpips=0.1765 lr=1.00e-04 1.17s/step
+step 2850/3000 loss=1.7296 l1=0.0869 lpips=0.1562 lr=1.00e-04 1.17s/step
+step 2875/3000 loss=1.5917 l1=0.0795 lpips=0.1604 lr=1.00e-04 1.16s/step
+step 2900/3000 loss=1.7850 l1=0.0930 lpips=0.1532 lr=1.00e-04 1.16s/step
+step 2925/3000 loss=1.7994 l1=0.1006 lpips=0.1877 lr=1.00e-04 1.16s/step
+step 2950/3000 loss=1.5614 l1=0.0830 lpips=0.1557 lr=1.00e-04 1.15s/step
+step 2975/3000 loss=1.8771 l1=0.1074 lpips=0.1795 lr=1.00e-04 1.15s/step
+step 3000/3000 loss=1.6547 l1=0.0931 lpips=0.1704 lr=1.00e-04 1.14s/step
+[val step 3000] aperio: ssim=0.6363 psnr=22.55 mae=13.91 (n=46) z_rel_mse=0.00750 z_cos=0.99613 | hamamatsu: ssim=0.7050 psnr=23.30 mae=12.55 (n=45) z_rel_mse=0.00804 z_cos=0.99616 | tcga: ssim=0.7384 psnr=24.30 mae=11.48 (n=194) z_rel_mse=0.00911 z_cos=0.99587 | pannuke: ssim=0.9653 psnr=35.66 mae=3.61 (n=100) z_rel_mse=0.00415 z_cos=0.99713 | select_ssim=0.6707
+saved /datasets/mhoosen/stain-norm/vae/f2a_l10/final
+ENCODER CHECK: {"enc_hash_before": "18892a8949ae59ccdf6c4033a1731a71d35bdbf0737d2d377186f533050f05f5", "enc_hash_after": "fb414ef44b270658a78d5bdb76b498dd07b7cbc6325c72ed3df16bcf60a0e4ea", "encoder_unchanged": false}
+DONE. best_val select_ssim=0.6761; final + best_val in /datasets/mhoosen/stain-norm/vae/f2a_l10
+------------------------------------------------------------------
+Job 75631 finished. final/ and best_val/ in /datasets/mhoosen/stain-norm/vae/f2a_l10

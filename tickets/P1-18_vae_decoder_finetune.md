@@ -1,9 +1,12 @@
 # P1-18 — Raising the VAE Ceiling: Decoder-Only Fine-Tune, then Full-VAE Fine-Tune
 
-**Status (2026-10-19):** Stage 1 DONE — G1.0/G1.1 pass, G1.2 fails (over-smoothing),
-G1.3 SSIM passes but wLAB fails, G1.4 fails (see results below). **Still open:** G1.5
-(CAMELYON17 off-domain check) and **Stage 2 (full-VAE fine-tune), awaiting the
-supervisor's decision**; both listed as not done in the paper.
+**Status (2026-10-26):** Stage 1 DONE (G1.0/G1.1 pass, G1.2 fails, G1.3 SSIM passes but wLAB
+fails, G1.4 fails). **Stage 2a DONE, negative** (anchored full-VAE fine-tune, λ = 1 and 10):
+G2.1 fails (self-recon +0.002/+0.004 Aperio, +0.001 Hamamatsu over Stage 1; bar +0.02), G2.3
+fails (translated SSIM −0.002/−0.003), G2.4 fails (fused SSIM unchanged, wLAB +0.41/+0.93 vs
+the final pipeline). See "Stage 2a results" below; paper appendix A-D, Table IX. **Not run:**
+Stage 2b (unanchored + downstream retrain) and G1.5 (CAMELYON17), both listed in the paper.
+*Status (2026-10-19):* Stage 1 DONE; G1.5 and Stage 2 open, Stage 2 awaiting the supervisor.
 *Earlier status:* 🔄 IN PROGRESS — proposed 2026-10-05, **supervisor-directed**
 (Richard Klein asked for both steps, in this order: decoder-only first, then
 full VAE). **Stage 0: 0.1, 0.2, 0.4, 0.5 done (job 64246); 0.3 (overfit control)
@@ -596,6 +599,76 @@ and source ControlNet were trained against the *original* latent distribution
 | G2.2 latent compatibility | measured drift small enough that G2.3 holds; report drift numbers, not just pass/fail |
 | G2.3 do-no-harm | translated SSIM and wLAB with *unchanged* downstream ≥ Stage 1's, per slide |
 | G2.4 fused pipeline | as G1.4 |
+
+### Stage 2a results (2026-10-26) — negative: the encoder is not the bottleneck
+
+**Design (fixed before results):** init from the Stage 1 winner `vae/d1_pn03/best_val` (stock
+encoder, so the anchor reference is the original encoder). Same recipe as that winner (lr 1e-4,
+3,000 steps, batch 8, crop 256, L1 + 0.3 LPIPS, MITOS_W 3, PANNUKE_W 0.3, val every 250,
+`best_val` on the internal split), all 83,653,863 VAE parameters trainable, anchor
+`λ·MSE(E(x), E_0(x))` on raw latents. Two arms (λ = 1, λ = 10), both run end to end, reported
+as a sweep with no held-out pick. Downstream (Canny `lora/a2h_cond_r8/best` + ControlNet) unchanged;
+scaling factor 0.18215 kept. Scope: 2a only, so 2b was not run (it would not fit before 2 Nov). Hard cutoff 28 Oct, met.
+
+**Code:**
+- `train_vae_decoder.py`: `--init-path`, plus latent-drift logging in `validate()` for full mode
+  (relative MSE, per-channel cosine, mean/std shift, latent std);
+- `train_vae_decoder.slurm`: `INIT_PATH`, `GRAD_CKPT`;
+- `infer_colour_source_ddim_inversion.py`: `--vae-path`, with a `VAE_PATH` override in `infer_p1_10_ddim_inversion.slurm`;
+- `vae_only_newdecoder.py`: `--full-vae`, with a `FULL_VAE` override in its slurm file;
+- `docs/results/p1_18_vae_finetune/stage2/compare_stage2.py`.
+
+All defaults unchanged.
+
+**Jobs (all COMPLETED; bigbatch):**
+- **Controls:** smoke 75610 (encoder hash changed, drift fields present) and overfit
+  control 75611 (`OVERFIT_N=16`, 600 steps, 8:31): select SSIM 0.657 → 0.764, no NaN, drift rel MSE 0.006.
+- **Training:** 75630 (λ1, 1:07, mscluster84) and 75631 (λ10, 1:04, mscluster86), at about 1.15 s/step.
+- **Held-out self-recon benchmark:** 75632 (1:27).
+- **Translation (496 crops, seed 0):** 75633 and 75638 (1:47 each), logs confirm
+  `VAE replaced ... scaling_factor=0.18215`.
+- **A_V with the new encoder:** 75634 and 75639.
+- **F3 σ8 β0.5:** 75635 and 75640.
+- **Scoring:** fused 75636 and 75641, unfused 75637 and 75642.
+
+Data: `docs/results/p1_18_vae_finetune/stage2/` (`comparison.txt`, per-arm CSVs, `val_log.jsonl`, train logs).
+
+**Internal validation:**
+- Best `select_ssim` vs the Stage 1 init (0.6736): λ1 0.6751 (step 250), λ10 0.6761 (step 2250).
+- The curve is flat or noisy from step 250 to 3000 (0.666–0.676), with no trend.
+- **G2.2 drift at the best checkpoints (Aperio val):** relative MSE 0.0083 / 0.0085, cosine
+  0.9957 / 0.9956, latent std 5.05 / 5.08 vs 5.08. λ = 10 barely reduces the drift compared with λ = 1.
+
+**Held-out (496 crops; Δ vs the named baseline, paired 95% CI):**
+
+| | Stage 1 decoder | full λ=1 | full λ=10 |
+|---|---|---|---|
+| G2.1 self-recon SSIM, Aperio | 0.6460 | 0.6478 (+0.0018 [+0.0016, +0.0020]) | 0.6495 (+0.0035 [+0.0033, +0.0037]) |
+| G2.1 self-recon SSIM, Hamamatsu | 0.7787 | 0.7798 (+0.0011) | 0.7795 (+0.0008) |
+| self-recon wLAB, Aperio / Hamamatsu | 6.22 / 3.90 | 5.92 / 4.79 | 5.50 / 3.98 |
+| G2.3 translated SSIM (unfused) | 0.6163 | 0.6142 (−0.0020 [−0.0024, −0.0016]) | 0.6129 (−0.0033 [−0.0037, −0.0030]) |
+| G2.3 translated wLAB (unfused) | 26.34 | 26.55 (+0.21) | 25.00 (−1.34 [−1.42, −1.26], better on every slide) |
+| G2.4 fused SSIM (final pipeline 0.7289) | 0.7289 | 0.7288 (−0.0001) | 0.7289 (−0.0000) |
+| G2.4 fused wLAB (final pipeline 27.08) | 27.74 | 27.49 (+0.41 [+0.36, +0.46]) | 28.01 (+0.93 [+0.88, +0.99]) |
+
+**Gates:**
+- **G2.1 FAIL** for both arms: every slide and domain sits at +0.0005 to +0.0074 against a bar of
+  +0.02. Sanity check: `ft_mse` comes out −0.0278 vs Stage 1, which reproduces job 64645 exactly.
+- **G2.3 FAIL** for both. SSIM is lower on every slide except A09 at λ1 (0.0000); wLAB is worse
+  at λ1 and better at λ10.
+- **G2.4 FAIL** for both: SSIM is unchanged, and wLAB is worse pooled. Per slide, λ1 is worse on
+  4 of 5 (better only on A13) and λ10 is worse on all 5.
+
+**Leak guard:** on A08_00A_x0_y0, the fused output differs from raw Aperio by 3.40 / 3.47 and
+from Hamamatsu by 19.24 / 19.31 (mean |Δ|/255), against 20.49 between raw Aperio and Hamamatsu.
+
+**Interpretation:** unfreezing the encoder adds almost nothing to the ceiling. This is consistent
+with Stage 0.3b, where the frozen latent already allowed SSIM 0.88 when memorising 16 crops, so the
+limit on unseen slides is generalisation, not the encoder. The λ = 10 arm's unfused colour gain does not
+survive F3, because F3 subtracts that VAE's own A_V. Stage 2b is not motivated by these numbers and was
+not run. The ceiling figure was not extended: the new arms sit within 0.004 of the Stage 1 line and
+would be indistinguishable from it. Table IX in the paper gives the numbers instead (a deviation from
+the "Reporting requirements" below).
 
 ## Reporting requirements
 

@@ -2754,8 +2754,16 @@ the A06 outlier slide. Full-run data + qualitative panel archived at
 
 ## P1-18 — Raising the VAE Ceiling: Decoder-Only Fine-Tune, then Full-VAE Fine-Tune
 
-**Status (2026-10-19):** Stage 1 DONE (gates reported below); G1.5 and Stage 2 (full VAE)
-still open, Stage 2 awaiting the supervisor. *Earlier status:* 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
+**Status (2026-10-26):** Stage 1 DONE (gates reported below). **Stage 2a (anchored full-VAE
+fine-tune, λ = 1 and 10) DONE, negative**:
+- G2.1: self-recon only +0.002/+0.004 Aperio and +0.001 Hamamatsu over the Stage 1 decoder, against
+  a bar of +0.02;
+- translated SSIM −0.002/−0.003;
+- fused SSIM unchanged, with wLAB +0.41/+0.93 vs the final pipeline.
+
+Jobs 75610–75642. Paper appendix A-D, Table IX. Stage 2b (downstream retrain) and G1.5 were not
+run. Details are in `tickets/P1-18_vae_decoder_finetune.md` § "Stage 2a results".
+*Status (2026-10-19):* G1.5 and Stage 2 (full VAE) still open, Stage 2 awaiting the supervisor. *Earlier status:* 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
 partly done (job 64246): `sd-vae-ft-mse`'s encoder is bit-identical to stock's,
 i.e. it is already a decoder-only fine-tune; LPIPS + VGG16 weights ready; data
 inventory done (diversity is the 3,000-patch `hist_lora_pool`, the A03 pair sets

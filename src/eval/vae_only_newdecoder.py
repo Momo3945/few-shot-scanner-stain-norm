@@ -14,6 +14,9 @@ infer_colour_source_ddim_inversion_alt_decoder.py's encode_latent/decode_with) a
 in the SAME identity-manifest schema fuse_source_detail.py --identity-manifest already reads, so the
 fusion script needs no change beyond its --pred-method flag.
 
+--full-vae (P1-18 Stage 2a): encode with the NEW VAE's own encoder too (a full-VAE fine-tune changes
+the encoder, so A_V must be its own encode->decode). Default unchanged: stock encoder.
+
 No registration, no UNet, no diffusion: fast. Run via slurm/vae_only_newdecoder.slurm (GPU).
 
 Usage
@@ -37,6 +40,8 @@ def main():
     ap.add_argument("--decoder-path", required=True, help="Local AutoencoderKL dir (save_pretrained).")
     ap.add_argument("--model", default="stable-diffusion-v1-5/stable-diffusion-v1-5")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--full-vae", action="store_true",
+                    help="Encode with the new VAE's encoder instead of stock's (Stage 2a full-VAE dirs).")
     ap.add_argument("--limit", type=int, default=0, help="Max crops (0 = all).")
     ap.add_argument("--online", action="store_true")
     args = ap.parse_args()
@@ -56,7 +61,9 @@ def main():
     stock = AutoencoderKL.from_pretrained(args.model, subfolder="vae", torch_dtype=dtype).to(device).eval()
     new = AutoencoderKL.from_pretrained(args.decoder_path, torch_dtype=dtype).to(device).eval()
     s_stock, s_new = stock.config.scaling_factor, new.config.scaling_factor
-    print(f"stock scaling={s_stock}  new decoder scaling={s_new}  decoder={args.decoder_path}")
+    print(f"stock scaling={s_stock}  new decoder scaling={s_new}  decoder={args.decoder_path}  "
+          f"encoder={'new' if args.full_vae else 'stock'}")
+    enc, s_enc = (new, s_new) if args.full_vae else (stock, s_stock)
     if abs(s_stock - s_new) > 1e-9 or stock.config.latent_channels != new.config.latent_channels:
         raise SystemExit("ABORT: incompatible stock/new VAE (latent channels or scaling factor differ).")
 
@@ -85,7 +92,7 @@ def main():
             rgb = np.asarray(Image.open(ref).convert("RGB"))
             x = torch.from_numpy(rgb.astype(np.float32) / 127.5 - 1.0).permute(2, 0, 1).unsqueeze(0)
             x = x.to(device, dtype=dtype)
-            z = stock.encode(x).latent_dist.mode() * s_stock       # stock encoder, always
+            z = enc.encode(x).latent_dist.mode() * s_enc           # stock encoder unless --full-vae
             dec = new.decode(z / s_new).sample
             out = ((dec[0].float().cpu().permute(1, 2, 0).numpy() + 1.0) * 127.5).clip(0, 255).astype(np.uint8)
             p = out_dir / "outputs" / f"{cid}_vae_only.png"
@@ -105,6 +112,8 @@ def main():
                     r.get("x", ""), r.get("y", ""), os.path.relpath(p, out_dir),
                     os.path.relpath(ref_abs, out_dir), r.get("aperio_path", ""), "vae_only"])
     man.close()
+    with open(out_dir / "vae_only_config.txt", "w") as fh:
+        fh.write(f"decoder_path={args.decoder_path}\nencoder={'new' if args.full_vae else 'stock'}\n")
     print(f"Wrote {len(vo)} manifest rows, {len(done)} reconstructions -> {out_dir}")
 
 

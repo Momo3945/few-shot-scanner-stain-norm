@@ -80,7 +80,8 @@ reproduce its input. Self-reconstruction SSIM on the held-out Aperio crops is 0.
 0.618 for \texttt{ft-mse} and 0.646 for our fine-tuned decoder (Fig.~\ref{fig:vaebb}); on Hamamatsu crops it
 is 0.726, 0.757 and 0.779, and the fine-tune is highest on every slide (Fig.~\ref{fig:app-vae}). It improves
 100\% of Aperio crops, but the limit is generalisation rather than the frozen latent: the same decoder
-trained on 16 crops reconstructs those crops at SSIM 0.88. Across backbones the ceiling tracks latent
+trained on 16 crops reconstructs those crops at SSIM 0.88. Fine-tuning the encoder as well, anchored so that the
+trained components still apply, adds at most 0.004 and nothing after fusion (Appendix~\ref{app:fullvae}). Across backbones the ceiling tracks latent
 capacity: SDXL's four-channel VAE reconstructs at only 0.492, while the 16-channel VAE shared by SD\,3.5 and
 PixCell reaches 0.773 (eight A06 crops each, so these two are indicative only).
 

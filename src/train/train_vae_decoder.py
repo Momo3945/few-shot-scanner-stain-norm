@@ -10,6 +10,9 @@ See tickets/P1-18_vae_decoder_finetune.md.
 --mode full      Stage 2a (implemented, NOT yet exercised -- do not run before Stage 1 is
                  reported). Encoder + decoder train, with a latent anchor
                  lambda * MSE(E_new(x), E_orig(x)) against a frozen copy of the original encoder.
+                 Validation also logs the latent drift E_new vs E_orig (relative MSE, per-channel
+                 cosine, mean/std shift) per domain, whatever lambda is.
+--init-path DIR  Start from a saved AutoencoderKL dir (e.g. the Stage 1 winner) instead of --init.
 
 Data (all 512px, none touches held-out slides A06/A08/A09/A13/A16 -- leak-checked, hard abort):
   hist_lora_pool/ (MITOS Aperio+Hamamatsu, PanNuke, TCGA)  +  pairs/train (A03/H03 crops).
@@ -53,6 +56,8 @@ def parse_args():
     ap.add_argument("--mode", choices=["decoder", "full"], default="decoder")
     ap.add_argument("--init", choices=["ft_mse", "stock"], default="ft_mse",
                     help="Starting weights. ft_mse = current best decoder (stock encoder, identical).")
+    ap.add_argument("--init-path", default="",
+                    help="Local AutoencoderKL dir (save_pretrained) to start from; overrides --init.")
     ap.add_argument("--pool-dir", required=True, help="hist_lora_pool/ (manifest.csv + patches/).")
     ap.add_argument("--pairs-dir", required=True, help="pairs/train (A03/H03 *_aperio.png/_hamamatsu.png).")
     ap.add_argument("--output-dir", required=True)
@@ -176,6 +181,7 @@ def main():
 
     import numpy as np
     import torch
+    import torch.nn.functional as F
     import lpips
     from diffusers import AutoencoderKL
     from metrics import grayscale_ssim, mae as mae_fn, psnr as psnr_fn
@@ -216,9 +222,11 @@ def main():
     repo, sub = (("stabilityai/sd-vae-ft-mse", None) if args.init == "ft_mse"
                  else ("stable-diffusion-v1-5/stable-diffusion-v1-5", "vae"))
     kw = {"subfolder": sub} if sub else {}
+    if args.init_path:
+        repo, kw = args.init_path, {}
     vae = AutoencoderKL.from_pretrained(repo, torch_dtype=torch.float32, **kw).to(device)
     scaling = vae.config.scaling_factor
-    print(f"init={args.init} ({repo}) scaling_factor={scaling} "
+    print(f"init={'path' if args.init_path else args.init} ({repo}) scaling_factor={scaling} "
           f"params={sum(p.numel() for p in vae.parameters()):,}")
     enc_hash_before = sha_of_modules(vae)
     orig_vae = None
@@ -227,9 +235,9 @@ def main():
         vae.decoder.requires_grad_(True); vae.post_quant_conv.requires_grad_(True)
     else:
         vae.requires_grad_(True)
-        if args.anchor_lambda > 0:
-            import copy
-            orig_vae = copy.deepcopy(vae).eval().requires_grad_(False)  # frozen reference encoder
+        import copy
+        # Frozen reference encoder: the anchor target when lambda > 0, and the drift reference always.
+        orig_vae = copy.deepcopy(vae).eval().requires_grad_(False)
     if args.grad_checkpointing:
         vae.enable_gradient_checkpointing()
     params = [p for p in vae.parameters() if p.requires_grad]
@@ -288,7 +296,7 @@ def main():
             x = x[:, :, oy:oy + crop, ox:ox + crop]
         z = vae.encode(x).latent_dist.mode()
         z_orig = None
-        if orig_vae is not None:
+        if orig_vae is not None and args.anchor_lambda > 0:
             with torch.no_grad():
                 z_orig = orig_vae.encode(x).latent_dist.mode()
         return vae.decode(z).sample, x, z, z_orig
@@ -297,18 +305,33 @@ def main():
     def validate(tag):
         vae.eval()
         per = {d: [] for d in DOMAINS}
+        drift = {d: [] for d in DOMAINS}
         for it in val:
             arr = load_rgb(it["path"])
             x = to_tensor(arr).unsqueeze(0).to(device)
-            rec = vae.decode(vae.encode(x).latent_dist.mode()).sample
+            z = vae.encode(x).latent_dist.mode()
+            rec = vae.decode(z).sample
             out = ((rec[0].float().cpu().permute(1, 2, 0).numpy() + 1) * 127.5).clip(0, 255).astype(np.uint8)
             per[it["domain"]].append((grayscale_ssim(out, arr), psnr_fn(out, arr), mae_fn(out, arr)))
+            if orig_vae is not None:  # full mode: latent drift vs the frozen original encoder (G2.2)
+                zn = z[0].float().flatten(1); zo = orig_vae.encode(x).latent_dist.mode()[0].float().flatten(1)
+                drift[it["domain"]].append((
+                    float(((zn - zo) ** 2).mean() / zo.var()),
+                    float(F.cosine_similarity(zn, zo, dim=1).mean()),
+                    float((zn.mean(1) - zo.mean(1)).abs().mean()),
+                    float((zn.std(1) - zo.std(1)).abs().mean()),
+                    float(zn.std()), float(zo.std())))
         res = {}
         for d, v in per.items():
             if v:
                 a = np.asarray(v)
                 res[d] = {"n": len(v), "ssim": float(a[:, 0].mean()), "psnr": float(a[:, 1].mean()),
                           "mae": float(a[:, 2].mean())}
+                if drift[d]:
+                    b = np.asarray(drift[d])
+                    res[d].update({"z_rel_mse": float(b[:, 0].mean()), "z_cos": float(b[:, 1].mean()),
+                                   "z_mean_shift": float(b[:, 2].mean()), "z_std_shift": float(b[:, 3].mean()),
+                                   "z_std_new": float(b[:, 4].mean()), "z_std_orig": float(b[:, 5].mean())})
         # Model selection uses the MITOS domains only (the project's target domains); the TCGA/PanNuke
         # numbers are reported but PanNuke is near-saturated and would dilute the signal. Falls back to
         # all domains present (e.g. the overfit control, which has a random mix).
@@ -316,6 +339,7 @@ def main():
         res["select_ssim"] = float(np.mean(sel))
         print(f"[val {tag}] " + " | ".join(
             f"{d}: ssim={r['ssim']:.4f} psnr={r['psnr']:.2f} mae={r['mae']:.2f} (n={r['n']})"
+            + (f" z_rel_mse={r['z_rel_mse']:.5f} z_cos={r['z_cos']:.5f}" if "z_rel_mse" in r else "")
             for d, r in res.items() if isinstance(r, dict)) + f" | select_ssim={res['select_ssim']:.4f}")
         if args.mode == "decoder":
             vae.decoder.train(); vae.post_quant_conv.train()
