@@ -11,13 +11,11 @@
 \usetikzlibrary{positioning,arrows.meta,fit}
 \graphicspath{{figures/}}
 
-% Citations and links as in the Wits CSAM template (github.com/kleinric/csam-template, witsresearch.sty):
-% natbib + named-wits.bst author-year citations, \citet{key} -> Author [year], \citep{key} -> [Author, year].
+% Citations as in the IEEE conference template (conference-latex-template.zip): numbered [1] via the
+% cite package and IEEEtran.bst, in order of first citation.
+\usepackage{cite}
 \usepackage{hyperref}
 \hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue}
-\usepackage{natbib} \input{natbib-add}
-\bibpunct{[}{]}{;}{a}{}{}
-\newcommand{\citets}[1]{\citeauthor{#1}'s \citeyearpar{#1}}
 
 \newcommand{\dlab}{\Delta_{\mathrm{LAB}}}
 \newcommand{\AtoH}{A$\rightarrow$H}
@@ -69,7 +67,7 @@ stain normalisation, digital pathology, latent diffusion, LoRA, ControlNet, doma
 \input{sections/discussion}
 \input{sections/conclusion}
 
-\bibliographystyle{named-wits}
+\bibliographystyle{IEEEtran}
 \bibliography{references}
 
 \clearpage
