@@ -8,20 +8,20 @@ most 50 512\,px crop pairs taken from 24 frames of slide A03/H03. The pairs are
 \emph{coordinate-corresponding}, not pixel-exact, so no training loss compares pixels across scanners. The
 held-out slides A06, A08, A09, A13 and A16 are never used in training; they give 496 canonical 512\,px
 crops (up to four per frame, tissue fraction $\geq 0.3$). For pixel metrics only, each Hamamatsu frame is
-affinely registered into the Aperio grid with ECC; registration is never applied to training data.
+affinely registered into the Aperio grid with enhanced correlation coefficient (ECC) maximisation; registration is never applied to training data.
 A06 is a genuine colour outlier: its raw Aperio--Hamamatsu colour distance is 94.8 against 23.8--27.5 for
 the other four slides, so every result is reported pooled (ALL), on the four \emph{typical} slides, and on
 A06 alone.
 
-\textbf{Metrics.} Colour fidelity is the LAB Wasserstein distance between an output $X$ and the
+\textbf{Metrics.} Colour fidelity is the CIELAB (LAB) Wasserstein distance between an output $X$ and the
 registered target $Y$, summed over channels,
 \begin{equation}
 W_{\mathrm{LAB}}(X,Y)=\sum_{c\in\{L,a,b\}}\int_{\mathbb{R}}\bigl|F_{X_c}(t)-F_{Y_c}(t)\bigr|\,dt ,
 \label{eq:wlab}
 \end{equation}
-where $F$ is the empirical CDF of a channel. Because Eq.~\eqref{eq:wlab} ignores spatial layout,
+where $F$ is the empirical cumulative distribution function of a channel. Because \eqref{eq:wlab} ignores spatial layout,
 histogram matching optimises it by construction, so we also report a windowed version averaged over
-64$\times$64 tiles (wLAB). Structure is measured by grayscale SSIM~\cite{wang2004ssim} against the
+64$\times$64 tiles (wLAB). Structure is measured by grayscale structural similarity (SSIM)~\cite{wang2004ssim} against the
 registered target. Structural safety is the Relative Dice
 $\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\cite{graham2019hovernet} nuclei on 130 Lizard
 images~\cite{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
@@ -119,7 +119,7 @@ reconstruction of the source, $A_V=D(E(A))$:
 F_3=A+\beta\,G_\sigma\!\bigl(H-A_V\bigr).
 \label{eq:f3}
 \end{equation}
-Each term of Eq.~\eqref{eq:f3} has one job. Subtracting $A_V$ cancels what the VAE does to every image
+Each term of \eqref{eq:f3} has one job. Subtracting $A_V$ cancels what the VAE does to every image
 (its blur and colour offset), so $H-A_V$ approximates the scanner shift alone; $G_\sigma$ removes
 high-frequency texture that the generator invented; and $\beta$ sets how much of the shift is applied.
 Because the added residual is smooth, F3 can change only low-frequency colour, and the fine structure of
@@ -130,9 +130,9 @@ caught, and the corrected run was checked against the raw source.
 
 \textbf{Decoder fine-tune.} With the encoder frozen, so that the latent space and every trained component
 remain valid, we fine-tune only the decoder (49.5M parameters, initialised from \texttt{ft-mse}) on about
-2{,}700 non-held-out H\&E patches (MITOS slides of both scanners, TCGA, PanNuke and the A03/H03 crops)
+2{,}700 H\&E patches from outside the held-out set (MITOS slides of both scanners, TCGA, PanNuke and the A03/H03 crops)
 with an L1 + 0.3\,LPIPS~\cite{zhang2018lpips} loss for 3{,}000 steps. Checkpoints are selected on whole
-non-held-out validation slides.
+validation slides outside the held-out set.
 
 \subsection{Baselines}
 \label{sec:baselines}
@@ -151,7 +151,7 @@ the same crop and registration pipeline as the diffusion methods.
 The best SD\,1.5 design is ported to SDXL~\cite{podell2023sdxl} with its own rank-8 LoRA, a
 source-conditioned ControlNet and an fp32 VAE (SDXL's VAE produces NaNs in fp16), at 512\,px and natively at
 1024\,px, without repeating the ablation ladder. Because the 1024\,px model is data-starved at 50 pairs, two
-supplementary runs use 96 non-overlapping and 144 overlapping crop pairs from the same A03/H03 frames.
+supplementary runs use 96 nonoverlapping and 144 overlapping crop pairs from the same A03/H03 frames.
 
 Two newer backbones were probed for feasibility only. SD\,3.5-large, a transformer-based latent model with a
 16-channel VAE, was tested for LoRA training cost and colour transfer. PixCell, a 0.6B-parameter

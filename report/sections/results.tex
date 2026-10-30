@@ -7,7 +7,7 @@ on the slide in question, so positive means closer to the real scanner than doin
 
 \begin{table*}[t]
 \centering
-\caption{\AtoH{} results on the five held-out slides. LAB Wasserstein (Eq.~\ref{eq:wlab}, lower is
+\caption{\AtoH{} results on the five held-out slides. LAB Wasserstein \eqref{eq:wlab} (lower is
 better) and SSIM against the registered Hamamatsu scan; \emph{typical} is A08, A09, A13 and A16. Every
 trained method uses the same 50 A03/H03 pairs. Rows marked $^\dagger$ average three seeds (1{,}488
 crop-seeds); the rest use one (496 crops). The raw row is computed over the full baseline crop set.
@@ -114,7 +114,7 @@ was chosen as the best balance, and on visual inspection it was indistinguishabl
 nuclear boundaries and chromatin, with no haloes, ringing or gamut clipping.
 
 \textbf{What the sweep shows.} SSIM is flat across $\beta$, from $0.10$ to $1.00$, and nearly flat across
-$\sigma$ once $\sigma\geq8$. This is the mechanism of Eq.~\eqref{eq:f3} at work: the blurred residual
+$\sigma$ once $\sigma\geq8$. This is the mechanism of \eqref{eq:f3} at work: the blurred residual
 cannot reach fine structure at any strength, so the structural gain comes from starting at the source
 pixels at all. Colour traces a U-shape in $\beta$ with its minimum at 0.5. Small $\beta$ leaves the source
 colour almost unchanged, and large $\beta$ adds more of a \emph{smoothed approximation} of the prediction's
@@ -133,10 +133,10 @@ frozen configuration.}
 \midrule
 \multicolumn{4}{l}{\emph{Fusion rules, 50 crops}}\\
 & Unfused DDIM-inversion prediction & 0.1604 & 22.11\\
-& F1, source luminance (Eq.~\ref{eq:f1}) & 0.1826 & 24.63\\
-& F2, $\alpha=0.5$ (Eq.~\ref{eq:f2}) & 0.1955 & 30.74\\
+& F1, source luminance \eqref{eq:f1} & 0.1826 & 24.63\\
+& F2, $\alpha=0.5$ \eqref{eq:f2} & 0.1955 & 30.74\\
 & F2, $\alpha=1.0$ & 0.1813 & 20.30\\
-& \textbf{F3, $\sigma=8$, $\beta=0.5$} (Eq.~\ref{eq:f3}) & \textbf{0.1854} & \textbf{22.67}\\
+& \textbf{F3, $\sigma=8$, $\beta=0.5$} \eqref{eq:f3} & \textbf{0.1854} & \textbf{22.67}\\
 \midrule
 \multicolumn{4}{l}{\emph{F3 sweep, 20 crops (unfused: 0.1644 / 21.46)}}\\
 & $\sigma=8$, $\beta=0.10$ & 0.1866 & 25.63\\
@@ -165,7 +165,7 @@ than doing nothing. It also transfers to SDXL with the same frozen parameters (T
 \centering
 \includegraphics[width=\textwidth]{p1_16_a08.jpg}
 \caption{F3 fusion on held-out slide A08: raw Aperio source $A$, its VAE reconstruction $A_V$, the
-DDIM-inversion prediction $H_{\mathrm{pred}}$, the fused output (Eq.~\ref{eq:f3}, $\sigma=8$, $\beta=0.5$)
+DDIM-inversion prediction $H_{\mathrm{pred}}$, the fused output \eqref{eq:f3} with $\sigma=8$ and $\beta=0.5$,
 and the registered real Hamamatsu target.}
 \label{fig:f3}
 \end{figure*}
@@ -223,7 +223,7 @@ Two normalisers pass the Relative Dice gate (Table~\ref{tab:reldice}): ParamNet 
 0.6\% is still resolved; only ParamNet, whose interval contains 1.0, also meets the stricter condition of no
 statistically significant degradation. The pass comes from fusion, not from the diffusion
 output itself: the unfused inversion output fails at 0.893, and fusion raises Dice on 129 of the 130 images
-(mean $+0.071$). This is expected from Eq.~\eqref{eq:f3}, which keeps the source's high frequencies and adds
+(mean $+0.071$). This is expected from \eqref{eq:f3}, which keeps the source's high frequencies and adds
 only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
 the original images, the fused output keeps IoU (0.535 against 0.539), object-level F1 (0.738 against 0.733) and
 the predicted-to-true nucleus count ratio (0.686 against 0.668), while StainGAN lowers object F1 to 0.503 and

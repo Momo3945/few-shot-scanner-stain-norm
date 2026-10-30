@@ -15,7 +15,7 @@
 % cite package and IEEEtran.bst, in order of first citation.
 \usepackage{cite}
 \usepackage{hyperref}
-\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue}
+\hypersetup{hidelinks}
 
 \newcommand{\dlab}{\Delta_{\mathrm{LAB}}}
 \newcommand{\AtoH}{A$\rightarrow$H}
@@ -23,8 +23,7 @@
 
 \begin{document}
 
-\title{Few-Shot Scanner Stain Normalisation with Adapted Latent Diffusion:\\
-An Ablation Study on MITOS-ATYPIA-14}
+\title{Few-Shot Scanner Stain Normalisation of MITOS-ATYPIA-14 with Adapted Latent Diffusion}
 
 \author{\IEEEauthorblockN{Muhammad Hoosen}
 \IEEEauthorblockA{\textit{School of Computer Science and Applied Mathematics}\\
@@ -49,7 +48,7 @@ adapter on the source image, inverting the source latent with DDIM, and fusing t
 back onto the untouched source pixels give the best diffusion result: SSIM 0.729 against the real
 Hamamatsu scan, above every classical baseline, and windowed colour closer to the target than Macenko,
 Reinhard or histogram matching on typical slides. We also show that the VAE caps every diffusion result
-and that a fine-tuned decoder raises SSIM mainly by smoothing. Two learned non-diffusion baselines
+and that a fine-tuned decoder raises SSIM mainly by smoothing. Two learned nondiffusion baselines
 trained on the same 50 pairs, ParamNet and StainGAN, outperform every diffusion configuration on colour
 and SSIM. On the Relative Dice structure-safety gate, ParamNet (0.999) and our fused pipeline (0.994)
 pass, while the unfused diffusion outputs do not. Few-step LCM inference does not
@@ -71,7 +70,6 @@ stain normalisation, digital pathology, latent diffusion, LoRA, ControlNet, doma
 \bibliography{references}
 
 \clearpage
-\onecolumn
 \appendices
 \input{sections/appendix_results}
 \input{sections/appendix}

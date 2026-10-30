@@ -31,7 +31,7 @@ with augmentation and class-balanced sampling was worse (raw-Hamamatsu accuracy 
 \textbf{Two rebuilt classifiers, both gated.} Both use frozen UNI2-h features, nested leave-one-slide-out
 cross-validation on the 297 training frames, and five pre-registered gates: balanced accuracy $>0.45$,
 quadratic weighted kappa (QWK) $>0.2$, no class predicted for more than 80\% of frames, a slide-bootstrap
-lower bound on balanced accuracy above chance ($1/3$), and non-zero recall for score 1 on the held-out-in-CV
+lower bound on balanced accuracy above chance ($1/3$), and nonzero recall for score 1 on the held-out-in-CV
 slide A12. Table~\ref{tab:atypia} gives the results. The linear probe is at chance. Of three v2 candidates
 (an ordinal head, attention-based multiple-instance pooling, and a two-stage model that first predicts the
 x40 atypia criteria), the criteria model clears four of five gates but fails the bootstrap lower bound:
@@ -43,7 +43,7 @@ nucleoli size 0.408, nuclei contour $-0.125$). Frozen features therefore carry r
 yet enough for a valid score classifier. By protocol the held-out slides were never scored with these
 models.
 
-\begin{table}[!htbp]
+\begin{table*}[!tbp]
 \centering
 \caption{Rebuilt atypia classifiers, nested leave-one-slide-out cross-validation on 297 training frames
 (always predicting score 2 gives accuracy 0.747). Brackets: slide-bootstrap 95\% intervals.}
@@ -59,7 +59,7 @@ v2 M2: attention MIL & 0.478 & 0.292 [0.19, 0.50] & 0.098 & 0.00 / 0.57 / 0.31 &
 v2 M3: criteria two-stage & 0.525 & 0.614 [0.26, 0.73] & 0.304 & 0.83 / 0.50 / 0.52 & 4 of 5\\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Other closed negatives}
 \textbf{Differential diffusion.} To protect structure inside the diffusion process, each pixel was given
@@ -94,7 +94,7 @@ windowed LAB no worse, is not met, so the Canny model remains the final pipeline
 tested here, is that dense Canny edges follow stain intensity and so carry a colour cue that sparse outlines
 do not. Each structure was trained once, with one seed.
 
-\begin{table}[!htbp]
+\begin{table*}[!tbp]
 \centering
 \caption{Canny against HoVer-Net boundary conditioning on the same 496 held-out crops. $\Delta$ is HoVer-Net
 minus Canny, with a paired bootstrap 95\% CI over crops; higher SSIM and lower windowed LAB (wLAB) are better.}
@@ -119,7 +119,7 @@ A06 (64) & Canny & 0.373 & 73.82 & 0.617 & 83.94\\
  & $\Delta$ & $+0.006$ [$+0.004$, $+0.008$] & $+2.25$ [$+1.91$, $+2.59$] & $-0.0006$ [$-0.0007$, $-0.0004$] & $+1.22$ [$+1.04$, $+1.41$]\\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{Full-VAE fine-tune}
 \label{app:fullvae}
@@ -138,7 +138,7 @@ not survive fusion. The encoder is therefore not a bottleneck worth unfreezing, 
 decoder control (Section~\ref{sec:vae}). An unanchored fine-tune, with the LoRA and ControlNet retrained on the new
 latents, was not run.
 
-\begin{table}[!htbp]
+\begin{table*}[!tbp]
 \centering
 \caption{Full-VAE fine-tune on the 496 held-out crops, pooled. Self-reconstruction is SSIM$(x,D(E(x)))$; the
 translated columns use the final colour LoRA and ControlNet unchanged. Higher SSIM and lower windowed LAB (wLAB)
@@ -157,7 +157,7 @@ Full VAE, $\lambda=1$ & 0.648 & 0.780 & 0.614 & 26.55 & 0.729 & 27.49\\
 Full VAE, $\lambda=10$ & 0.650 & 0.780 & 0.613 & 25.00 & 0.729 & 28.01\\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
 
 \subsection{SDXL diagnostics and the decision gate}
 \textbf{Decision gate.} At the end of Phase~1 the ladder configuration A4 was chosen as the base for SDXL,
@@ -179,7 +179,6 @@ source colour into them. Pure text-to-image samples (Fig.~\ref{fig:app-t2i}) gav
 six comparisons consistent), and SDXL at 1024\,px \HtoA{} remains an open counterexample: its default colour
 leans the wrong way, yet it recovers $\dlab=+9.20$.
 
-\clearpage
 
 \subsection{Inference speed}
 Table~\ref{tab:app-speed} times every method's per-crop call on one node (RTX~3090, mscluster88) and the
@@ -188,7 +187,7 @@ then 16 timed crops with the GPU synchronised around each call. The classical me
 fitted once, untimed. Whole-slide times assume a 100{,}000$\times$100{,}000 pixel image tiled into about
 38{,}000 crops of 512\,px (about 9{,}500 of 1024\,px for SDXL).
 
-\begin{table}[!htbp]
+\begin{table*}[!tbp]
 \centering
 \caption{Per-crop inference time (mean $\pm$ s.d.\ over 16 crops) and projected whole-slide time.}
 \label{tab:app-speed}
@@ -209,4 +208,4 @@ Reinhard (CPU) & -- & 512 & $0.015\pm0.001$ & -- & 10\,min\\
 Histogram matching (CPU) & -- & 512 & $0.006\pm0.001$ & -- & 4\,min\\
 \bottomrule
 \end{tabular}
-\end{table}
+\end{table*}
