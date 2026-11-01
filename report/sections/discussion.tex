@@ -55,7 +55,8 @@ minutes for every baseline; the few-step LCM path that was meant to remove this 
 quality (H4).
 
 \textbf{Limitations.} All training data come from one slide pair (A03/H03), so slide-level variation is
-not represented in training. The learned baselines were trained once, with one seed each. Structural
+not represented in training. The learned baselines were trained with three seeds in the \AtoH{} direction but one in \HtoA{} and for the
+Lizard test. Structural
 safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). The planned clinical-utility test has no valid
 instrument: every atypia classifier we built failed its own pre-registered gate
 (Appendix~\ref{app:clinical}), so no clinical-utility claim is made. The decoder smoothing analysis
@@ -64,7 +65,7 @@ rests on two inspected crops.
 \textbf{Planned but not run.} Several planned items were not carried out and no result is claimed for
 them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
 detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a full-VAE fine-tune
-with the LoRA and ControlNet retrained on its new latents (only the anchored version was run), and a cross-centre check of the fine-tuned decoder on CAMELYON17; and a
+with the LoRA and ControlNet retrained on its new latents (only the anchored version was run); and a
 source-image conditioning branch for PixCell. Two choices also departed from the plan: the TCGA-BRCA colour
 reference was not used as a secondary colour target, and the
 attention-residual method~\cite{madusanka2025attentionresidual}, planned as the state-of-the-art colour

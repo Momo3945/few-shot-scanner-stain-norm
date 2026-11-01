@@ -2761,8 +2761,10 @@ fine-tune, λ = 1 and 10) DONE, negative**:
 - translated SSIM −0.002/−0.003;
 - fused SSIM unchanged, with wLAB +0.41/+0.93 vs the final pipeline.
 
-Jobs 75610–75642. Paper appendix A-D, Table IX. Stage 2b (downstream retrain) and G1.5 were not
-run. Details are in `tickets/P1-18_vae_decoder_finetune.md` § "Stage 2a results".
+Jobs 75610–75642. Paper appendix A-D, Table IX. Stage 2b (downstream retrain) was not run.
+**G1.5 (2026-11-01, jobs 79870/79871): FAIL.** On 2,103 CAMELYON17 patches the fine-tuned decoder beats
+`ft_mse` on SSIM (+0.008, every centre) but loses 1.50 dB PSNR, −5.2 dB at centre 4. Its colour shift
+carries off-domain (LAB 2.61 → 4.49). Details are in `tickets/P1-18_vae_decoder_finetune.md` § "Stage 2a results".
 *Status (2026-10-19):* G1.5 and Stage 2 (full VAE) still open, Stage 2 awaiting the supervisor. *Earlier status:* 🔄 IN PROGRESS (proposed 2026-10-05, supervisor-directed). Stage 0
 partly done (job 64246): `sd-vae-ft-mse`'s encoder is bit-identical to stock's,
 i.e. it is already a decoder-only fine-tune; LPIPS + VGG16 weights ready; data

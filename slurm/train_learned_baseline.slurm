@@ -13,6 +13,7 @@
 #   STEPS=N      override total steps (0 = method default)
 #   REPEAT=K     stainnet only: passes over the pair set per epoch
 #   RESUME=1     resume from <out>/last.pt
+#   SEED=N       train with --seed N and write to <out>_s<N> (unset: script default 3407, <out>)
 # StainNet needs only minutes: submit with --time=00:30:00. paramnet/staingan: default 3h,
 # resumable (RESUME=1) if load-shedding kills it.
 # Always add the bad-node --exclude list from CLAUDE.md on submission.
@@ -43,6 +44,10 @@ REPEAT=${REPEAT:-1}
 
 EXTRA=""
 OUT_DIR="${OUT_ROOT}/${DIRECTION,,}_${METHOD}"
+if [[ -n "${SEED:-}" ]]; then
+    EXTRA="${EXTRA} --seed ${SEED}"
+    OUT_DIR="${OUT_DIR}_s${SEED}"
+fi
 if [[ "${SMOKE:-0}" == "1" ]]; then
     EXTRA="${EXTRA} --smoke"
     OUT_DIR="${OUT_DIR}_smoke"

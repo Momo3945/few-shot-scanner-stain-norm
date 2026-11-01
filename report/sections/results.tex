@@ -26,9 +26,9 @@ Classical & Macenko~\cite{macenko2009normalisation} & 24.80 & 21.02 & 50.30 & 0.
  & Reinhard~\cite{reinhard2001colortransfer} & 28.02 & 26.79 & 36.34 & 0.681 & 0.701 & 0.545\\
  & Histogram matching & 30.61 & 31.33 & \textbf{25.72} & 0.651 & 0.664 & 0.562\\
 \midrule
-Learned & StainNet~\cite{kang2021stainnet} & 55.51 & 58.02 & 38.58 & 0.512 & 0.518 & 0.471\\
- & ParamNet~\cite{kang2024paramnet} & 17.27 & \textbf{8.55} & 76.15 & 0.753 & 0.769 & 0.644\\
- & StainGAN~\cite{shaban2019staingan} & \textbf{15.66} & 13.55 & 29.92 & \textbf{0.764} & \textbf{0.772} & \textbf{0.709}\\
+Learned & StainNet~\cite{kang2021stainnet}$^\dagger$ & 50.40 & 52.29 & 37.59 & 0.580 & 0.586 & 0.539\\
+ & ParamNet~\cite{kang2024paramnet}$^\dagger$ & 17.04 & \textbf{8.16} & 76.95 & 0.745 & 0.762 & 0.633\\
+ & StainGAN~\cite{shaban2019staingan}$^\dagger$ & \textbf{15.92} & 13.86 & 29.83 & \textbf{0.765} & \textbf{0.773} & \textbf{0.710}\\
 \midrule
 SD\,1.5 ladder & A0 frozen img2img & 32.89 & 23.65 & 95.22 & 0.285 & 0.299 & 0.186\\
  & A1 + ControlNet (Canny) & 33.10 & 23.88 & 95.35 & 0.389 & 0.408 & 0.260\\
@@ -101,7 +101,8 @@ part of the SSIM gain. On two inspected crops the fine-tuned decoder keeps only 
 fine-detail energy (Laplacian variance), against 52--59\% for \texttt{ft-mse}, and shifts the blue channel
 by 3--5 levels. The real Hamamatsu scans are themselves soft, at 18--24\% of the Aperio source's detail,
 so much of the translated SSIM gain comes from matching the target scanner's softness rather than from
-recovering structure.
+recovering structure. On unseen CAMELYON17 centres it still beats \texttt{ft-mse} on SSIM but loses 1.5\,dB of
+PSNR to a colour shift (Appendix~\ref{app:decoder-cam}).
 
 \subsection{Detail fusion}
 \textbf{Choosing the variant.} Table~\ref{tab:fusion} compares the three fusion rules and the F3
@@ -172,21 +173,24 @@ and the registered real Hamamatsu target.}
 
 \subsection{Learned baselines}
 Trained on the same 50 pairs, ParamNet and StainGAN outperform every diffusion configuration in
-Table~\ref{tab:main} (Fig.~\ref{fig:compare}). ParamNet has the lowest typical-slide LAB distance (8.55) and StainGAN the lowest
-pooled distance (15.66) and the highest SSIM (0.764 pooled, 0.709 on A06), above even the raw scan's
-pixel similarity. StainNet, a per-pixel 1$\times$1 network with 1{,}283 parameters, is worse than doing
+Table~\ref{tab:main} (Fig.~\ref{fig:compare}). ParamNet has the lowest typical-slide LAB distance (8.16) and StainGAN the lowest
+pooled distance (15.92) and the highest SSIM (0.765 pooled, 0.710 on A06), above even the raw scan's
+pixel similarity. These are means over three training seeds, and the ranking holds on each seed: pooled
+SSIM varies by at most 0.012 and typical-slide LAB distance by at most 1.6 within either method, and both
+beat our fused pipeline on SSIM and typical-slide colour on every seed. StainNet, a per-pixel 1$\times$1 network with 1{,}283 parameters, is worse than doing
 nothing on every typical slide; a 150{,}000-step retrain plateaued at the same training loss, so this is a
-capacity limit, not under-training. The ranking holds in the \HtoA{} direction: on typical slides ParamNet
+capacity limit, not under-training; it varies more between seeds (SSIM 0.512--0.669) but is worse than raw
+on every seed. The ranking holds in the \HtoA{} direction (one seed): on typical slides ParamNet
 recovers $\dlab=+17.28$ and StainGAN $+10.75$, while StainNet loses $-28.38$. The classical methods only
 beat the raw input pooled because of A06: on typical \AtoH{} slides Reinhard ($-1.38$) and histogram
-matching ($-5.92$) are slightly worse than doing nothing, and only Macenko gains ($+4.39$). ParamNet is also
-the most consistent learned method across the four typical slides ($+9.8$ to $+19.1$ in \AtoH{}).
+matching ($-5.92$) are slightly worse than doing nothing, and only Macenko gains ($+4.39$). ParamNet recovers
+colour on every typical slide for every seed ($+9.8$ to $+19.3$ in \AtoH{}).
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{normaliser_comparison.jpg}
 \caption{One held-out crop each from A08 (typical) and A06 (outlier), normalised by every method, with the
-per-crop LAB Wasserstein and SSIM against the registered target. These are single crops, not averages:
+per-crop LAB Wasserstein and SSIM against the registered target (learned baselines: seed 3407). These are single crops, not averages:
 on this A08 crop our fused output (LAB 22.0) is weaker than its typical-slide mean (18.1). On A06,
 ParamNet and our output stay visibly paler than the target, while histogram matching, StainGAN and
 Reinhard come closer.}

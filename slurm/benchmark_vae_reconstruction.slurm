@@ -7,7 +7,10 @@
 # and tickets/PHASE1-TICKETS.md P1-14.
 #
 # Submit with positional args:  STAGE [VAE] [OUT_TAG]
-#   STAGE = internal | heldout
+#   STAGE = internal | heldout | camelyon
+#   (camelyon = P1-18 G1.5, CAMELYON17 off-domain self-reconstruction:
+#    EXTRA_VAES="d1_pn03_best=/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val" \
+#      sbatch ... benchmark_vae_reconstruction.slurm camelyon both p1_18_g15_camelyon)
 #   VAE   = stock | ft_mse | both (default both)
 #
 #   # Stage A -- internal validation (both scanner domains, non-held-out pairs):
@@ -96,6 +99,12 @@ if [[ "${STAGE}" == "internal" ]]; then
         --stage internal --vae "${VAE}" \
         --pairs-dir "${DATA_ROOT}/pairs/train" \
         --out "${OUT_DIR}"
+elif [[ "${STAGE}" == "camelyon" ]]; then
+    # P1-18 G1.5: off-domain self-reconstruction on the CAMELYON17 patches (LIMIT caps patches).
+    python benchmark_vae_reconstruction.py \
+        --stage camelyon --vae "${VAE}" \
+        --camelyon-dir "${DATA_ROOT}/camelyon17_patches" \
+        --out "${OUT_DIR}" ${LIMIT_FLAG} ${P118_FLAGS}
 else
     python benchmark_vae_reconstruction.py \
         --stage heldout --vae "${VAE}" \

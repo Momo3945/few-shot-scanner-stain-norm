@@ -1,0 +1,157 @@
+{
+  "vae_info": {
+    "stock": {
+      "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+      "subfolder": "vae",
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 512,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "ft_mse": {
+      "repo": "stabilityai/sd-vae-ft-mse",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    },
+    "d1_pn03_best": {
+      "repo": "/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val",
+      "subfolder": null,
+      "dtype_requested": "float16",
+      "diffusers_version": "0.39.0",
+      "latent_channels": 4,
+      "block_out_channels": [
+        128,
+        256,
+        512,
+        512
+      ],
+      "down_block_types": [
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D",
+        "DownEncoderBlock2D"
+      ],
+      "up_block_types": [
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D",
+        "UpDecoderBlock2D"
+      ],
+      "sample_size": 256,
+      "param_count": 83653863,
+      "dtype": "torch.float16",
+      "scaling_factor": 0.18215
+    }
+  },
+  "summary": {
+    "stock": {
+      "camelyon": {
+        "lab_total": 5.322545751307658,
+        "wlab_mean": 5.517812916623713,
+        "de2000_mean": 4.056219592412298,
+        "ssim": 0.8557723104259634,
+        "psnr": 28.225099433448378,
+        "mae": 8.820686749071182
+      }
+    },
+    "ft_mse": {
+      "camelyon": {
+        "lab_total": 2.6050664574417555,
+        "wlab_mean": 2.9703765702258957,
+        "de2000_mean": 3.293642182650881,
+        "ssim": 0.8762098004599066,
+        "psnr": 30.906682358407792,
+        "mae": 7.1486027884320915
+      }
+    },
+    "d1_pn03_best": {
+      "camelyon": {
+        "lab_total": 4.489098119353306,
+        "wlab_mean": 4.8804505457494916,
+        "de2000_mean": 3.4264748149527855,
+        "ssim": 0.8839451693413384,
+        "psnr": 29.40501318317742,
+        "mae": 7.583186095935029
+      }
+    }
+  },
+  "paired": {
+    "camelyon": {
+      "mean_delta_ssim": 0.020437490033943923,
+      "median_delta_ssim": 0.019190906341249536,
+      "mean_delta_psnr": 2.681582924959428,
+      "mean_delta_mae": -1.672083960639106,
+      "mean_delta_lab_total": -2.717479293865906,
+      "ssim_delta_bootstrap_ci95": [
+        0.019725359006240825,
+        0.021128622202250317
+      ],
+      "n_crops": 2103
+    }
+  },
+  "paired_extra": {
+    "d1_pn03_best": {
+      "reference": "ft_mse",
+      "camelyon": {
+        "mean_delta_ssim": 0.007735368881430859,
+        "median_delta_ssim": 0.008560245934834287,
+        "mean_delta_psnr": -1.501669175230361,
+        "mean_delta_mae": 0.43458330750295343,
+        "mean_delta_lab_total": 1.8840316619115547,
+        "ssim_delta_bootstrap_ci95": [
+          0.00732453539816907,
+          0.008122022925989868
+        ],
+        "frac_crops_ssim_improved": 0.8858773181169758,
+        "n_crops": 2103
+      }
+    }
+  },
+  "stage": "camelyon",
+  "n_crops": 2103
+}

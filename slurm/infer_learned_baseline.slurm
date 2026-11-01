@@ -8,6 +8,7 @@
 #   sbatch infer_learned_baseline.slurm paramnet H2A         # -> eval/h2a_paramnet
 #   sbatch infer_learned_baseline.slurm staingan A2H 2       # smoke, 2 frames
 # Env: SMOKE=1 reads the *_smoke checkpoint dir and writes eval/<tag>_smoke.
+#      SEED=N reads baselines/<dir>_<method>_s<N> and writes eval/<tag>_s<N> (unset: unchanged).
 # Then: sbatch slurm/score_outputs.slurm <tag>
 # Always add the bad-node --exclude list from CLAUDE.md on submission.
 # =====================================================================
@@ -37,6 +38,7 @@ LIMIT=${3:-0}
 # eval tag convention matches the classical baselines: A2H -> <method>, H2A -> h2a_<method>
 if [[ "${DIRECTION}" == "H2A" ]]; then TAG="h2a_${METHOD}"; else TAG="${METHOD}"; fi
 CK_DIR="${DATA_ROOT}/baselines/${DIRECTION,,}_${METHOD}"
+if [[ -n "${SEED:-}" ]]; then CK_DIR="${CK_DIR}_s${SEED}"; TAG="${TAG}_s${SEED}"; fi
 if [[ "${SMOKE:-0}" == "1" ]]; then CK_DIR="${CK_DIR}_smoke"; TAG="${TAG}_smoke"; fi
 CKPT="${CK_DIR}/${METHOD}_${DIRECTION,,}.pt"
 OUT_DIR="${DATA_ROOT}/eval/${TAG}"

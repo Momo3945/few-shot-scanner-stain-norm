@@ -8,7 +8,8 @@ returns the learned colour change to the source pixels reach SSIM 0.729 and beat
 typical-slide colour. The VAE bottleneck explains most of the gap to the raw scan, and fine-tuning its
 decoder raises SSIM mainly by smoothing. Learned nondiffusion baselines trained on the same 50 pairs
 remain better on colour and SSIM. On nucleus preservation, ParamNet and the fused pipeline both pass the
-Relative Dice test (0.999 and 0.994), and the unfused diffusion output does not. For
+Relative Dice test (0.999 and 0.994), and the unfused diffusion output does not. Few-step LCM inference
+is 12.5$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
 model; diffusion is most useful here as a source of colour change that fusion projects back onto the
 original image.

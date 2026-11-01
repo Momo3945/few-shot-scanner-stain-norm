@@ -87,7 +87,10 @@ def parse_args():
     ap = argparse.ArgumentParser(
         description="P1-14: pure VAE self-reconstruction benchmark, stock vs sd-vae-ft-mse.")
     ap.add_argument("--vae", choices=["stock", "ft_mse", "both", "sd35_pixcell", "sdxl"], default="both")
-    ap.add_argument("--stage", choices=["internal", "heldout"], required=True)
+    ap.add_argument("--stage", choices=["internal", "heldout", "camelyon"], required=True)
+    ap.add_argument("--camelyon-dir", default=None,
+                    help="Stage camelyon (P1-18 G1.5): camelyon17_patches/ with centre_<c>_patient_<p>/*.png. "
+                         "Self-reconstruction of every patch; --limit caps the patch count.")
     ap.add_argument("--pairs-dir", default=None, help="Stage internal: e.g. pairs/train.")
     ap.add_argument("--root", default=None, help="Stage heldout: dataset root.")
     ap.add_argument("--heldout", default=None, help="Stage heldout: heldout_frames.csv.")
@@ -129,6 +132,8 @@ def main():
         raise SystemExit("--pairs-dir is required for --stage internal.")
     if args.stage == "heldout" and not (args.root and args.heldout):
         raise SystemExit("--root and --heldout are required for --stage heldout.")
+    if args.stage == "camelyon" and not args.camelyon_dir:
+        raise SystemExit("--camelyon-dir is required for --stage camelyon.")
 
     if not args.online:
         os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -225,6 +230,16 @@ def main():
             crops.append({"slide": p["slide"], "frame": p["frame_id"], "x": 0, "y": 0,
                          "tag_id": p["pair_id"], "aperio": aperio, "hamamatsu": hamamatsu})
         print(f"Stage internal: {len(crops)} pairs from {args.pairs_dir}.")
+    elif args.stage == "camelyon":
+        # P1-18 G1.5: off-domain self-reconstruction. One domain; slide = centre, frame = patient dir.
+        paths = sorted(Path(args.camelyon_dir).glob("*/*.png"))
+        if args.limit:
+            paths = paths[: args.limit]
+        for p in paths:
+            centre = "_".join(p.parent.name.split("_")[:2])
+            crops.append({"slide": centre, "frame": p.parent.name, "x": 0, "y": 0, "tag_id": p.stem,
+                          "camelyon": np.asarray(Image.open(p).convert("RGB"))})
+        print(f"Stage camelyon: {len(crops)} patches from {args.camelyon_dir}.")
     else:
         from registration import read_rgb, register_h_to_a
 
@@ -285,6 +300,8 @@ def main():
     # ------------------------------------------------------------------
     both_domains = args.stage == "internal" or args.heldout_both_domains
     domains = ["aperio", "hamamatsu"] if both_domains else ["aperio"]
+    if args.stage == "camelyon":
+        domains = ["camelyon"]
     metric_keys = ["lab_total", "wlab_mean", "de2000_mean", "ssim", "psnr", "mae"]
     scores = {name: {d: [] for d in domains} for name in vae_names}
     if not args.qualitative_only:

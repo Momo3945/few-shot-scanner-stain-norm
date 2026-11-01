@@ -1106,6 +1106,33 @@ correctness); one instrument (PanNuke HoVer-Net, Dice(A,G) only 0.70); one run p
 method; classical/ParamNet colour maps are fit per 512 px tile. Details:
 `docs/results/learned_baselines/README.md`.
 
+**Seeds (2026-11-01), A2H only.** These address the "single seed" caveat above. Seeds 1 and 2 were added to the
+original 3407, and both were fixed before any result. Setup:
+- `SEED=N` env override in `train_learned_baseline.slurm` / `infer_learned_baseline.slurm`, writing to
+  `baselines/a2h_<m>_s<N>`, `eval/<m>_s<N>`; unset leaves every existing call unchanged.
+- Jobs 79852–79869: train → infer → score per method and seed.
+- The 6 scoring jobs were moved from stampede to bigbatch with `scontrol update`, because stampede had only
+  its slow nodes up.
+
+Every manifest has 496 crops. Summary script: `docs/results/learned_baselines/aggregate_seeds.py`, which
+writes `aggregate_seeds.csv` and `aggregate_seeds_summary.csv`.
+
+| A2H, 3 seeds, mean ± SD [min, max] | LAB W. ALL | LAB W. typical | SSIM ALL | SSIM A06 |
+|---|---|---|---|---|
+| StainNet | 50.40 ± 5.67 [44.31, 55.51] | 52.29 ± 6.54 | 0.580 ± 0.081 [0.512, 0.669] | 0.539 |
+| ParamNet | 17.04 ± 0.25 [16.77, 17.27] | 8.16 ± 0.40 [7.76, 8.55] | 0.745 ± 0.007 [0.741, 0.753] | 0.633 |
+| StainGAN | 15.92 ± 0.56 [15.53, 16.56] | 13.86 ± 0.82 [13.23, 14.79] | 0.765 ± 0.001 [0.764, 0.766] | 0.710 |
+
+**Pre-stated ranking check holds on every seed:** ParamNet and StainGAN each have pooled SSIM > 0.729 and
+typical LAB < 18.11 (the fused SD1.5 pipeline).
+
+StainNet is worse than raw on every typical slide for every seed. ParamNet's typical-slide recovery over all
+seeds runs from +9.8 to +19.3. Its only low value is seed 3407 on A13; seeds 1 and 2 give +16.2 to +19.3.
+
+**Paper:** Table I learned rows are now 3-seed means (†). The Learned-baselines text gives the seed spread.
+Limitations now read three seeds A→H, one for H→A and for Lizard. The `fig:compare` caption notes seed 3407.
+H2A and the Lizard Relative Dice are still single-seed.
+
 **Remaining:** none. Ticket closed.
 
 ---

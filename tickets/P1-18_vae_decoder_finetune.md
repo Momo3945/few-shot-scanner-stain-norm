@@ -5,7 +5,8 @@ fails, G1.4 fails). **Stage 2a DONE, negative** (anchored full-VAE fine-tune, λ
 G2.1 fails (self-recon +0.002/+0.004 Aperio, +0.001 Hamamatsu over Stage 1; bar +0.02), G2.3
 fails (translated SSIM −0.002/−0.003), G2.4 fails (fused SSIM unchanged, wLAB +0.41/+0.93 vs
 the final pipeline). See "Stage 2a results" below; paper appendix A-D, Table IX. **Not run:**
-Stage 2b (unanchored + downstream retrain) and G1.5 (CAMELYON17), both listed in the paper.
+Stage 2b (unanchored + downstream retrain), listed in the paper. **G1.5 (CAMELYON17) RUN 2026-11-01:
+FAIL on the pre-stated PSNR condition** (ΔSSIM +0.008 passes, ΔPSNR −1.50 dB fails; see "G1.5 results").
 *Status (2026-10-19):* Stage 1 DONE; G1.5 and Stage 2 open, Stage 2 awaiting the supervisor.
 *Earlier status:* 🔄 IN PROGRESS — proposed 2026-10-05, **supervisor-directed**
 (Richard Klein asked for both steps, in this order: decoder-only first, then
@@ -669,6 +670,36 @@ survive F3, because F3 subtracts that VAE's own A_V. Stage 2b is not motivated b
 not run. The ceiling figure was not extended: the new arms sit within 0.004 of the Stage 1 line and
 would be indistinguishable from it. Table IX in the paper gives the numbers instead (a deviation from
 the "Reporting requirements" below).
+
+### G1.5 results (2026-11-01): CAMELYON17 off-domain reconstruction, FAIL on PSNR
+
+**Gate, fixed before the run:** pooled over all patches, mean ΔSSIM (`d1_pn03_best` − `ft_mse`) ≥ −0.01
+**and** mean ΔPSNR ≥ −0.5 dB.
+
+**Run:** `benchmark_vae_reconstruction.py --stage camelyon` (new stage). All 2,103 CAMELYON17 patches
+(512 px, 5 centres × 3 patients, none used in decoder training). Stock, `ft_mse` and `d1_pn03_best`.
+Jobs: smoke 79870 (10 patches, 1:58), full 79871 (56:28, mscluster66). Outputs are in
+`docs/results/p1_18_vae_finetune/g15_camelyon/` (`per_crop.csv` with 6,309 rows, `summary.json`,
+`g15_full.log`); per-centre numbers come from `g15_analysis.py`.
+
+| Scope | n | SSIM stock / ft_mse / fine-tuned | ΔSSIM vs ft_mse [95% CI] | PSNR ft_mse → fine-tuned | ΔPSNR [95% CI] |
+|---|---|---|---|---|---|
+| ALL | 2103 | 0.8558 / 0.8762 / 0.8839 | +0.0077 [+0.0073, +0.0081] | 30.91 → 29.41 | **−1.50 [−1.64, −1.37]** |
+| centre_0 | 396 | 0.8005 / 0.8283 / 0.8391 | +0.0107 | 25.55 → 25.76 | +0.21 |
+| centre_1 | 448 | 0.8139 / 0.8422 / 0.8511 | +0.0089 | 28.73 → 27.88 | −0.85 |
+| centre_2 | 500 | 0.8690 / 0.8865 / 0.8940 | +0.0075 | 30.69 → 29.77 | −0.93 |
+| centre_3 | 299 | 0.8207 / 0.8477 / 0.8589 | +0.0112 | 27.47 → 27.44 | −0.03 |
+| centre_4 | 460 | 0.9526 / 0.9579 / 0.9599 | +0.0020 | 40.10 → 34.91 | −5.19 |
+
+- **SSIM passes:** it is better at every centre, and better on 88.6% of patches.
+- **PSNR fails:** pooled −1.50 dB, mostly from centre 4, where `ft_mse` is near-lossless (40.1 dB).
+- LAB distance to the input rises from 2.61 (`ft_mse`) to 4.49. Stock is 5.32.
+- **Sanity check:** `ft_mse` beats stock by +0.020 SSIM, the same direction as P1-14 on MITOS.
+
+**Interpretation:** the decoder has not collapsed onto MITOS structurally, but off-domain it adds a colour
+shift, the same one seen on MITOS (−3 to −5 blue levels). This does not change the headline: the final
+pipeline uses the stock VAE. Reported in the paper's Appendix A ("Fine-tuned decoder on unseen centres") with
+one sentence in Results §IV-C, and removed from "Planned but not run".
 
 ## Reporting requirements
 

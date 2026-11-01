@@ -121,6 +121,16 @@ A06 (64) & Canny & 0.373 & 73.82 & 0.617 & 83.94\\
 \end{tabular}
 \end{table*}
 
+\subsection{Fine-tuned decoder on unseen centres}
+\label{app:decoder-cam}
+To test whether the fine-tuned decoder has collapsed onto its training data, we self-reconstructed all 2{,}103
+CAMELYON17 patches (five centres, none used in training) with each decoder. The pre-stated condition was that mean
+SSIM may not fall more than 0.01, and PSNR not more than 0.5\,dB, below \texttt{ft-mse}. SSIM passes: 0.884 against
+0.876 (stock 0.856), higher at every centre (+0.002 to +0.011). PSNR fails: $-1.50$\,dB pooled (95\% CI $[-1.64,
+-1.37]$), from $+0.2$ to $-0.9$\,dB at four centres and $-5.2$\,dB at centre~4, whose patches \texttt{ft-mse}
+reconstructs almost exactly (40.1\,dB). LAB distance to the input rises from 2.61 to 4.49. The fine-tuned decoder
+keeps structure on unseen centres but adds a colour shift there, as on MITOS. The final pipeline does not use it.
+
 \subsection{Full-VAE fine-tune}
 \label{app:fullvae}
 The decoder fine-tune leaves the encoder frozen. As a second step we also trained the encoder, starting from the

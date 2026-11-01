@@ -1,0 +1,122 @@
+==================================================================
+Job 79871 on mscluster66.ms.wits.ac.za
+P1-14 -- Stage=camelyon  VAE=both  Out=/datasets/mhoosen/stain-norm/eval/p1_18_g15_camelyon
+==================================================================
+Sun Nov  1 16:43:27 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 595.71.05              Driver Version: 595.71.05      CUDA Version: 13.2     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 3090        Off |   00000000:17:00.0 Off |                  N/A |
+| 35%   54C    P8             20W /  350W |       1MiB /  24576MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+------------------------------------------------------------------
+VAE 'stock': {
+  "repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+  "subfolder": "vae",
+  "dtype_requested": "float16",
+  "diffusers_version": "0.39.0",
+  "latent_channels": 4,
+  "block_out_channels": [
+    128,
+    256,
+    512,
+    512
+  ],
+  "down_block_types": [
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D"
+  ],
+  "up_block_types": [
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D"
+  ],
+  "sample_size": 512,
+  "param_count": 83653863,
+  "dtype": "torch.float16",
+  "scaling_factor": 0.18215
+}
+VAE 'ft_mse': {
+  "repo": "stabilityai/sd-vae-ft-mse",
+  "subfolder": null,
+  "dtype_requested": "float16",
+  "diffusers_version": "0.39.0",
+  "latent_channels": 4,
+  "block_out_channels": [
+    128,
+    256,
+    512,
+    512
+  ],
+  "down_block_types": [
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D"
+  ],
+  "up_block_types": [
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D"
+  ],
+  "sample_size": 256,
+  "param_count": 83653863,
+  "dtype": "torch.float16",
+  "scaling_factor": 0.18215
+}
+VAE 'd1_pn03_best': {
+  "repo": "/datasets/mhoosen/stain-norm/vae/d1_pn03/best_val",
+  "subfolder": null,
+  "dtype_requested": "float16",
+  "diffusers_version": "0.39.0",
+  "latent_channels": 4,
+  "block_out_channels": [
+    128,
+    256,
+    512,
+    512
+  ],
+  "down_block_types": [
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D",
+    "DownEncoderBlock2D"
+  ],
+  "up_block_types": [
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D",
+    "UpDecoderBlock2D"
+  ],
+  "sample_size": 256,
+  "param_count": 83653863,
+  "dtype": "torch.float16",
+  "scaling_factor": 0.18215
+}
+Stage camelyon: 2103 patches from /datasets/mhoosen/stain-norm/camelyon17_patches.
+[stock][camelyon] ssim=0.8558 lab_total=5.32 wlab_mean=5.52 psnr=28.23 mae=8.82
+[ft_mse][camelyon] ssim=0.8762 lab_total=2.61 wlab_mean=2.97 psnr=30.91 mae=7.15
+[d1_pn03_best][camelyon] ssim=0.8839 lab_total=4.49 wlab_mean=4.88 psnr=29.41 mae=7.58
+[paired ft_mse-stock][camelyon] mean_dSSIM=+0.0204 (95% CI [+0.0197, +0.0211])  median_dSSIM=+0.0192  mean_dPSNR=+2.682  mean_dMAE=-1.672
+[paired d1_pn03_best-ft_mse][camelyon] mean_dSSIM=+0.0077 (95% CI [+0.0073, +0.0081])  improved on 88.6% of crops  mean_dPSNR=-1.502  mean_dMAE=+0.435
+
+Written: /datasets/mhoosen/stain-norm/eval/p1_18_g15_camelyon/summary.json  and  /datasets/mhoosen/stain-norm/eval/p1_18_g15_camelyon/per_crop.csv
+------------------------------------------------------------------
+Job 79871 finished. Results in /datasets/mhoosen/stain-norm/eval/p1_18_g15_camelyon
