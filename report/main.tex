@@ -23,12 +23,13 @@
 
 \begin{document}
 
-\title{Few-Shot Scanner Stain Normalisation of MITOS-ATYPIA-14 with Adapted Latent Diffusion}
+\title{Few-Shot Histopathology Stain Normalisation with Latent Consistency Models, LoRA and ControlNet}
 
 \author{\IEEEauthorblockN{Muhammad Hoosen}
 \IEEEauthorblockA{\textit{School of Computer Science and Applied Mathematics}\\
 \textit{University of the Witwatersrand}\\
-Johannesburg, South Africa}
+Johannesburg, South Africa\\
+2552770@students.wits.ac.za}
 \and
 \IEEEauthorblockN{Richard Klein}
 \IEEEauthorblockA{\textit{School of Computer Science and Applied Mathematics}\\
@@ -50,7 +51,7 @@ Hamamatsu scan, above every classical baseline, and windowed colour closer to th
 Reinhard or histogram matching on typical slides. We also show that the VAE caps every diffusion result
 and that a fine-tuned decoder raises SSIM mainly by smoothing. Two learned nondiffusion baselines
 trained on the same 50 pairs, ParamNet and StainGAN, outperform every diffusion configuration on colour
-and SSIM. On the Relative Dice structure-safety gate, ParamNet (0.999) and our fused pipeline (0.994)
+and SSIM. On the Relative Dice structure-safety gate, ParamNet (1.003) and our fused pipeline (0.994)
 pass, while the unfused diffusion outputs do not. Few-step LCM inference does not
 match 50-step DDIM quality.
 \end{abstract}

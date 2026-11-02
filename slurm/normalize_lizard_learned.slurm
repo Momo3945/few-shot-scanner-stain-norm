@@ -8,6 +8,8 @@
 #   sbatch normalize_lizard_learned.slurm paramnet 3     # smoke, 3 images
 #   sbatch normalize_lizard_learned.slurm stainnet       # full 130
 # Output: eval/lizard_normalised_images_<METHOD>/
+# Env: SEED=N reads baselines/a2h_<METHOD>_s<N> and writes eval/lizard_normalised_images_<METHOD>_s<N>
+#      (unset: unchanged). HoVer-Net/score tags then become lizard_normalised_<METHOD>_s<N>.
 # Then:   sbatch infer_hovernet.slurm lizard_normalised_<METHOD> <that dir> "" ""
 #         sbatch score_lizard.slurm  lizard_normalised_<METHOD> lizard_original
 # Always add the bad-node --exclude list from CLAUDE.md on submission.
@@ -32,8 +34,10 @@ IMAGES_DIR=${DATA_ROOT}/lizard_heldout/images
 
 METHOD=${1:?"Usage: sbatch normalize_lizard_learned.slurm METHOD [LIMIT]  (METHOD = stainnet | paramnet | staingan)"}
 LIMIT=${2:-0}
-CKPT=${DATA_ROOT}/baselines/a2h_${METHOD}/${METHOD}_a2h.pt
+CK_DIR=${DATA_ROOT}/baselines/a2h_${METHOD}
 OUT_DIR=${DATA_ROOT}/eval/lizard_normalised_images_${METHOD}
+if [[ -n "${SEED:-}" ]]; then CK_DIR="${CK_DIR}_s${SEED}"; OUT_DIR="${OUT_DIR}_s${SEED}"; fi
+CKPT=${CK_DIR}/${METHOD}_a2h.pt
 if [[ "${LIMIT}" != "0" ]]; then OUT_DIR="${OUT_DIR}_smoke"; fi
 
 mkdir -p "${CODE_DIR}/logs" "${OUT_DIR}"

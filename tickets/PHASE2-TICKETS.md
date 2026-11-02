@@ -1133,6 +1133,51 @@ seeds runs from +9.8 to +19.3. Its only low value is seed 3407 on A13; seeds 1 a
 Limitations now read three seeds A→H, one for H→A and for Lizard. The `fig:compare` caption notes seed 3407.
 H2A and the Lizard Relative Dice are still single-seed.
 
+**Seeds (2026-11-02): H2A and Lizard.** This closes the last single-seed caveat. Both runs used seeds 1 and 2,
+alongside 3407, and the checks were fixed before any result.
+
+Setup:
+- **Jobs 80223–80258**, 36 in total, all `COMPLETED`, all on bigbatch because stampede was down.
+- **H2A:** train → infer → score per method and seed, with `SEED=N ... H2A`. Every manifest has 496 crops.
+- **Lizard:** `normalize_lizard_learned.slurm` (new `SEED=N` override, reading `baselines/a2h_<m>_s<N>`)
+  → `infer_hovernet.slurm` → `score_lizard.slurm`. Every `per_image.csv` has 130 images.
+
+| H2A typical Δlab | seed 3407 | seed 1 | seed 2 | mean |
+|---|---|---|---|---|
+| StainNet | −28.38 | −17.14 | −25.68 | −23.73 |
+| ParamNet | +17.28 | +16.09 | +18.14 | +17.17 |
+| StainGAN | +10.75 | +11.04 | +9.96 | +10.58 |
+
+H2A pooled SSIM, mean [range]:
+- ParamNet 0.734 [0.731, 0.735]
+- StainGAN 0.733 [0.732, 0.734]
+- StainNet 0.454 [0.396, 0.532]
+
+Script: `aggregate_seeds.py h2a`, which writes `aggregate_seeds_h2a*.csv`.
+
+| Lizard Relative Dice | seed 3407 | seed 1 | seed 2 | 3-seed mean [95% CI] |
+|---|---|---|---|---|
+| StainNet | 0.622 | 0.246 | 0.232 | 0.367 [0.342, 0.392] |
+| ParamNet | 0.999 | 1.014 | 0.997 | 1.003 [1.000, 1.007] |
+| StainGAN | 0.724 | 0.618 | 0.711 | 0.684 [0.650, 0.718] |
+
+- Script: `lizard/bootstrap_seeds.py`, which writes `relative_dice_seeds.csv`.
+- The 3-seed row averages Dice(B,G) per image over the seeds, so its CI covers images only.
+- StainGAN's secondary metrics, as 3-seed means: object F1 0.479, count ratio 0.362.
+
+**Pre-stated checks hold on every seed:**
+- **H2A:** ParamNet and StainGAN have positive typical recovery, and StainNet negative.
+- **Lizard:** ParamNet's CI lower bound is ≥ 0.95, and StainGAN and StainNet are < 0.95.
+
+StainNet is the least stable method: seed 3407 was its best Lizard seed by far.
+
+**Paper (2026-11-02):**
+- The H2A sentence uses the 3-seed means.
+- The Relative Dice table's learned rows are 3-seed means (†) with the seed range in the caption.
+- ParamNet 0.999 becomes 1.003 in the abstract, results and conclusion.
+- StainGAN's loss becomes 32%.
+- Limitations now read "three seeds in each direction".
+
 **Remaining:** none. Ticket closed.
 
 ---

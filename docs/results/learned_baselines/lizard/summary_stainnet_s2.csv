@@ -1,0 +1,5 @@
+metric,value,n_images
+dice,0.1623,130
+iou,0.09505,130
+object_f1,0.16548,130
+count_ratio,0.10669,130

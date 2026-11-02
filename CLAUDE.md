@@ -268,6 +268,8 @@ Klein. Public datasets only (MITOS-ATYPIA-14, CAMELYON17, TCGA-BRCA, PanNuke, Li
   (2026-10-26, P1-18 Stage 2a: two 30-min monitors reported nothing while 13 jobs ran). End the
   remote command with `; true`, and still read `sacct` directly when a monitor expires with no events.
   The cluster login node also has no `python` on PATH outside a conda env.
+  `sacct -j 80223-80258` is NOT a job range: it silently reports only the first ID (2026-11-02, a
+  monitor saw 1 of 36 jobs for 30 min). Pass an explicit list: `sacct -j $(seq -s, 80223 80258)`.
 - **`stampede` can be almost entirely down** (2026-11-01: 17 of 20 nodes `down*`, only the slow
   mscluster38/40/41 idle). A scoring job excluding those three then waits forever with
   `ReqNodeNotAvail`. Check `sinfo -p stampede -N` before submitting CPU scoring. Pending jobs can be

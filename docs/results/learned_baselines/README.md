@@ -177,3 +177,13 @@ because training loss had already plateaued.
 infer 64242 / 64277 / 64278; score 64282 / 64343 / 64344.
 **Jobs (H2A):** train 64405 / 64409 / 64412; infer 64406 / 64410 / 64413;
 score 64407 / 64411 / 64414.
+
+**Seeds:** every method was run with seeds 3407, 1 and 2 (run dirs `<m>_s<N>/`, `h2a_<m>_s<N>/`).
+- A2H: jobs 79852–79869.
+- H2A and Lizard: jobs 80223–80258.
+
+Summaries:
+- `python learned_baselines/aggregate_seeds.py [h2a]` (run from `docs/results/`);
+- `lizard/bootstrap_seeds.py`, which writes `lizard/relative_dice_seeds.csv`.
+
+See PHASE2-TICKETS.md P2-11b.

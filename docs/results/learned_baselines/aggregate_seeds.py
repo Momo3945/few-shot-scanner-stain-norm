@@ -8,14 +8,21 @@ per-slide typical recovery. Then mean, SD and min-max over seeds, and the pre-st
 on every seed, ParamNet and StainGAN each beat the fused SD1.5 pipeline on pooled SSIM (> 0.729) and on
 typical LAB (< 18.11). Writes aggregate_seeds.csv next to this file.
 Run from docs/results/:  python learned_baselines/aggregate_seeds.py
+
+H2A (2026-11-02): `python learned_baselines/aggregate_seeds.py h2a` reads h2a_<method>[_s<N>]/ and writes
+aggregate_seeds_h2a*.csv. Its pre-stated check (fixed before the seed runs): on every seed, ParamNet and
+StainGAN have positive typical-slide recovery and StainNet negative.
 """
+import sys
 import csv
 import statistics as st
 from pathlib import Path
 
 TYPICAL = ("A08", "A09", "A13", "A16")
 METHODS = ("stainnet", "paramnet", "staingan")
-SEEDS = {3407: "{m}", 1: "{m}_s1", 2: "{m}_s2"}
+H2A = len(sys.argv) > 1 and sys.argv[1] == "h2a"
+PRE = "h2a_" if H2A else ""
+SEEDS = {3407: PRE + "{m}", 1: PRE + "{m}_s1", 2: PRE + "{m}_s2"}
 FUSED_SSIM_ALL, FUSED_LAB_TYPICAL = 0.729, 18.11
 
 here = Path(__file__).resolve().parent
@@ -52,18 +59,24 @@ for m in METHODS:
     print(f"{m:9s} " + "  ".join(f"{k}={agg[k + '_mean']:.3f}±{agg[k + '_sd']:.3f} [{agg[k + '_min']:.3f},{agg[k + '_max']:.3f}]"
                                 for k in ("all_lab", "typical_lab", "a06_lab", "all_ssim", "typical_ssim", "a06_ssim")))
 
-print("\nPre-stated ranking check (every seed: pooled SSIM > 0.729 and typical LAB < 18.11):")
-for m in ("paramnet", "staingan"):
+if H2A:
+    print("\nPre-stated H2A check (every seed: typical recovery > 0 for ParamNet/StainGAN, < 0 for StainNet):")
+    for r in per_run:
+        ok = r["typical_dlab"] < 0 if r["method"] == "stainnet" else r["typical_dlab"] > 0
+        print(f"  {r['method']} seed {r['seed']}: typical dlab {r['typical_dlab']:+.2f} -> {'holds' if ok else 'FAILS'}")
+print("\nPre-stated ranking check (every seed: pooled SSIM > 0.729 and typical LAB < 18.11):" if not H2A else "")
+for m in (() if H2A else ("paramnet", "staingan")):
     for r in (x for x in per_run if x["method"] == m):
         ok = r["all_ssim"] > FUSED_SSIM_ALL and r["typical_lab"] < FUSED_LAB_TYPICAL
         print(f"  {m} seed {r['seed']}: SSIM {r['all_ssim']:.3f}, typical LAB {r['typical_lab']:.2f} -> {'holds' if ok else 'FAILS'}")
 print("Per-slide typical recovery (ParamNet), all seeds:",
       sorted(round(r[f"dlab_{s}"], 1) for r in per_run if r["method"] == "paramnet" for s in TYPICAL))
 
-with open(here / "aggregate_seeds.csv", "w", newline="") as fh:
+SUF = "_h2a" if H2A else ""
+with open(here / f"aggregate_seeds{SUF}.csv", "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=list(per_run[0]))
     w.writeheader(); w.writerows(per_run)
-with open(here / "aggregate_seeds_summary.csv", "w", newline="") as fh:
+with open(here / f"aggregate_seeds{SUF}_summary.csv", "w", newline="") as fh:
     w = csv.DictWriter(fh, fieldnames=list(summary[0]))
     w.writeheader(); w.writerows(summary)
-print("wrote aggregate_seeds.csv and aggregate_seeds_summary.csv")
+print(f"wrote aggregate_seeds{SUF}.csv and aggregate_seeds{SUF}_summary.csv")
