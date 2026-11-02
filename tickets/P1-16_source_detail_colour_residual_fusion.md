@@ -855,3 +855,34 @@ fusion helps SSIM/colour but does nothing for the one metric it cannot
 directly manipulate (a classifier trained independently, on Aperio, with no
 knowledge of this fusion process) is the expected signature of a real,
 bounded effect — not a trick.
+
+## Determinism check (2026-11-02): seeds do not vary DDIM inversion, so no seed spread exists
+
+Aim: make the headline fused row a 3-seed mean, as the other "This work" rows in Table I appeared to be.
+
+**Code:** `fuse_source_detail.py --av-any-seed` (slurm `AV_ANY_SEED=1`; off by default). It looks A_V up by
+crop_id alone, so all three H_pred seeds can be fused against the identity run's single A_V. This is valid
+because A_V is encoded with `latent_dist.mode()`.
+
+**Run:** jobs 79997 (fusion: 1,488 crop-seeds, 7:14) and 79998 (score, 11:55), both on bigbatch because
+stampede was down. Output: `eval/p1_16_fusion/f3_s8_b0.50_heldout_full_3seed/`.
+
+**Checks:**
+- All 496 seed-0 fused crops are byte-identical to `f3_s8_b0.50_heldout_full_corrected`, so the flag changes
+  nothing for seed 0.
+- Fused seed 1 is byte-identical to seed 0 (60/60 checked).
+- More importantly, the H_pred inputs are byte-identical across seeds: in `p1_10_ddim_inversion_full`,
+  seed 0 equals seed 1 on 496/496 crops.
+- The same holds for both alternate-decoder runs (`p1_15_alt_decoder/full_correct` and
+  `.../p1_18_d1_pn03_full_r2`): 992/992 identical.
+- By contrast, the img2img run `p1_10_full_heldout` differs on 100/100 crops checked.
+- **Conclusion:** at f = 1.0, DDIM inversion is fully deterministic and the seed argument has no effect.
+  The 3-seed summary therefore equals seed 0 (SSIM 0.72895, LAB 26.56, typical 18.11).
+
+**Paper corrected:**
+- Table I's † is removed from the three inversion rows. The caption now says † is sampling seeds for the
+  img2img row and training seeds for the learned baselines, and that the inversion and fusion rows are
+  single deterministic runs.
+- "every crop-seed" is now "every crop".
+- Limitations now say that our LoRA and ControlNet were trained once, and training-seed variation was not
+  measured. That is the only source of spread left for the diffusion pipeline.

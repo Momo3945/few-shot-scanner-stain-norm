@@ -207,6 +207,11 @@ def parse_args():
     ap.add_argument("--pred-source-mode", default="correct",
                     help="P1-18 G1.4: source_mode value of the H_pred rows. Default 'correct' (unchanged); "
                          "alt-decoder manifests carry e.g. correct_alt_decoder / correct_stock_decoder.")
+    ap.add_argument("--av-any-seed", action="store_true",
+                    help="Identity-manifest convention only: look A_V up by crop_id alone, so every H_pred seed "
+                         "uses the identity run's single vae_only reconstruction. Valid because that encode "
+                         "uses latent_dist.mode() (deterministic, see infer_colour_source_ddim_inversion.py). "
+                         "Default off: (crop_id, seed) lookup, unchanged.")
     ap.add_argument("--method", choices=["f1", "f2", "f3"], required=True)
     ap.add_argument("--sigma", type=float, default=4.0, help="Gaussian blur sigma (px). F2/F3.")
     ap.add_argument("--alpha", type=float, default=1.0, help="F2 high-frequency reinjection weight.")
@@ -318,6 +323,12 @@ def main():
         a_raw_by_crop = {r["crop_id"]: id_base / r["reference_path"] for r in id_rows}
         a_vae_by_key = {(r["crop_id"], r["seed"]): id_base / r["output_path"]
                         for r in id_rows if is_vae_only(r)}
+        if args.av_any_seed:
+            # One deterministic A_V per crop serves all H_pred seeds (crop_id-only path below).
+            a_vae_by_crop_only = {cid: p for (cid, _s), p in sorted(a_vae_by_key.items())}
+            print(f"--av-any-seed: {len(a_vae_by_crop_only)} A_V crops "
+                  f"(from {len(a_vae_by_key)} identity vae_only rows) used for every seed.")
+            a_vae_by_key = None
     else:
         # P3-08/SDXL convention: no identity-mode run exists. A_raw comes
         # directly from the TRANSLATE manifest's own aperio_path column

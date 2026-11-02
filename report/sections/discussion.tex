@@ -56,7 +56,8 @@ quality (H4).
 
 \textbf{Limitations.} All training data come from one slide pair (A03/H03), so slide-level variation is
 not represented in training. The learned baselines were trained with three seeds in the \AtoH{} direction but one in \HtoA{} and for the
-Lizard test. Structural
+Lizard test. Our own LoRA and ControlNet were trained once; DDIM inversion makes their outputs
+deterministic, so training-seed variation is the one source of spread we did not measure for them. Structural
 safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). The planned clinical-utility test has no valid
 instrument: every atypia classifier we built failed its own pre-registered gate
 (Appendix~\ref{app:clinical}), so no clinical-utility claim is made. The decoder smoothing analysis

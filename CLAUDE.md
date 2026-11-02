@@ -384,6 +384,10 @@ do not create new top-level folders without updating this list.
   pooled ALL number stand alone. Outlier flagging is robust (median/MAD), not mean/std.
 - Colour LoRA objective = target-domain denoising loss; direction comes from img2img at inference.
 - Report both clean-slide and all-slide aggregates.
+- **DDIM inversion at f = 1.0 is deterministic; the seed argument has no effect.** Seeds 0/1/2 give
+  byte-identical outputs (checked 2026-11-02 for the stock, ft-mse and fine-tuned-decoder runs and for
+  F3 fusion). Never report a "3-seed mean" for inversion rows, and don't spend compute re-running
+  them with new seeds. Only img2img sampling seeds and training seeds create spread.
 - MITOS training archives use a DOUBLED dir layout (`A03/A03/frames/x20`); testing does not.
   Frame IDs match across scanners (A03_00A ↔ H03_00A) = the coordinate correspondence.
 - Diffusion training loss (the per-step MSE printed during LoRA training) is noisy and

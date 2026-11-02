@@ -9,8 +9,9 @@ on the slide in question, so positive means closer to the real scanner than doin
 \centering
 \caption{\AtoH{} results on the five held-out slides. LAB Wasserstein \eqref{eq:wlab} (lower is
 better) and SSIM against the registered Hamamatsu scan; \emph{typical} is A08, A09, A13 and A16. Every
-trained method uses the same 50 A03/H03 pairs. Rows marked $^\dagger$ average three seeds (1{,}488
-crop-seeds); the rest use one (496 crops). The raw row is computed over the full baseline crop set.
+trained method uses the same 50 A03/H03 pairs. Rows marked $^\dagger$ average three seeds: sampling seeds for the img2img
+row (1{,}488 crop-seeds) and training seeds for the learned baselines. DDIM inversion is deterministic, so
+the inversion and fusion rows are single runs (496 crops); other seeds give byte-identical outputs. The raw row is computed over the full baseline crop set.
 Bold: best normaliser per column.}
 \label{tab:main}
 \small
@@ -38,9 +39,9 @@ SD\,1.5 ladder & A0 frozen img2img & 32.89 & 23.65 & 95.22 & 0.285 & 0.299 & 0.1
  & A5 + histopathology warm-start & 33.96 & 25.29 & 92.46 & 0.389 & 0.407 & 0.265\\
 \midrule
 This work & Source ControlNet + LoRA, img2img$^\dagger$ & 30.95 & 22.11 & 90.64 & 0.448 & 0.470 & 0.307\\
- & + DDIM inversion$^\dagger$ & 25.10 & 17.98 & 73.12 & 0.496 & 0.514 & 0.373\\
- & + \texttt{ft-mse} decoder$^\dagger$ & 24.53 & 16.86 & 76.32 & 0.557 & 0.574 & 0.438\\
- & + fine-tuned decoder$^\dagger$ & 25.86 & 17.95 & 79.23 & 0.616 & 0.634 & 0.498\\
+ & + DDIM inversion & 25.10 & 17.98 & 73.12 & 0.496 & 0.514 & 0.373\\
+ & + \texttt{ft-mse} decoder & 24.53 & 16.86 & 76.32 & 0.557 & 0.574 & 0.438\\
+ & + fine-tuned decoder & 25.86 & 17.95 & 79.23 & 0.616 & 0.634 & 0.498\\
  & DDIM inversion + F3 fusion & 26.56 & 18.11 & 83.59 & 0.729 & 0.746 & 0.617\\
 \bottomrule
 \end{tabular}
@@ -95,7 +96,7 @@ crops. Every VAE stays well below the lossless value of 1.0 (dotted).}
 \end{figure}
 
 Decoding the DDIM-inversion latents with the better decoders raises translated SSIM from 0.496 to 0.557
-(\texttt{ft-mse}) and 0.616 (fine-tuned), winning on every crop-seed. The fine-tune costs colour, though:
+(\texttt{ft-mse}) and 0.616 (fine-tuned), winning on every crop. The fine-tune costs colour, though:
 typical-slide LAB distance rises from 16.86 to 17.95 and A06 worsens to 79.2. Visual inspection explains
 part of the SSIM gain. On two inspected crops the fine-tuned decoder keeps only 21--30\% of the input's
 fine-detail energy (Laplacian variance), against 52--59\% for \texttt{ft-mse}, and shifts the blue channel

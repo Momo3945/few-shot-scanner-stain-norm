@@ -23,6 +23,8 @@
 # P1-18 G1.4 (additive env overrides, unset = unchanged): fuse the alternate-decoder rows of an
 # infer_p1_11_alt_decoder.slurm manifest instead of plain P1-11 rows:
 #   PRED_METHOD=alt_decoder PRED_SOURCE_MODE=correct_alt_decoder sbatch fuse_source_detail.slurm f3 ...
+# AV_ANY_SEED=1: fuse every H_pred seed against the identity run's single (deterministic) A_V
+#   (2026-11-02, 3-seed headline row; without it seeds 1/2 are skipped as unmatched).
 #
 # Then score with the EXISTING scorer:
 #   sbatch score_outputs.slurm p1_16_fusion/f3_s8_b0.75
@@ -51,6 +53,8 @@ SIGMA=${5:-4.0}
 ALPHA=${6:-1.0}
 BETA=${7:-1.0}
 OUT_DIR=${DATA_ROOT}/eval/${OUT_TAG}
+AV_FLAG=""
+if [[ "${AV_ANY_SEED:-0}" == "1" ]]; then AV_FLAG="--av-any-seed"; fi
 
 mkdir -p "${CODE_DIR}/logs"
 
@@ -74,7 +78,7 @@ python fuse_source_detail.py \
     --translate-manifest "${DATA_ROOT}/eval/${TRANSLATE_MANIFEST}" \
     --method "${METHOD}" --sigma "${SIGMA}" --alpha "${ALPHA}" --beta "${BETA}" \
     --pred-method "${PRED_METHOD:-ddim_inversion}" --pred-source-mode "${PRED_SOURCE_MODE:-correct}" \
-    --out "${OUT_DIR}"
+    ${AV_FLAG} --out "${OUT_DIR}"
 
 echo "------------------------------------------------------------------"
 echo "Fusion done. Outputs + eval_manifest.csv in ${OUT_DIR}"
