@@ -9,7 +9,7 @@ Table~\ref{tab:hyp} answers the four hypotheses the project committed to before 
 \label{tab:hyp}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
-\begin{tabular}{p{0.9cm}p{3.0cm}p{3.6cm}}
+\begin{tabular}{p{0.4cm}p{2.7cm}p{5.0cm}}
 \toprule
 H & Claim & Outcome\\
 \midrule
@@ -19,8 +19,7 @@ not for SDXL at 1024\,px, which needed 144 pairs.\\
 \midrule
 H2 & Colour improves over raw input and classical baselines, on MITOS and CAMELYON17 &
 \textbf{Partly.} Beats raw everywhere and classical on typical slides; loses to Macenko on A06 and to
-ParamNet/StainGAN everywhere; CAMELYON17 fails for every SD\,1.5 configuration, final pipeline
-included, and passes narrowly for SDXL.\\
+ParamNet/StainGAN; CAMELYON17 fails for SD\,1.5, passes narrowly for SDXL.\\
 \midrule
 H3 & Relative Dice $\geq 0.95$ &
 \textbf{Supported with fusion}: 0.994 for inversion + F3; not without it (0.893 unfused, 0.875
@@ -36,38 +35,29 @@ is worse.\\
 \textbf{Why the learned baselines win.} ParamNet and StainNet apply a colour map to the input pixels, and
 StainGAN's CycleGAN generator keeps a wide feature map (a quarter of the resolution, hundreds of
 channels); none of them passes the image through a 48$\times$ compressing four-channel latent. Every diffusion output is resynthesised by the VAE, which alone limits SSIM to
-0.576--0.646 on Aperio crops (Section~\ref{sec:vae}). F3 fusion is, in effect, our way of turning the
-diffusion model back into a colour map applied to the source: its success on structure and the
-learned colour maps' success on colour point in the same direction. With 50 pairs, the strong image prior
+0.576--0.646 on Aperio crops (Section~\ref{sec:vae}). F3 fusion in effect turns the diffusion model back
+into a colour map applied to the source. With 50 pairs, the strong image prior
 of a diffusion model does not compensate for the information it loses in its own bottleneck.
 
-\textbf{Colour metrics.} LAB Wasserstein compares colour histograms and ignores layout, so histogram
-matching wins it on A06 by construction while scoring worse than doing nothing on typical slides. The
-windowed variant and per-slide reporting were essential to avoid reading that as a real gain. Pixelwise
-$\Delta E_{2000}$ tracks SSIM almost rank for rank, so it is not an independent colour check.
+\textbf{Colour metrics.} LAB Wasserstein ignores layout, so histogram matching wins it on A06 by
+construction while scoring worse than doing nothing on typical slides; the windowed variant and per-slide
+reporting prevent reading that as a real gain. Pixelwise $\Delta E_{2000}$ tracks SSIM almost rank for
+rank, so it is not an independent colour check.
 
-\textbf{Cost.} Timed on one RTX~3090 with loading excluded (Table~\ref{tab:app-speed}), the final pipeline
-takes 6.27\,s per 512\,px crop, generic LCM at four steps 0.50\,s (12.5$\times$ faster), and SDXL 12.1\,s per
-1024\,px crop, about 3.0\,s per 512\,px of tissue. The learned baselines take 2--25\,ms and the classical
-ones 6--42\,ms. A 100{,}000$\times$100{,}000 pixel whole-slide image holds about 38{,}000 crops of
-512\,px, so the final pipeline needs about 66 GPU-hours per slide, LCM 5.3 and SDXL 32, against
-minutes for every baseline; the few-step LCM path that was meant to remove this cost did not hold its
-quality (H4).
+\textbf{Cost.} On one RTX~3090 (Table~\ref{tab:app-speed}) the final pipeline takes 6.27\,s per 512\,px
+crop, against 2--42\,ms for every baseline. A 100{,}000$\times$100{,}000 pixel slide holds about 38{,}000
+such crops, so it needs about 66 GPU-hours (LCM 5.3, SDXL 32) against minutes for the baselines.
 
 \textbf{Limitations.} All training data come from one slide pair (A03/H03), so slide-level variation is
 not represented in training. The learned baselines were trained with three seeds in each direction, and the Lizard test uses all
-three. Our own LoRA and ControlNet were trained once; DDIM inversion makes their outputs
-deterministic, so training-seed variation is the one source of spread we did not measure for them. Structural
-safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). The planned clinical-utility test has no valid
-instrument: every atypia classifier we built failed its own pre-registered gate
-(Appendix~\ref{app:clinical}), so no clinical-utility claim is made. The decoder smoothing analysis
+three. Our LoRA and ControlNet were trained once, so their training-seed variation is unmeasured. Structural
+safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). No clinical-utility claim is made: every atypia
+classifier we built failed its own pre-registered gate (Appendix~\ref{app:clinical}). The decoder smoothing analysis
 rests on two inspected crops.
 
-\textbf{Planned but not run.} Several planned items were not carried out and no result is claimed for
-them: the mitosis-detection arm of the clinical-utility evaluation, which needs a separate object
-detector; the SD\,3.5 probe's structural-ControlNet and SD\,3.5 Turbo few-step checks; a full-VAE fine-tune
-with the LoRA and ControlNet retrained on its new latents (only the anchored version was run); and a
-source-image conditioning branch for PixCell. Two choices also departed from the plan: the TCGA-BRCA colour
-reference was not used as a secondary colour target, and the
-attention-residual method~\cite{madusanka2025attentionresidual}, planned as the state-of-the-art colour
-baseline, was not reproduced, so it is cited but not compared.
+\textbf{Planned but not run.} No result is claimed for the mitosis-detection arm (it needs a separate
+detector), the SD\,3.5 structural-ControlNet and Turbo checks, a full-VAE fine-tune with the LoRA and
+ControlNet retrained (only the anchored version was run), or a PixCell source-conditioning branch. The
+TCGA-BRCA secondary colour target was not used, and the planned state-of-the-art baseline, the
+attention-residual method~\cite{madusanka2025attentionresidual}, was not reproduced, so it is cited but not
+compared.

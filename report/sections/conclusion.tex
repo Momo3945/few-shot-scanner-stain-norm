@@ -1,20 +1,19 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-A frozen Stable Diffusion 1.5 model adapted from 50 coordinate-corresponding pairs can be made to normalise
-between two scanners, but only after replacing the planned recipe. A target-only colour LoRA with
-ControlNet and LCM barely moves colour. Source conditioning, DDIM inversion and a post-hoc fusion that
-returns the learned colour change to the source pixels reach SSIM 0.729 and beat the classical baselines on
-typical-slide colour. The VAE bottleneck explains most of the gap to the raw scan, and fine-tuning its
-decoder raises SSIM mainly by smoothing. Learned nondiffusion baselines trained on the same 50 pairs
-remain better on colour and SSIM. On nucleus preservation, ParamNet and the fused pipeline both pass the
-Relative Dice test (1.003 and 0.994), and the unfused diffusion output does not. Few-step LCM inference
-is 12.5$\times$ faster but does not hold 50-step quality. For
+A frozen Stable Diffusion 1.5 model adapted from 50 coordinate-corresponding pairs can normalise between
+two scanners, but only after replacing the planned recipe: a target-only colour LoRA with ControlNet and
+LCM barely moves colour, while source conditioning, DDIM inversion and fusion of the learned colour change
+onto the source pixels reach SSIM 0.729 and beat the classical baselines on typical-slide colour. The VAE
+bottleneck explains most of the gap to the raw scan, and fine-tuning its decoder raises SSIM mainly by
+smoothing. Learned nondiffusion baselines trained on the same 50 pairs remain better on colour and SSIM;
+ParamNet and the fused pipeline both pass the Relative Dice test (1.003 and 0.994), and the unfused
+diffusion output does not. Few-step LCM is 12.5$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
-model; diffusion is most useful here as a source of colour change that fusion projects back onto the
-original image.
+model, and diffusion is most useful as a source of colour change that fusion projects back onto the
+original image. A histopathology-pretrained backbone such as PixCell, given a source-image conditioning
+branch, is the natural next step.
 
 \section*{Acknowledgment}
-Computations were performed on the University of the Witwatersrand's mscluster
-high-performance computing cluster. We thank the organisers of
+Computations used the University of the Witwatersrand's mscluster. We thank the organisers of
 MITOS-ATYPIA-14, CAMELYON17, Lizard, PanNuke and TCGA for making their data public.

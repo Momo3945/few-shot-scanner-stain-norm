@@ -239,12 +239,15 @@ the count ratio to 0.362 (three-seed means). The earlier A4-type operating point
 loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 32\%,
 which is consistent with GANs altering nuclei. StainNet is the least stable, from 0.62 to 0.23 across seeds. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
 back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance
-28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
+28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). Each direction re-encodes through the VAE
+(SSIM ceiling 0.58) and redraws the image, so errors likely compound over the round trip. On CAMELYON17~\cite{bandi2018camelyon17}, measured as the
 mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches, $D_{\mathrm{pre}}=56.70$), no
 SD\,1.5 configuration brings the centres closer. The final pipeline is neutral with fusion
 ($\Delta D=+0.14$, 95\% bootstrap CI $[-0.22, 0.51]$, 4 of 10 centre pairs improved) and worse without it
 ($+1.29$ $[0.24, 2.49]$, 3 of 10), as is the A4-type operating point ($+0.83$ $[0.44, 1.19]$, 1 of 10). The CIs
-resample the 10 centre pairs, which share centres, so they are supportive only.
+resample the 10 centre pairs, which share centres, so they are supportive only. Likely, the model learns one fixed
+Aperio-to-Hamamatsu shift, which moves every centre together rather than towards each other, while the
+centres differ by staining protocol as well as scanner, and by more than the gap it was trained on.
 
 \subsection{Downstream clinical utility}
 The planned clinical test, an atypia classifier trained on Aperio and scored on normalised Hamamatsu
@@ -258,7 +261,10 @@ then failed their own pre-registered validity gates, so no atypia number is used
 Generic LCM-LoRA on the source-conditioned model is a speed--quality trade-off rather than a match: its best
 setting (6 steps, guidance 2.0, strength 0.70) gives A06 SSIM 0.334 and $\dlab=+9.7$, against 0.373 and
 $+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. It is 12.5$\times$ faster
-(0.50\,s against 6.27\,s per crop, Table~\ref{tab:app-speed}). Distilling a task-specific
+(0.50\,s against 6.27\,s per crop, Table~\ref{tab:app-speed}). The likely limit is the sampler, not the step
+count: LCM re-noises at every step, so it cannot use the DDIM inversion that gave our largest gain, while
+against 50-step img2img of the same model it holds up (A06 SSIM 0.334 against 0.307, A08 0.515 against
+0.482; smaller crop subset, strength 0.70 against 0.50). LCM with inversion was not tested. Distilling a task-specific
 LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule
 (paired win rate 30 of 80 crops against 50 of 80).
 
