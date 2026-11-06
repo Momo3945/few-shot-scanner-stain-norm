@@ -42,23 +42,23 @@ src = Image.open(TIFF).convert("RGB").crop((0, 0, 512, 512))
 tgt = rgb(C / "real_hamamatsu_A06_00A_x0_y0.png").crop((0, 0, 512, 512))
 fig, axs = plt.subplots(1, 4, figsize=(9.6, 2.7))
 row(axs, [("Raw Aperio", src), ("Generic LCM-LoRA", rgb(M / "p113_generic.png")),
-          ("Task-specific LCM (P1-13)", rgb(M / "p113_taskspecific.png")), ("Real Hamamatsu", tgt)])
+          ("Task-specific LCM", rgb(M / "p113_taskspecific.png")), ("Real Hamamatsu", tgt)])
 save(fig, "p1_13_lcm.jpg")
 
 # 4. P1-17 differential diffusion smoke crop (training crop A03_00A_c024)
 chg = Image.open(M / "dd_changemap.png").convert("L")
 fig, axs = plt.subplots(1, 5, figsize=(11, 2.5))
-row(axs, [("Source (Aperio)", rgb(M / "dd_source.png")), ("Change map", chg), ("P1-17 output", rgb(M / "dd_output.png")),
-          ("P1-10 baseline", rgb(M / "dd_p110_baseline.png")), ("Real Hamamatsu", rgb(M / "dd_reference.png"))], fs=7)
+row(axs, [("Source (Aperio)", rgb(M / "dd_source.png")), ("Change map", chg), ("Differential diffusion", rgb(M / "dd_output.png")),
+          ("Source-cond. baseline", rgb(M / "dd_p110_baseline.png")), ("Real Hamamatsu", rgb(M / "dd_reference.png"))], fs=7)
 axs[1].images[0].set_cmap("gray")
 save(fig, "p1_17_diffdiff.jpg")
 
 # 5. SDXL H2A: source = registered real Hamamatsu, target = raw Aperio
 ham = rgb(C / "real_hamamatsu_A06_00A_x0_y0.png"); aper = rgb(M / "h2a_reference.png")
 fig, axs = plt.subplots(2, 3, figsize=(7.2, 5.2), layout="constrained")
-row(axs[0], [("Real Hamamatsu (source), 512px FOV", ham.crop((0, 0, 512, 512))), ("SDXL 512 H2A (P3-06)", rgb(M / "h2a_sdxl512.png")),
+row(axs[0], [("Real Hamamatsu (source), 512px FOV", ham.crop((0, 0, 512, 512))), ("SDXL 512px, H→A", rgb(M / "h2a_sdxl512.png")),
              ("Raw Aperio (target)", aper.crop((0, 0, 512, 512)))], fs=7)
-row(axs[1], [("Real Hamamatsu (source), 1024px FOV", ham), ("SDXL 1024 H2A (P3-07)", rgb(M / "h2a_sdxl1024.png")), ("Raw Aperio (target)", aper)], fs=7)
+row(axs[1], [("Real Hamamatsu (source), 1024px FOV", ham), ("SDXL 1024px, H→A", rgb(M / "h2a_sdxl1024.png")), ("Raw Aperio (target)", aper)], fs=7)
 save(fig, "sdxl_h2a.jpg")
 
 # 6. Lizard: HoVer-Net on original vs normalised, boundary overlay on a 400px patch
@@ -76,9 +76,12 @@ save(fig, "lizard_overlay.jpg")
 
 # 7. Text-to-image backbone colour defaults (6 images)
 names = ["sd15_a2h", "sd15_h2a", "sdxl512_a2h", "sdxl512_h2a", "sdxl1024_a2h", "sdxl1024_h2a"]
+T2I_TITLES = {"sd15_a2h": "SD 1.5, A→H LoRA", "sd15_h2a": "SD 1.5, H→A LoRA",
+              "sdxl512_a2h": "SDXL 512px, A→H LoRA", "sdxl512_h2a": "SDXL 512px, H→A LoRA",
+              "sdxl1024_a2h": "SDXL 1024px, A→H LoRA", "sdxl1024_h2a": "SDXL 1024px, H→A LoRA"}
 fig, axs = plt.subplots(2, 3, figsize=(7.2, 5.2), layout="constrained")
 for ax, n in zip(axs.T.flatten(), names):
-    ax.imshow(rgb(R / f"p3_06_p3_07_h2a_extension/images/{n}/t2i_seed0.png").resize((384, 384))); ax.set_title(n, fontsize=7); ax.axis("off")
+    ax.imshow(rgb(R / f"p3_06_p3_07_h2a_extension/images/{n}/t2i_seed0.png").resize((384, 384))); ax.set_title(T2I_TITLES[n], fontsize=7); ax.axis("off")
 save(fig, "t2i_backbones.jpg")
 
 # 8. Downscaled local panels: strength sweeps and A06 strength 0.50
@@ -113,7 +116,7 @@ save(fig, "sdxl_vs_sd15.jpg")
 # y=0 and y=522, 10px white gap) with tiny labels burned into a 209x27 black box at each tile's top-left, so
 # every tile is cut to the same 484x484 window below that box and titled here instead.
 P = rgb(R / "p1_11_ddim_inversion/qualitative_h2a_fraction_fix.png")
-COLS = ["Raw Hamamatsu (source)", "Real Aperio (target)", "H2A output, f = 1.00", "H2A output, f = 0.25"]
+COLS = ["Raw Hamamatsu (source)", "Real Aperio (target)", "H→A output, f = 1.00", "H→A output, f = 0.25"]
 fig, axs = plt.subplots(2, 4, figsize=(9.6, 5.0), layout="constrained")
 for r, (y0, slide) in enumerate([(0, "A08"), (522, "A16")]):
     for c in range(4):

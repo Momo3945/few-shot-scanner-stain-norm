@@ -54,7 +54,8 @@ SSIM by about 0.10 (A0 0.285 to A1 0.389) but does not move colour. LCM-LoRA (A4
 warm-start (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance.
 Sweeps show why denoising strength is a poor control knob: with 8 LCM steps, strengths 0.50 and 0.60 give
 byte-identical outputs, because the number of steps actually run is $\lfloor 8s\rfloor$. Larger strengths
-help the outlier A06 (A5 reaches $\dlab=+24.4$ at 0.70) but damage typical slides (A08 $-7.0$), so no
+help the outlier slide A06 (the warm-started rung reaches $\dlab=+24.4$ at 0.70) but damage typical slides
+(slide A08 $-7.0$), so no
 single strength is usable.
 
 \begin{figure}[t]
@@ -202,8 +203,8 @@ Reinhard come closer.}
 \begin{table}[t]
 \centering
 \caption{Structural safety: Relative Dice of HoVer-Net nuclei on 130 Lizard images (95\% bootstrap CI).
-Pass threshold 0.95. ``Ours'' is the final pipeline (DDIM inversion + F3 fusion); ``A4-type'' is the
-earlier colour LoRA + ControlNet + LCM operating point (strength 0.20). Learned baselines ($^\dagger$)
+Pass threshold 0.95. ``Ours'' is the final pipeline (DDIM inversion + F3 fusion); ``LCM ladder setting'' is
+rung A4 (colour LoRA + ControlNet + LCM-LoRA) at strength 0.20. Learned baselines ($^\dagger$)
 average three training seeds per image; their CIs resample images only, and per-seed values range
 0.997--1.014 (ParamNet), 0.618--0.724 (StainGAN) and 0.232--0.622 (StainNet).}
 \label{tab:reldice}
@@ -216,7 +217,7 @@ ParamNet$^\dagger$ & \textbf{1.003} & [1.000, 1.007]\\
 Ours: inversion + F3 & \textbf{0.994} & [0.992, 0.997]\\
 Reinhard & 0.923 & [0.905, 0.939]\\
 Diffusion: inversion only & 0.893 & [0.886, 0.900]\\
-Diffusion (A4-type) & 0.875 & [0.867, 0.882]\\
+Diffusion: LCM ladder setting & 0.875 & [0.867, 0.882]\\
 Histogram matching & 0.793 & [0.763, 0.822]\\
 Macenko & 0.737 & [0.684, 0.787]\\
 StainGAN$^\dagger$ & 0.684 & [0.650, 0.718]\\
@@ -233,9 +234,9 @@ statistically significant degradation. The pass comes from fusion, not from the 
 output itself: the unfused inversion output fails at 0.893, and fusion raises Dice on 129 of the 130 images
 (mean $+0.071$). This is expected from \eqref{eq:f3}, which keeps the source's high frequencies and adds
 only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
-the original images, the fused output keeps IoU (0.535 against 0.539), object-level F1 (0.738 against 0.733) and
-the predicted-to-true nucleus count ratio (0.686 against 0.668), while StainGAN lowers object F1 to 0.479 and
-the count ratio to 0.362 (three-seed means). The earlier A4-type operating point
+the original images, the fused output keeps IoU (0.535 against 0.539), nucleus-detection F-score (0.738 against 0.733) and
+the predicted-to-true nucleus count ratio (0.686 against 0.668), while StainGAN lowers the F-score to 0.479 and
+the count ratio to 0.362 (three-seed means). The LCM ladder setting (rung A4)
 loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 32\%,
 which is consistent with GANs altering nuclei. StainNet is the least stable, from 0.62 to 0.23 across seeds. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
 back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance
@@ -244,7 +245,7 @@ back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) retur
 mean pairwise LAB distance $D$ between five hospital centres (2{,}103 patches, $D_{\mathrm{pre}}=56.70$), no
 SD\,1.5 configuration brings the centres closer. The final pipeline is neutral with fusion
 ($\Delta D=+0.14$, 95\% bootstrap CI $[-0.22, 0.51]$, 4 of 10 centre pairs improved) and worse without it
-($+1.29$ $[0.24, 2.49]$, 3 of 10), as is the A4-type operating point ($+0.83$ $[0.44, 1.19]$, 1 of 10). The CIs
+($+1.29$ $[0.24, 2.49]$, 3 of 10), as is the LCM ladder setting ($+0.83$ $[0.44, 1.19]$, 1 of 10). The CIs
 resample the 10 centre pairs, which share centres, so they are supportive only. Likely, the model learns one fixed
 Aperio-to-Hamamatsu shift, which moves every centre together rather than towards each other, while the
 centres differ by staining protocol as well as scanner, and by more than the gap it was trained on.

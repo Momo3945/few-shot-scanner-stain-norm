@@ -170,8 +170,8 @@ Full VAE, $\lambda=10$ & 0.650 & 0.780 & 0.613 & 25.00 & 0.729 & 28.01\\
 \end{table*}
 
 \subsection{SDXL diagnostics and the decision gate}
-\textbf{Decision gate.} At the end of Phase~1 the ladder configuration A4 was chosen as the base for SDXL,
-and the A5 warm-start transfer was also run because A5 beat A4 on A06 by 2.6--8.7 in LAB distance, far above
+\textbf{Decision gate.} At the end of the ablation the LCM rung (A4) was chosen as the base for SDXL,
+and the warm-started rung (A5) was also transferred because it beat A4 on slide A06 by 2.6--8.7 in LAB distance, far above
 the 0.1--0.3 run-to-run noise floor.
 
 \textbf{Why native-1024 SDXL fails at 50 pairs.} Five diagnostics were run on the 50-pair 1024\,px model.
@@ -207,7 +207,7 @@ fitted once, untimed. Whole-slide times assume a 100{,}000$\times$100{,}000 pixe
 Method & Network passes & Crop & s per crop & Peak GPU (GB) & Per slide\\
 \midrule
 Final SD\,1.5 (DDIM inversion + F3) & 50 inversion + 50 denoising & 512 & $6.27\pm0.10$ & 3.1 & 66\,h\\
-Generic LCM, P1-12 best (6 steps, $s=0.70$) & 4 & 512 & $0.50\pm0.005$ & 3.5 & 5.3\,h\\
+Generic LCM, best setting (6 steps, $s=0.70$) & 4 & 512 & $0.50\pm0.005$ & 3.5 & 5.3\,h\\
 Generic LCM, 4 steps ($s=1.0$) & 4 & 512 & $0.50\pm0.007$ & 3.5 & 5.3\,h\\
 SDXL 144-pair (50-step DDIM, $s=0.50$) & 25 & 1024 & $12.06\pm0.34$ & 13.3 & 32\,h\\
 StainGAN & 1 & 512 & $0.025\pm0.001$ & 0.24 & 16\,min\\

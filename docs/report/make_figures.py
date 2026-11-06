@@ -19,8 +19,21 @@ PANELS = {
     "cam_raw": R/"p2_10_camelyon17/images/camelyon/centre0_raw.png",
     "cam_norm": R/"p2_10_camelyon17/images/camelyon/centre0_normalised.png",
 }
+def relabel_p1_16(im):
+    """The cluster-rendered fusion panels title their third tile with a ticket ID ("P1-11 prediction").
+    Paint over that first title line and redraw it in the same font (Segoe UI, measured: 130 px wide, rows 14-31)."""
+    from PIL import ImageDraw, ImageFont
+    d = ImageDraw.Draw(im)
+    d.rectangle((665, 10, 995, 33), fill="white")
+    d.text((671, 8), "DDIM-inversion prediction", fill="black", font=ImageFont.truetype("C:/Windows/Fonts/segoeui.ttf", 18))
+    return im
+
+
 for k, p in PANELS.items():
-    im = Image.open(p).convert("RGB"); im.thumbnail((1600, 1600))
+    im = Image.open(p).convert("RGB")
+    if k.startswith("p1_16_"):
+        im = relabel_p1_16(im)
+    im.thumbnail((1600, 1600))
     im.save(OUT/f"{k}.jpg", quality=85); print(k, im.size)
 
 # Summary chart: recovery delta-LAB (ALL slides, positive = better), A2H, values from tickets/results READMEs.

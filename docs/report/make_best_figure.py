@@ -14,7 +14,7 @@ crops = [("A09","00B",0,0),("A16","09A",1027,0),("A08","00A",0,0),("A06","01C",1
 # Labels sit outside the tiles (row label = slide/frame, caption under each tile = its numbers) at
 # readable sizes; overlaid 7 pt boxes were unreadable once the figure is scaled into the page.
 fig, axs = plt.subplots(len(crops), 3, figsize=(7.6, 2.95*len(crops)), layout="constrained")
-ttl = ["Raw Aperio (source)", "SD1.5 pipeline (P1-11 + F3)", "Real Hamamatsu (target)"]
+ttl = ["Raw Aperio (source)", "Ours (DDIM inversion + F3)", "Real Hamamatsu (target)"]
 for r,(s,f,x,y) in enumerate(crops):
     cid = f"{s}_{f}_x{x}_y{y}"
     row = m[(m.slide==s)&(m.frame==f)&(m.x==x)&(m.y==y)].iloc[0]

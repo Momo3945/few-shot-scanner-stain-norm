@@ -85,7 +85,7 @@ for t in CROPS:
         r = rec.loc[(v, t)]
         lab.append(f"SSIM {r.ssim:.3f} | blue {off(im)[2]:+.1f}")
     labels[t] = lab
-draw(["Original (Aperio)", "Stock SD1.5 VAE", "sd-vae-ft-mse", "P1-18 decoder"], 4, tiles, labels,
+draw(["Original (Aperio)", "Stock SD1.5 VAE", "sd-vae-ft-mse", "Fine-tuned decoder"], 4, tiles, labels,
      "p1_18_g12_recon.jpg",
      "VAE self-reconstruction (encoder frozen in all three). SSIM vs input from the held-out benchmark;\n"
      "'blue' = mean blue-channel shift vs input (levels). White box = zoomed window.")
@@ -103,7 +103,7 @@ for t in CROPS:
     b = p15.loc[("correct_alt_decoder", 0, t)]
     c = g13.loc[("correct_alt_decoder", 0, t)]
     labels[t] = ["model input", "target (registered)"] + [f"SSIM {r.ssim:.3f} | wLAB {r.wlab_mean:.1f}" for r in (a, b, c)]
-draw(["Aperio source", "Real Hamamatsu", "Stock decoder (P1-11)", "ft_mse decoder (P1-15)", "P1-18 decoder"], 5,
+draw(["Aperio source", "Real Hamamatsu", "Stock decoder", "ft-mse decoder", "Fine-tuned decoder"], 5,
      tiles, labels, "p1_18_g12_translated.jpg",
-     "A->H translation, seed 0: one P1-11 latent per crop, decoded three ways.\n"
+     "A→H translation, seed 0: one DDIM-inversion latent per crop, decoded three ways.\n"
      "SSIM / windowed LAB vs real Hamamatsu (lower wLAB = closer colour). White box = zoomed window.")
