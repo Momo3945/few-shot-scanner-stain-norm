@@ -340,7 +340,9 @@ do not create new top-level folders without updating this list.
   *.png`, extracted locally then uploaded — see P2-10 for why extraction happens
   off-cluster). Added 2026-08-19.
 - No stray `.zip` archives here — if a folder was extracted from one, the zip is deleted
-  once the extraction is verified (source zips still exist locally if needed again).
+  once the extraction is verified. The local `raw_archives/` zips were also deleted (2026-11-02) after every
+  file in them was verified present, with matching size, in the local extracted `data/mitos/`; re-download
+  from the MITOS-ATYPIA-14 challenge site if the originals are ever needed.
 
 ## Layout (CANONICAL — this section is authoritative; README.md defers to this)
 - `src/data/`  extract_pairs.py, inspect_mitos.py, sample_hist_mitos.py
