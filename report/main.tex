@@ -74,6 +74,8 @@ stain normalisation, digital pathology, latent diffusion, LoRA, ControlNet, doma
 \clearpage
 \appendices
 \renewcommand{\dbltopfraction}{0.9}\renewcommand{\dblfloatpagefraction}{0.6}
+% Pack figure-only pages from the top with even gaps, instead of spreading the figures over the page.
+\makeatletter\setlength{\@dblfptop}{0pt}\setlength{\@dblfpsep}{16pt plus 4pt}\setlength{\@dblfpbot}{0pt plus 1fil}\makeatother
 \input{sections/appendix_results}
 \input{sections/appendix}
 
