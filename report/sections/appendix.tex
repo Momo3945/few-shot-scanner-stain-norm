@@ -86,7 +86,7 @@ colour slightly towards pink.}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.42\textwidth]{best_cases_sd15.jpg}
+\includegraphics[width=0.34\textwidth]{best_cases_sd15.jpg}
 \caption{Selected best cases of the final SD\,1.5 pipeline (DDIM inversion + F3 fusion): the top crop by
 recovery on A09, A16, A08 and A06, with raw source, output and registered target. Under each tile, LAB is its
 distance to the target, $\Delta$ the recovery and SSIM the structural similarity to the target. These are not typical: mean
@@ -138,25 +138,27 @@ source detail, and SD\,3.5 is washed out. The black strip on the Hamamatsu tile 
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.6\textwidth]{sdxl_h2a.jpg}
+\begin{minipage}[t]{0.48\textwidth}
+\centering
+\includegraphics[width=\linewidth]{sdxl_h2a.jpg}
 \caption{SDXL \HtoA{} on A06 at 512\,px (top) and 1024\,px (bottom): real Hamamatsu source, SDXL output and raw
 Aperio target. On this crop both outputs stay closer to the source than to the pale target; the mean
 recoveries are $+9.47$ and $+9.20$.}
 \label{fig:app-sdxl-h2a}
-\end{figure*}
-
-\begin{figure*}[!tbp]
+\end{minipage}\hfill
+\begin{minipage}[t]{0.48\textwidth}
 \centering
-\includegraphics[width=0.6\textwidth]{t2i_backbones.jpg}
+\includegraphics[width=\linewidth]{t2i_backbones.jpg}
 \caption{Pure text-to-image samples (seed 0) from SD\,1.5, SDXL at 512\,px and SDXL at 1024\,px, used only to
 read each backbone's default colour in a diagnostic of the \AtoH{}/\HtoA{} asymmetry. They are repetitive
 textures, not realistic tissue.}
 \label{fig:app-t2i}
+\end{minipage}
 \end{figure*}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.65\textwidth]{pixcell_floor.jpg}
+\includegraphics[width=0.55\textwidth]{pixcell_floor.jpg}
 \caption{PixCell generation without fine-tuning from the crop's own UNI2-h embedding (A06, frame 00A, 256\,px).
 The output is plausible H\&E tissue, but nuclei and glands are not where they are in the source or target
 (SSIM 0.045).}
