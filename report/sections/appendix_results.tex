@@ -1,5 +1,8 @@
-\section{Additional results}
+\section{Additional results and figures}
 \label{app:results}
+Figs.~\ref{fig:app-ladder}--\ref{fig:app-best} give further SD\,1.5 results,
+Figs.~\ref{fig:app-lizard}--\ref{fig:app-camelyon} illustrate the evaluation tests, and
+Figs.~\ref{fig:app-sdxl-sd15}--\ref{fig:app-pixcell} cover SDXL and the exploratory probes.
 
 \subsection{Downstream clinical utility (atypia classifier)}
 \label{app:clinical}
@@ -16,9 +19,9 @@ classical method, Reinhard. A later audit found that every method had been run \
 Hamamatsu-styled images, whereas an Aperio-trained classifier needs \HtoA{} outputs. An A0 output was twice
 as close in pixel error to its Aperio source as to its Hamamatsu reference, which confirmed the direction
 error. The claim was retracted. Re-running in the correct direction, no configuration beats the raw input:
-our source-conditioned \HtoA{} model gives $-0.025$ (CI crossing zero), and with F3 fusion the recovery is
+our source-conditioned \HtoA{} model gives $-0.025$ (CI crossing zero, so no measurable effect), and with F3 fusion the recovery is
 exactly $0.0$ (95\% CI $[-0.025,+0.025]$, 120 frames), even though fusion raises its SSIM from 0.548 to
-0.730. The rerun also found and fixed a second bug, in which the raw-Hamamatsu reference silently read
+0.730: better structure did not translate into classifier accuracy. The rerun also found and fixed a second bug, in which the raw-Hamamatsu reference silently read
 Aperio pixels.
 
 \textbf{The classifier itself is not valid.} \texttt{atypia\_r18} predicts score 2 for about 91\% of held-out
@@ -30,16 +33,16 @@ with augmentation and class-balanced sampling was worse (raw-Hamamatsu accuracy 
 
 \textbf{Two rebuilt classifiers, both gated.} Both use frozen UNI2-h features, nested leave-one-slide-out
 cross-validation on the 297 training frames, and five pre-registered gates: balanced accuracy $>0.45$,
-quadratic weighted kappa (QWK) $>0.2$, no class predicted for more than 80\% of frames, a slide-bootstrap
+quadratic weighted kappa (QWK, agreement with the ordered scores beyond chance: 0 is chance, 1 perfect) $>0.2$, no class predicted for more than 80\% of frames, a slide-bootstrap
 lower bound on balanced accuracy above chance ($1/3$), and nonzero recall for score 1 on the held-out-in-CV
-slide A12. Table~\ref{tab:atypia} gives the results. The linear probe is at chance. Of three v2 candidates
+slide A12. Table~\ref{tab:atypia} gives the results. The linear probe is at chance (balanced accuracy 0.312 against $1/3$). Of three v2 candidates
 (an ordinal head, attention-based multiple-instance pooling, and a two-stage model that first predicts the
 x40 atypia criteria), the criteria model clears four of five gates but fails the bootstrap lower bound:
 its interval $[0.26, 0.73]$ cannot be separated from chance with only eleven slides, and the threshold was
 not relaxed afterwards. A separate within-slide test does pass. With each slide's mean removed from both
 predictions and labels, so that recognising the slide cannot help, the predicted criteria correlate with
 the rated ones (mean Spearman 0.240, CI $[0.148, 0.318]$; nuclei size 0.378, anisonucleosis 0.299,
-nucleoli size 0.408, nuclei contour $-0.125$). Frozen features therefore carry real atypia signal, but not
+nucleoli size 0.408, nuclei contour $-0.125$). The correlation is weak, but its interval excludes zero, so frozen features carry real atypia signal, but not
 yet enough for a valid score classifier. By protocol the held-out slides were never scored with these
 models.
 
@@ -72,7 +75,8 @@ motivated fusion outside the U-Net.
 
 \textbf{Round-trip consistency.} Translating A06 crops \AtoH{} and back to Aperio (50-step DDIM, strength
 0.20) gives SSIM 0.143, PSNR 13.1\,dB and LAB distance 28.2 against the original
-over 64 crops: the round trip does not return the input (Fig.~\ref{fig:app-roundtrip}).
+over 64 crops. A faithful round trip would give SSIM 1 and distance 0, and 28.2 exceeds the typical scanner
+gap of 25, so the return trip changes colour more than a scanner does (Fig.~\ref{fig:app-roundtrip}).
 
 \subsection{HoVer-Net boundary conditioning}
 \label{app:hovernet}
@@ -89,6 +93,7 @@ edges. This segmentation failure is itself an example of the scanner shift this 
 
 Table~\ref{tab:app-hovernet} gives the result. After fusion, structure is unchanged; before it, pooled SSIM is
 slightly lower (lower on A08, A13 and A16, higher on A06 and A09). Windowed LAB is worse on every slide, both before and after fusion.
+The loss, about 1.3, is small next to the 25-unit scanner gap, but every interval excludes zero.
 The pre-stated criterion for calling HoVer-Net better, a fused SSIM gain whose 95\% CI excludes zero with
 windowed LAB no worse, is not met, so the Canny model remains the final pipeline. One possible reason, not
 tested here, is that dense Canny edges follow stain intensity and so carry a colour cue that sparse outlines
@@ -126,9 +131,9 @@ A06 (64) & Canny & 0.373 & 73.82 & 0.617 & 83.94\\
 To test whether the fine-tuned decoder has collapsed onto its training data, we self-reconstructed all 2{,}103
 CAMELYON17 patches (five centres, none used in training) with each decoder. The pre-stated condition was that mean
 SSIM may not fall more than 0.01, and PSNR not more than 0.5\,dB, below \texttt{ft-mse}. SSIM passes: 0.884 against
-0.876 (stock 0.856), higher at every centre (+0.002 to +0.011). PSNR fails: $-1.50$\,dB pooled (95\% CI $[-1.64,
+0.876 (stock 0.856), higher at every centre (+0.002 to +0.011). PSNR fails: $-1.50$\,dB pooled, about 40\% more squared pixel error (95\% CI $[-1.64,
 -1.37]$), from $+0.2$ to $-0.9$\,dB at four centres and $-5.2$\,dB at centre~4, whose patches \texttt{ft-mse}
-reconstructs almost exactly (40.1\,dB). LAB distance to the input rises from 2.61 to 4.49. The fine-tuned decoder
+reconstructs almost exactly (40.1\,dB). LAB distance to the input rises by about 70\%, from 2.61 to 4.49. The fine-tuned decoder
 keeps structure on unseen centres but adds a colour shift there, as on MITOS. The final pipeline does not use it.
 
 \subsection{Full-VAE fine-tune}
@@ -138,7 +143,7 @@ fine-tuned decoder and updating all 83.7M VAE parameters with the same data, los
 $\lambda\,\lVert E(x)-E_0(x)\rVert^2$ to the original encoder $E_0$. The anchor keeps the latents close enough for
 the trained colour LoRA and ControlNet to be reused unchanged. Both $\lambda=1$ and $\lambda=10$ were run, with
 checkpoints selected on the internal validation slides. In both arms the latents moved by 0.8--0.9\% of their
-variance (cosine similarity 0.996 to the original).
+variance (cosine similarity 0.996 to the original), so the latent space is practically unchanged.
 
 Table~\ref{tab:app-fullvae} gives the result. Over the decoder fine-tune, self-reconstruction SSIM rises by only
 0.002--0.004 on Aperio and 0.001 on Hamamatsu, far below the pre-stated bar of 0.02. Translated SSIM falls
@@ -178,14 +183,14 @@ the 0.1--0.3 run-to-run noise floor.
 (D1) A baseline mismatch was ruled out: re-measured against a do-nothing baseline computed natively at
 1024\,px, the model still gives $\dlab=-5.25$. (D2) Removing the LoRA makes colour worse ($-8.21$ against $-5.25$), so the LoRA helps by about 3
 LAB but is too weak. (D3) RGB-only conditioning matches RGB plus Canny, and Canny alone collapses (SSIM 0.16,
-$\dlab=-17.9$), so the edge channels are inert. (D4) No ControlNet scale gives positive recovery. (D5)
-Raising the LoRA scale from 1.0 to 2.0 makes recovery monotonically worse ($-4.38$ to $-8.00$). The model is
+$\dlab=-17.9$), so the edge channels are inert. (D4) No ControlNet scale gives positive recovery, so conditioning strength is not the problem. (D5)
+Raising the LoRA scale from 1.0 to 2.0 makes recovery monotonically worse ($-4.38$ to $-8.00$), so the adapter cannot simply be amplified. The model is
 data-starved, which the 96- and 144-pair runs confirm.
 
 \textbf{The \AtoH{}/\HtoA{} asymmetry.} SD\,1.5 fails \HtoA{} while SDXL succeeds. Two diagnostics compared
-the mean LAB of model outputs with the real scanner means (domain gap 17.97). Zero-source ControlNet
-outputs refuted the idea that the asymmetry follows the backbone's default colour, because img2img leaks the
-source colour into them. Pure text-to-image samples (Fig.~\ref{fig:app-t2i}) gave partial support (five of
+the mean LAB of model outputs with the real scanner means, which are 17.97 apart. Zero-source ControlNet
+outputs could not test the idea that the asymmetry follows the backbone's default colour: every one leaned
+towards its own source, because img2img still starts from the source latent. Pure text-to-image samples (Fig.~\ref{fig:app-t2i}) gave partial support (five of
 six comparisons consistent), and SDXL at 1024\,px \HtoA{} remains an open counterexample: its default colour
 leans the wrong way, yet it recovers $\dlab=+9.20$.
 
