@@ -189,7 +189,7 @@ $\dlab=-17.9$), so the edge channels are inert. (D4) No ControlNet scale gives p
 Raising the LoRA scale from 1.0 to 2.0 makes recovery monotonically worse ($-4.38$ to $-8.00$), so the adapter cannot simply be amplified. The model is
 data-starved, which the 96- and 144-pair runs confirm.
 
-\textbf{The \AtoH{}/\HtoA{} asymmetry.} SD\,1.5 fails \HtoA{} while SDXL succeeds. Two diagnostics compared
+\textbf{The \AtoH{}/\HtoA{} asymmetry.} SD\,1.5 fails \HtoA{} while SDXL improves its colour. Two diagnostics compared
 the mean LAB of model outputs with the real scanner means, which are 17.97 apart. Zero-source ControlNet
 outputs could not test the idea that the asymmetry follows the backbone's default colour: every one leaned
 towards its own source, because img2img still starts from the source latent. Pure text-to-image samples (Fig.~\ref{fig:app-t2i}) gave partial support (five of

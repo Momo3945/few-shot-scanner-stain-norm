@@ -82,15 +82,14 @@ def baseline_all_for_slides(baseline, slides_with_crops):
     baseline reference and this run's own ALL comparable on the same basis
     regardless of subset size.
 
-    Falls back to the full baseline["ALL"] only when the run's slide set
-    already matches the full baseline's slide set exactly (the one case where
-    re-weighting isn't needed -- assumes the crop counts also match, as they
-    will for a genuine full run).
+    Second fix 2026-11-09: this used to return the baseline file's own ALL
+    whenever the run covered every slide, assuming the crop mix then matched.
+    It does not: pairs/baseline_metrics/baseline_summary.csv pools 1,475 crops
+    (A06 = 12.1%), while full runs score the 496 canonical crops (A06 = 12.9%),
+    so every full-run pooled recovery_delta_lab was understated by 0.53
+    (33.83 used instead of the matched 34.37). Always re-weight now.
     """
     per_slide = baseline["per_slide"]
-    present_slides = set(slides_with_crops)
-    if present_slides >= set(per_slide):
-        return baseline["ALL"]
     weighted, total_n = 0.0, 0
     for s, crops in slides_with_crops.items():
         if s not in per_slide:

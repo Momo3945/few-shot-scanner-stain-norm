@@ -56,10 +56,19 @@ for path, mode, key in [("p1_15_alt_decoder/eval/full_correct_summary/per_crop.c
     t, a = d[d.slide != "A06"], d[d.slide == "A06"]
     rows[key] = [d.lab_total.mean(), t.lab_total.mean(), a.lab_total.mean(), d.ssim.mean(), t.ssim.mean(), a.ssim.mean()]
 
+# Raw row: per-slide do-nothing scores (1,475-crop baseline file) pooled with the 496 canonical crop counts,
+# so it is weighted like every method row (the file's own ALL, 33.83, uses a different A06 share).
+base = pd.read_csv(HERE.parent / "pairs" / "baseline_metrics" / "baseline_summary.csv").set_index("scope")
+cnt = pd.read_csv(R + "classical_baselines/macenko/eval_summary.csv").set_index("scope").n_crops
+sl, ty = ["A06", "A08", "A09", "A13", "A16"], ["A08", "A09", "A13", "A16"]
+wm = lambda c, ss: float((base.loc[ss, c] * cnt[ss]).sum() / cnt[ss].sum())
+rows["Raw Aperio (no normalisation)"] = [wm("lab_total", sl), wm("lab_total", ty), base.loc["A06", "lab_total"],
+                                         wm("ssim", sl), wm("ssim", ty), base.loc["A06", "ssim"]]
+
 bad = 0
 for key, val in rows.items():
     p = paper_row(key)
     ok = all(abs(x - y) <= (0.0006 if x < 1.5 else 0.006) for x, y in zip(p, val))
     bad += not ok
     print("OK " if ok else "BAD", f"{key:24s} paper={p} data={[round(float(v), 3) for v in val]}")
-print("mismatches:", bad, "of", len(rows), "(raw row not in docs/results: computed from cluster pairs/ baseline metrics)")
+print("mismatches:", bad, "of", len(rows))

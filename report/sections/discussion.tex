@@ -15,7 +15,7 @@ H & Claim & Outcome\\
 \midrule
 H1 & $\leq$50 pairs suffice to generalise to the five held-out slides &
 \textbf{Supported for SD\,1.5} with source conditioning and DDIM inversion (every slide improves);
-not for SDXL at 1024\,px, which needed 144 pairs.\\
+not for SDXL at 1024\,px, which needed more than 50 pairs.\\
 \midrule
 H2 & Colour improves over raw input and classical baselines, on MITOS and CAMELYON17 &
 \textbf{Partly.} Beats raw on every MITOS slide and classical on typical slides; loses to every classical method on A06 and to
@@ -26,8 +26,8 @@ H3 & Relative Dice $\geq 0.95$ &
 for the LCM ladder setting).\\
 \midrule
 H4 & 4-step LCM matches 50-step DDIM &
-\textbf{Not supported}: generic LCM is 12.5$\times$ faster but loses quality (at 4 steps A08 colour is
-worse than raw); task-specific distillation is worse.\\
+\textbf{Not supported}: generic LCM is 12.5$\times$ faster but loses quality (its best setting runs 4
+steps); task-specific distillation is worse.\\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -3,8 +3,8 @@
 
 \subsection{Data and evaluation protocol}
 MITOS-ATYPIA-14~\cite{roux2014mitos} provides $\times$20 frames of the same breast-cancer slides scanned
-on an Aperio and a Hamamatsu scanner, and frame identifiers match across scanners. All training uses at
-most 50 512\,px crop pairs taken from 24 frames of slide A03/H03. The pairs are
+on an Aperio and a Hamamatsu scanner, and frame identifiers match across scanners. All paired training uses at
+most 50 crop pairs from 24 frames of slide A03/H03 (two supplementary SDXL runs use 96 and 144). The pairs are
 \emph{coordinate-corresponding}, not pixel-exact, so no diffusion training loss compares pixels across scanners. The
 held-out slides A06, A08, A09, A13 and A16 are never used in training; they give 496 canonical 512\,px
 crops (up to four per frame, tissue fraction $\geq 0.3$). For pixel metrics only, each Hamamatsu frame is
@@ -50,9 +50,8 @@ is shifted by a random offset of up to 8\,px at each step, so the model cannot r
 learning rate $10^{-4}$, batch size 1 and bf16 for 4{,}000 steps (25\,min on one RTX~3090), and the
 checkpoint with the lowest validation loss (step 3{,}750) is kept. Before this run the recipe had to overfit an
 8-pair subset, which it did by 2{,}000 steps.
-The \HtoA{} model is trained the same way with the roles swapped. Shuffled- and zero-source controls confirm
-that the model uses the source (SSIM 0.147 with the correct source against 0.047 with a shuffled one, in
-training-domain control runs).
+The \HtoA{} model is trained the same way with the roles swapped. A shuffled-source control confirms
+that the model uses the source (training-domain SSIM 0.147 against 0.047).
 
 At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM

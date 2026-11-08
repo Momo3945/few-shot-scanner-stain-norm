@@ -392,6 +392,11 @@ do not create new top-level folders without updating this list.
   byte-identical outputs (checked 2026-11-02 for the stock, ft-mse and fine-tuned-decoder runs and for
   F3 fusion). Never report a "3-seed mean" for inversion rows, and don't spend compute re-running
   them with new seeds. Only img2img sampling seeds and training seeds create spread.
+- **The raw do-nothing baseline file (`pairs/baseline_metrics/baseline_summary.csv`) pools 1,475 crops, not the
+  496 canonical ones** (A06 12.1% vs 12.9%), so its ALL (33.83) is NOT the matched pooled reference; the matched
+  value is 34.37 (per-slide means × 496-crop counts). `score_outputs.py` used the file's ALL for full runs until
+  2026-11-09, so every pre-existing full-run A2H `recovery_delta_lab` in `eval_summary.csv` files is understated
+  by 0.53 (per-slide deltas are unaffected). Add 0.53 or recompute; never quote those pooled values as-is.
 - MITOS training archives use a DOUBLED dir layout (`A03/A03/frames/x20`); testing does not.
   Frame IDs match across scanners (A03_00A ↔ H03_00A) = the coordinate correspondence.
 - Diffusion training loss (the per-step MSE printed during LoRA training) is noisy and

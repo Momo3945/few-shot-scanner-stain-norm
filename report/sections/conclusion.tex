@@ -11,8 +11,7 @@ ParamNet and the fused pipeline both pass the Relative Dice test, and the unfuse
 diffusion output does not. Few-step LCM is 12.5$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
 model, and diffusion is most useful as a source of colour change that fusion projects back onto the
-original image. A histopathology-pretrained backbone such as PixCell, given a source-image conditioning
-branch, is the natural next step.
+original image. PixCell with a source-image conditioning branch is the natural next step.
 
 \section*{Acknowledgement}
 Computations used the University of the Witwatersrand's mscluster. We thank the organisers of
