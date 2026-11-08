@@ -231,9 +231,7 @@ is small but real rather than chance; only ParamNet, whose interval contains 1.0
 statistically significant degradation. The pass comes from fusion, not from the diffusion
 output itself: the unfused inversion output fails at 0.893, and fusion raises Dice on 129 of the 130 images
 (mean $+0.071$). This is expected from \eqref{eq:f3}, which keeps most of the source's high frequencies and adds
-only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
-the original images, the fused output keeps IoU (0.535 against 0.539) and nucleus-detection F-score (0.738 against 0.733),
-while StainGAN lowers the F-score to 0.479 (three-seed mean). The LCM ladder setting (rung A4)
+only a blurred colour change, so nucleus boundaries come from the source. The LCM ladder setting (rung A4)
 loses 12.6\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 32\%,
 which is consistent with GANs altering nuclei. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
 back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance

@@ -19,5 +19,5 @@ generate images by reversing a noise process in the latent space of a VAE; DDIM~
 the sampler deterministic and invertible. LoRA~\cite{hu2021lora} adds trainable low-rank updates
 $h=W_0x+BAx$ to frozen layers, ControlNet~\cite{zhang2023controlnet} injects a spatial condition through a
 trainable copy of the encoder, and latent consistency models~\cite{luo2023lcm,luo2023lcmlora} distil
-sampling into a few steps. These pieces are mature for natural images; their behaviour on paired scanner
+sampling into a few steps. In histopathology, diffusion has been used for unpaired stain transfer (StainDiff~\cite{shen2023staindiff}), style-conditioned normalisation trained on two million synthetic pairs (StainFuser~\cite{jewsbury2024stainfuser}) and H\&E-to-IHC translation with DDIM inversion (HistDiST~\cite{grosskopf2025histdist}); none, to our knowledge, is tested with a few dozen real scanner pairs. These pieces are mature for natural images; their behaviour on paired scanner
 data with a tiny training set is what this work measures.
