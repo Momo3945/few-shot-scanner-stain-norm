@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 R = Path("docs/report/cluster_raw")
 OUT = Path("docs/report/figures")
 CROPS = [("A08_00A_x0_y0", "A08 (typical)"), ("A06_00A_x0_y0", "A06 (outlier)")]
-METHODS = [("macenko", "Macenko"), ("reinhard", "Reinhard"), ("histogram_matching", "Hist. matching"),
+METHODS = [("macenko", "Macenko"), ("reinhard", "Reinhard"), ("histogram_matching", "Hist. match"),
            ("paramnet", "ParamNet"), ("staingan", "StainGAN")]
 
 rgb = lambda p: np.asarray(Image.open(p).convert("RGB"))
@@ -27,24 +27,31 @@ sc = sc.set_index(["method", "slide"])
 f3 = pd.read_csv("docs/results/p1_16_source_fusion/eval/f3_full_heldout/eval_per_crop.csv")
 f3 = f3[(f3.frame == "00A") & (f3.x == 0) & (f3.y == 0)].set_index("slide")
 
-fig, axs = plt.subplots(len(CROPS), 8, figsize=(14.0, 4.1))
+# Drawn at the printed width (7.16 in = IEEE \textwidth), so font sizes are true print sizes. Earlier versions
+# were drawn at 14 in and shrunk to half, which printed the 8.5 pt labels at about 4 pt. Method names sit
+# above the top row only; under each tile is "LAB distance / SSIM" against the target (legend in the caption).
+fig, axs = plt.subplots(len(CROPS), 8, figsize=(7.16, 2.5))
 for ri, (t, row_label) in enumerate(CROPS):
     s = t[:3]
-    tiles = [("Aperio source", rgb(R / f"p1_18/p1_10_ddim_inversion/identity_full_heldout/reference/{t}.png"), "")]
+    tiles = [("Aperio", rgb(R / f"p1_18/p1_10_ddim_inversion/identity_full_heldout/reference/{t}.png"), "source")]
     for key, name in METHODS:
         r = sc.loc[(key, s)]
-        tiles.append((name, rgb(R / f"compare/{key}/outputs/{t}.png"), f"LAB {r.lab:.1f} | SSIM {r.ssim:.2f}"))
+        tiles.append((name, rgb(R / f"compare/{key}/outputs/{t}.png"), f"{r.lab:.1f} / {r.ssim:.2f}"))
     r = f3.loc[s]
-    tiles.append(("Ours (inversion + F3)",
+    tiles.append(("Ours",
                   rgb(R / f"compare/p1_16_fusion/f3_s8_b0.50_heldout_full_corrected/outputs/{t}_seed0_f3_s8_b0.50.png"),
-                  f"LAB {r.lab_total:.1f} | SSIM {r.ssim:.2f}"))
-    tiles.append(("Real Hamamatsu", rgb(R / f"p1_18/p1_15_alt_decoder/p1_18_d1_pn03_full_r2/reference/{t}.png"), "target"))
+                  f"{r.lab_total:.1f} / {r.ssim:.2f}"))
+    tiles.append(("Hamamatsu", rgb(R / f"p1_18/p1_15_alt_decoder/p1_18_d1_pn03_full_r2/reference/{t}.png"), "target"))
     for ci, (name, img, note) in enumerate(tiles):
         ax = axs[ri, ci]
         ax.imshow(img); ax.set_xticks([]); ax.set_yticks([])
-        ax.set_title(f"{name}\n{note}" if note else f"{name}\n ", fontsize=8.5, pad=3)
+        for sp in ax.spines.values():
+            sp.set_visible(False)
+        if ri == 0:
+            ax.set_title(name, fontsize=7.5, pad=2)
+        ax.set_xlabel(note, fontsize=7, labelpad=1.5)
         if ci == 0:
-            ax.set_ylabel(row_label, fontsize=9)
-plt.tight_layout(pad=0.3, h_pad=0.8, w_pad=0.3)
-fig.savefig(OUT / "normaliser_comparison.jpg", dpi=170); plt.close(fig)
+            ax.set_ylabel(row_label, fontsize=7.5)
+plt.tight_layout(pad=0.15, h_pad=0.25, w_pad=0.2)
+fig.savefig(OUT / "normaliser_comparison.jpg", dpi=300); plt.close(fig)
 print("wrote", OUT / "normaliser_comparison.jpg")

@@ -190,8 +190,8 @@ matching ($-5.92$) are slightly worse than doing nothing, and only Macenko gains
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{normaliser_comparison.jpg}
-\caption{One held-out crop each from A08 (typical) and A06 (outlier), normalised by every method, with the
-per-crop LAB Wasserstein and SSIM against the registered target (learned baselines: seed 3407). These are single crops, not averages:
+\caption{One held-out crop each from A08 (typical) and A06 (outlier), normalised by every method. Under each tile:
+its LAB Wasserstein / SSIM against the registered target (Ours: DDIM inversion + F3; learned baselines: seed 3407). These are single crops, not averages:
 on this A08 crop our fused output (LAB 22.0) is weaker than its typical-slide mean (18.1). On A06,
 ParamNet and our output stay visibly paler than the target, while histogram matching, StainGAN and
 Reinhard come closer.}
@@ -284,7 +284,7 @@ source-conditioned rows average three seeds, about 1{,}485 crop-seeds). The 96- 
 the 50-pair budget and are supplementary. \HtoA{} rows are scored against the Aperio scan.}
 \label{tab:sdxl}
 \footnotesize
-\setlength{\tabcolsep}{2.5pt}
+\setlength{\tabcolsep}{3.2pt}\renewcommand{\arraystretch}{1.12}
 \begin{tabular}{lrrrrr}
 \toprule
 & \multicolumn{3}{c}{LAB W. $\downarrow$} & \multicolumn{2}{c}{SSIM $\uparrow$}\\
@@ -317,7 +317,7 @@ Hamamatsu target. All SDXL outputs stay close to the Aperio colour.}
 \end{figure*}
 
 \subsection{Newer backbones (exploratory probes)}
-Both newer backbones are feasible to adapt but not yet useful (Table~\ref{tab:cost}). An SD\,3.5-large
+Both newer backbones are feasible to adapt but not yet useful (Table~\ref{tab:cost}, Appendix~\ref{app:results}). An SD\,3.5-large
 rank-8 LoRA trains in about five times SD\,1.5's time and fits a 24\,GB GPU. On 20 A06 crops at 1024\,px
 (strength 0.30, without the T5 text encoder to save memory) it recovers $\dlab=+4.77$ but reaches only SSIM
 0.183, far below SD\,1.5 and SDXL; because this covers only the outlier slide it is not a general result.
@@ -326,19 +326,3 @@ PixCell is the cheapest backbone to adapt and its 16-channel VAE has the highest
 scores SSIM 0.045 against the registered target and 0.036 against its own source: a single global embedding
 carries no information about where nuclei are (Fig.~\ref{fig:app-pixcell}). Using it for normalisation would
 need a source-image conditioning branch for a diffusion transformer, which was not built.
-
-\begin{table}[t]
-\centering
-\caption{Cost of a rank-8 LoRA, 1{,}000 steps, on one RTX~3090 (exploratory probes).}
-\label{tab:cost}
-\footnotesize
-\begin{tabular}{lrrr}
-\toprule
-& SD\,1.5 & SD\,3.5-large & PixCell\\
-\midrule
-Wall-clock (s) & 160.5 & 798.8 & \textbf{130.3}\\
-Peak VRAM (GB) & -- & 17.77 & \textbf{4.20}\\
-Trainable parameters & 1.59M & 5.91M & 2.06M\\
-\bottomrule
-\end{tabular}
-\end{table}

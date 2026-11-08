@@ -197,6 +197,25 @@ six comparisons consistent), and SDXL at 1024\,px \HtoA{} remains an open counte
 leans the wrong way, yet it recovers $\dlab=+9.20$.
 
 
+\subsection{Training cost of the exploratory probes}
+Table~\ref{tab:cost} gives the cost of training a rank-8 LoRA on each backbone.
+
+\begin{table}[!tbp]
+\centering
+\caption{Cost of a rank-8 LoRA, 1{,}000 steps, on one RTX~3090 (exploratory probes).}
+\label{tab:cost}
+\footnotesize
+\begin{tabular}{lrrr}
+\toprule
+& SD\,1.5 & SD\,3.5-large & PixCell\\
+\midrule
+Wall-clock (s) & 160.5 & 798.8 & \textbf{130.3}\\
+Peak VRAM (GB) & -- & 17.77 & \textbf{4.20}\\
+Trainable parameters & 1.59M & 5.91M & 2.06M\\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{Inference speed}
 Table~\ref{tab:app-speed} times every method's per-crop call on one node (RTX~3090, mscluster88) and the
 same held-out Aperio crops, excluding model loading, registration and file input/output: two warm-up crops,
