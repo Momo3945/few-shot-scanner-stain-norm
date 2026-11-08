@@ -1,13 +1,13 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-A frozen Stable Diffusion 1.5 model adapted from 50 coordinate-corresponding pairs can normalise between
-two scanners, but only after replacing the planned recipe: a target-only colour LoRA with ControlNet and
+A frozen Stable Diffusion 1.5 model adapted from 50 coordinate-corresponding pairs can normalise Aperio
+to Hamamatsu scans (the reverse fails on SD\,1.5), but only after replacing the planned recipe: a target-only colour LoRA with ControlNet and
 LCM barely moves colour, while source conditioning, DDIM inversion and fusion of the learned colour change
 onto the source pixels reach SSIM 0.729 and beat the classical baselines on typical-slide colour. The VAE
 bottleneck explains most of the gap to the raw scan, and fine-tuning its decoder raises SSIM mainly by
 smoothing. Learned nondiffusion baselines trained on the same 50 pairs remain better on colour and SSIM;
-ParamNet and the fused pipeline both pass the Relative Dice test (1.003 and 0.994), and the unfused
+ParamNet and the fused pipeline both pass the Relative Dice test, and the unfused
 diffusion output does not. Few-step LCM is 12.5$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
 model, and diffusion is most useful as a source of colour change that fusion projects back onto the

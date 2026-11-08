@@ -5,7 +5,7 @@ Table~\ref{tab:hyp} answers the four hypotheses the project committed to before 
 
 \begin{table}[t]
 \centering
-\caption{Pre-registered hypotheses and outcomes (SD\,1.5 unless stated).}
+\caption{Hypotheses fixed in the proposal, and outcomes (SD\,1.5 unless stated).}
 \label{tab:hyp}
 \footnotesize
 \setlength{\tabcolsep}{3pt}
@@ -26,8 +26,8 @@ H3 & Relative Dice $\geq 0.95$ &
 for the LCM ladder setting).\\
 \midrule
 H4 & 4-step LCM matches 50-step DDIM &
-\textbf{Not supported}: generic LCM is 12.5$\times$ faster but loses quality; task-specific distillation
-is worse.\\
+\textbf{Not supported}: generic LCM is 12.5$\times$ faster but loses quality (at 4 steps A08 colour is
+worse than raw); task-specific distillation is worse.\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -46,13 +46,12 @@ rank, so it is not an independent colour check.
 
 \textbf{Cost.} On one RTX~3090 (Table~\ref{tab:app-speed}) the final pipeline takes 6.27\,s per 512\,px
 crop, against 2--42\,ms for every baseline. A 100{,}000$\times$100{,}000 pixel slide holds about 38{,}000
-such crops, so it needs about 66 GPU-hours (LCM 5.3, SDXL 32) against minutes for the baselines.
+such crops, so it needs about 66 GPU-hours against minutes for the baselines.
 
-\textbf{Limitations.} All training data come from one slide pair (A03/H03), so slide-level variation is
-not represented in training. The learned baselines were trained with three seeds in each direction, and the Lizard test uses all
-three. Our LoRA and ControlNet were trained once, so their training-seed variation is unmeasured. Structural
+\textbf{Limitations.} All paired training data come from one slide pair (A03/H03), so slide-level variation is
+not represented in training. Our LoRA and ControlNet were trained once, so their training-seed variation is unmeasured. Structural
 safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). No clinical-utility claim is made: every atypia
-classifier we built failed its own pre-registered gate (Appendix~\ref{app:clinical}). The decoder smoothing analysis
+classifier we built failed its own pre-specified gate (Appendix~\ref{app:clinical}). The decoder smoothing analysis
 rests on two inspected crops.
 
 \textbf{Planned but not run.} No result is claimed for the mitosis-detection arm (it needs a separate

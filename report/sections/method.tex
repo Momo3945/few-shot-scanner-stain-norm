@@ -5,7 +5,7 @@
 MITOS-ATYPIA-14~\cite{roux2014mitos} provides $\times$20 frames of the same breast-cancer slides scanned
 on an Aperio and a Hamamatsu scanner, and frame identifiers match across scanners. All training uses at
 most 50 512\,px crop pairs taken from 24 frames of slide A03/H03. The pairs are
-\emph{coordinate-corresponding}, not pixel-exact, so no training loss compares pixels across scanners. The
+\emph{coordinate-corresponding}, not pixel-exact, so no diffusion training loss compares pixels across scanners. The
 held-out slides A06, A08, A09, A13 and A16 are never used in training; they give 496 canonical 512\,px
 crops (up to four per frame, tissue fraction $\geq 0.3$). For pixel metrics only, each Hamamatsu frame is
 affinely registered into the Aperio grid with enhanced correlation coefficient (ECC) maximisation; registration is never applied to training data.
@@ -30,16 +30,17 @@ reaches $\mathrm{Dice}(A,G)=0.698$, which is the reference every normaliser is d
 is never used as a success signal.
 
 \subsection{Ablation ladder (A0--A5)}
-All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, the best strength for four of five
-slides. A0 is the frozen base; A1 adds a Canny ControlNet; A2 adds a rank-8 colour LoRA trained with the
+All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, chosen in an early sweep on the
+held-out slides, so ladder numbers are, if anything, optimistic. A0 is the frozen base; A1 adds a Canny ControlNet; A2 adds a rank-8 colour LoRA trained with the
 denoising loss on Hamamatsu crops only, so direction comes from img2img; A3 combines ControlNet and LoRA;
-A4 adds the generic LCM-LoRA (8 steps); A5 initialises from a LoRA warm-started on 3{,}000 unpaired
-histopathology patches (MITOS, PanNuke~\cite{gamper2019pannuke} and TCGA).
+A4 adds the generic LCM-LoRA (8 nominal steps, of which img2img runs
+$\lfloor 8s\rfloor=2$); A5 initialises from a LoRA warm-started on 3{,}000 unpaired histopathology
+patches (MITOS training slides, PanNuke~\cite{gamper2019pannuke} and TCGA; no held-out slide).
 
 \subsection{Source-conditioned translation}
 A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a
 source-conditioning branch: a ControlNet initialised from the SD\,1.5 U-Net encoder, with its conditioning
-input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges. The cloned
+input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges (replicated to three channels). The cloned
 encoder stays frozen (349M parameters); only the new conditioning encoder and the zero-initialised residual
 output layers are trained (12.6M), jointly with a new rank-8 colour LoRA on the U-Net attention projections
 (1.6M), so 14.2M parameters are trained in all. The loss is the standard noise-prediction loss on the latent
@@ -48,14 +49,14 @@ is shifted by a random offset of up to 8\,px at each step, so the model cannot r
 50 pairs, 39 train the model and 11, from five whole frames, form a validation set; training uses AdamW at
 learning rate $10^{-4}$, batch size 1 and bf16 for 4{,}000 steps (25\,min on one RTX~3090), and the
 checkpoint with the lowest validation loss (step 3{,}750) is kept. Before this run the recipe had to overfit an
-8-pair subset: it failed at 300 steps, before the zero-initialised layers had moved, and passed at 2{,}000.
+8-pair subset, which it did by 2{,}000 steps.
 The \HtoA{} model is trained the same way with the roles swapped. Shuffled- and zero-source controls confirm
 that the model uses the source (SSIM 0.147 with the correct source against 0.047 with a shuffled one, in
 training-domain control runs).
 
 At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM
-steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}).
+steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}). These inference settings are defaults, not tuned on the held-out slides.
 
 \begin{figure}[t]
 \centering
@@ -122,11 +123,10 @@ F_3=A+\beta\,G_\sigma\!\bigl(H-A_V\bigr).
 Each term of \eqref{eq:f3} has one job. Subtracting $A_V$ cancels what the VAE does to every image
 (its blur and colour offset), so $H-A_V$ approximates the scanner shift alone; $G_\sigma$ removes
 high-frequency texture that the generator invented; and $\beta$ sets how much of the shift is applied.
-Because the added residual is smooth, F3 can change only low-frequency colour, and the fine structure of
-$F_3$ is that of $A$ by construction. Variant and parameters were chosen on internal training-domain crops
+Because the added residual is smooth, F3 changes mainly low-frequency colour, and the fine structure of
+$F_3$ is essentially that of $A$. Variant and parameters were chosen on internal training-domain crops
 and frozen ($\sigma=8$, $\beta=0.5$) before any held-out run. The real Hamamatsu image is never read to
-construct a fused output; one construction bug that briefly did so (it produced SSIM $\approx0.998$) was
-caught, and the corrected run was checked against the raw source.
+construct a fused output; a bug that briefly did so (SSIM $\approx0.998$) was caught and fixed.
 
 \textbf{Decoder fine-tune.} With the encoder frozen, so that the latent space and every trained component
 remain valid, we fine-tune only the decoder (49.5M parameters, initialised from \texttt{ft-mse}) on about
@@ -136,10 +136,11 @@ validation slides outside the held-out set.
 
 \subsection{Baselines}
 \label{sec:baselines}
-Three classical normalisers (Macenko, Reinhard, histogram matching) use one reference image each. Three
-learned normalisers are trained on exactly the same 50 A03/H03 pairs as the colour LoRA, so every trained
-method has the same data budget. StainNet~\cite{kang2021stainnet} is a three-layer 1$\times$1 convolutional
-colour map (1{,}283 parameters) trained with a paired L1 loss; ParamNet~\cite{kang2024paramnet} uses a
+Three classical normalisers (Macenko, Reinhard, histogram matching) each fit one fixed reference crop from
+the A03/H03 training frames. Three learned normalisers are trained on exactly the same 50 A03/H03 pairs as the
+colour LoRA, so every trained method has the same paired-data budget (A5's warm-start and the fine-tuned
+decoder add unpaired patches from outside the held-out set). StainNet~\cite{kang2021stainnet} is a three-layer 1$\times$1 convolutional
+colour map (1{,}283 parameters) trained with a paired L1 loss, which the imperfect correspondence makes noisy; ParamNet~\cite{kang2024paramnet} uses a
 ResNet18 to predict the weights of a per-image 1$\times$1 colour map, trained with its CycleGAN-style recipe;
 StainGAN~\cite{shaban2019staingan} is a standard CycleGAN~\cite{zhu2017cyclegan} (ResNet-9 generator,
 PatchGAN discriminator), trained here because its authors released no weights. Public MITOS-trained

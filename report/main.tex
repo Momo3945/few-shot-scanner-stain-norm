@@ -47,8 +47,8 @@ most 50 coordinate-corresponding Aperio/Hamamatsu crop pairs, can normalise betw
 MITOS-ATYPIA-14 while preserving tissue structure. A six-rung ablation shows that the target-domain
 colour adapter recovers little colour and that ControlNet mainly improves structure. Conditioning the
 adapter on the source image, inverting the source latent with DDIM, and fusing the learned colour change
-back onto the untouched source pixels give the best diffusion result: SSIM 0.729 against the real
-Hamamatsu scan, above every classical baseline, and windowed colour closer to the target than Macenko,
+back onto the untouched source pixels give the best result within the 50-pair budget: SSIM 0.729 against
+the real Hamamatsu scan, close to the raw scan's 0.733 and above every classical baseline, and windowed colour closer to the target than Macenko,
 Reinhard or histogram matching on typical slides. We also show that the VAE caps every diffusion result
 and that a fine-tuned decoder raises SSIM mainly by smoothing. Two learned nondiffusion baselines
 trained on the same 50 pairs, ParamNet and StainGAN, outperform every diffusion configuration on colour
