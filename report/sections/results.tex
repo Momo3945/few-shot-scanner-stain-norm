@@ -215,7 +215,7 @@ ParamNet$^\dagger$ & \textbf{1.003} & [1.000, 1.007]\\
 Ours: inversion + F3 & \textbf{0.994} & [0.992, 0.997]\\
 Reinhard & 0.923 & [0.905, 0.939]\\
 Diffusion: inversion only & 0.893 & [0.886, 0.900]\\
-Diffusion: LCM ladder setting & 0.875 & [0.867, 0.882]\\
+Diffusion: LCM ladder setting & 0.874 & [0.867, 0.882]\\
 Histogram matching & 0.793 & [0.763, 0.822]\\
 Macenko & 0.737 & [0.684, 0.787]\\
 StainGAN$^\dagger$ & 0.684 & [0.650, 0.718]\\
@@ -234,7 +234,7 @@ output itself: the unfused inversion output fails at 0.893, and fusion raises Di
 only a blurred colour change, so nucleus boundaries come from the source. The secondary metrics agree: against
 the original images, the fused output keeps IoU (0.535 against 0.539) and nucleus-detection F-score (0.738 against 0.733),
 while StainGAN lowers the F-score to 0.479 (three-seed mean). The LCM ladder setting (rung A4)
-loses 12.5\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 32\%,
+loses 12.6\% of HoVer-Net's agreement with the ground truth, and StainGAN, despite its high SSIM, loses 32\%,
 which is consistent with GANs altering nuclei. Cycle consistency fails: translating 64 A06 crops \AtoH{} and
 back with the two colour LoRAs (deterministic 50-step DDIM, strength 0.20) returns SSIM 0.143 and LAB distance
 28.2 against the original crops (Fig.~\ref{fig:app-roundtrip}). Each direction re-encodes through the VAE
@@ -260,7 +260,7 @@ failed their own pre-specified validity gates, so no atypia number is used as ev
 \subsection{Few-step inference}
 Generic LCM-LoRA on the source-conditioned model is a speed--quality trade-off rather than a match: its best
 setting (6 nominal steps at strength 0.70, so 4 run, the H4 test; guidance 2.0; tuned on A06/A08, which favours LCM) gives A06 SSIM 0.334 and $\dlab=+9.7$, against 0.373 and
-$+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. It is 12.5$\times$ faster
+$+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. It is 12.4$\times$ faster
 (0.50\,s against 6.27\,s per crop, Table~\ref{tab:app-speed}). The likely limit is the sampler, not the step
 count: our LCM sampler re-noises at every step, so it does not use the DDIM inversion that gave our largest gain. LCM with inversion was not tested. Distilling a task-specific
 LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule.

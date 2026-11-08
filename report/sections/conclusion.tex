@@ -8,7 +8,7 @@ onto the source pixels reach SSIM 0.729 and beat the classical baselines on typi
 bottleneck explains most of the gap to the raw scan, and fine-tuning its decoder raises SSIM mainly by
 smoothing. Learned nondiffusion baselines trained on the same 50 pairs remain better on colour and SSIM;
 ParamNet and the fused pipeline both pass the Relative Dice test, and the unfused
-diffusion output does not. Few-step LCM is 12.5$\times$ faster but does not hold 50-step quality. For
+diffusion output does not. Few-step LCM is 12.4$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
 model, and diffusion is most useful as a source of colour change that fusion projects back onto the
 original image. PixCell with a source-image conditioning branch is the natural next step.

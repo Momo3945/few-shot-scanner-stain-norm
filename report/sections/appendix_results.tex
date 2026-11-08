@@ -66,14 +66,14 @@ v2 M3: criteria two-stage & 0.525 & 0.614 [0.26, 0.73] & 0.304 & 0.83 / 0.50 / 0
 \end{tabular}
 \end{table*}
 
-\subsection{Other closed negatives}
+\subsection{Other probes}
 \textbf{Differential diffusion.} To protect structure inside the diffusion process, each pixel was given
 its own denoising strength from a Canny-derived change map, low near edges and high elsewhere. Six
 configurations (dilation radius $\in\{2,4,8\}$, maximum strength $\in\{0.50,0.70\}$) gave SSIM 0.162--0.167
-on 20 internal crops, against $0.162\pm0.006$ for the plain model, so there was no gain
-(Fig.~\ref{fig:app-diffdiff}). On dense H\&E the protected and free regions interleave finely, and the
-shared U-Net receptive field plausibly lets generation bleed into protected pixels. This failure is what
-motivated fusion outside the U-Net.
+on 20 internal crops (Fig.~\ref{fig:app-diffdiff}). The plain model was scored on only 4 of these crops
+($0.162\pm0.006$ over three seeds), where differential diffusion reached 0.184--0.195, so without a matched
+20-crop baseline the result is inconclusive rather than negative. It was not pursued: its output is still
+decoded by the VAE, so it cannot pass the reconstruction ceiling, which is what motivated fusion outside the U-Net.
 
 \textbf{Round-trip consistency.} Translating A06 crops \AtoH{} and back to Aperio (50-step DDIM, strength
 0.20) gives SSIM 0.143, PSNR 13.1\,dB and LAB distance 28.2 against the original
