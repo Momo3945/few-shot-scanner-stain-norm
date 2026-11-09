@@ -52,7 +52,7 @@ No rung comes close to the classical baselines on structure (SSIM 0.29--0.40 aga
 A06 (Fig.~\ref{fig:ladder}), although on typical slides every rung's colour beats Reinhard and histogram matching. The colour LoRA (A2) recovers only
 $\dlab=+2.25$ pooled, and on typical slides its LAB distance falls from 25.41 to 22.96. ControlNet raises
 SSIM by about 0.10 (A0 0.285 to A1 0.389) but does not move colour. LCM-LoRA (A4) and the histopathology
-warm-start (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance, the size of run-to-run noise, so rank 4 versus 8 makes no measurable difference.
+warm-start (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance, the size of run-to-run noise, so rank makes no measurable difference.
 Sweeps show why denoising strength is a poor control knob: with 8 LCM steps, strengths 0.50 and 0.60 give
 byte-identical outputs, because the number of steps actually run is $\lfloor 8s\rfloor$. Larger strengths
 help the outlier slide A06 (the warm-started rung reaches $\dlab=+24.4$ at 0.70) but damage typical slides
@@ -68,7 +68,7 @@ Hamamatsu target. Every rung keeps the source's pink cast; none reaches the targ
 \end{figure}
 
 \subsection{Source conditioning and DDIM inversion}
-Conditioning on the source image gives a real but modest gain over the ladder ($\dlab=+3.41$, SSIM 0.448).
+Conditioning on the source image gives a real but modest gain over the ladder ($\dlab=+3.41$ against $+2.25$ for A2; SSIM 0.448).
 Replacing random img2img noise with DDIM inversion is the largest single improvement: LAB distance falls to
 25.10 pooled and 17.98 on typical slides, every held-out slide moves towards the target (A06 recovery
 $+21.7$), and SSIM rises to 0.496. In the reverse direction (\HtoA) the same model fails

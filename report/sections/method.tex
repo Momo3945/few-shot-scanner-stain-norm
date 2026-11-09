@@ -39,8 +39,9 @@ All rungs run img2img on a frozen SD\,1.5 at denoising strength 0.30, chosen in 
 held-out slides, so ladder numbers are, if anything, optimistic. A0 is the frozen base; A1 adds a Canny ControlNet; A2 adds a rank-8 colour LoRA trained with the
 denoising loss on Hamamatsu crops only, so direction comes from img2img; A3 combines ControlNet and LoRA;
 A4 adds the generic LCM-LoRA (8 nominal steps, of which img2img runs
-$\lfloor 8s\rfloor=2$); A5 initialises from a LoRA warm-started on 3{,}000 unpaired histopathology
-patches (MITOS training slides, PanNuke~\cite{gamper2019pannuke} and TCGA; no held-out slide).
+$\lfloor 8s\rfloor=2$); A5 adds a frozen rank-32 histopathology LoRA, trained separately on 3{,}000 unpaired
+patches (MITOS training slides, PanNuke~\cite{gamper2019pannuke} and TCGA; no held-out slide) and stacked with
+the colour LoRA at inference.
 
 \subsection{Source-conditioned translation}
 A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a

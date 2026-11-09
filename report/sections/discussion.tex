@@ -22,12 +22,14 @@ H2 & Colour improves over raw input and classical baselines, on MITOS and CAMELY
 ParamNet/StainGAN; CAMELYON17 fails for SD\,1.5, passes narrowly for SDXL.\\
 \midrule
 H3 & Relative Dice $\geq 0.95$ &
-\textbf{Supported with fusion}: 0.994 for inversion + F3; not without it (0.893 unfused, 0.874
+\textbf{Supported with fusion}: 0.994 for inversion + F3, but its CI excludes 1.0, so the proposal's
+no-significant-loss condition holds only for ParamNet; not met without fusion (0.893 unfused, 0.874
 for the LCM ladder setting).\\
 \midrule
 H4 & 4-step LCM matches 50-step DDIM &
-\textbf{Not supported}: generic LCM is 12.4$\times$ faster but loses quality (its best setting runs 4
-steps); task-specific distillation is worse.\\
+\textbf{Not supported}: on the ladder, LCM (A4) loses A3's colour gain at similar SSIM; on the
+source-conditioned model its best setting (4 steps run) is 12.4$\times$ faster but loses quality;
+distillation is worse. The proposal's SSIM $\geq 0.85$ bar is unreachable even for the raw scan (0.732).\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -37,9 +39,6 @@ StainGAN's CycleGAN generator keeps a wide feature map; none of them passes the 
 0.576--0.646 on Aperio crops (Section~\ref{sec:vae}). F3 fusion in effect turns the diffusion model back
 into a colour map applied to the source. With 50 pairs, the strong image prior
 of a diffusion model does not compensate for the information it loses in its own bottleneck.
-
-\textbf{Colour metrics.} Histogram matching wins global LAB Wasserstein on A06 by construction while being
-worse than doing nothing on typical slides, which windowed LAB and per-slide reporting expose.
 
 \textbf{Cost.} On one RTX~3090 (Table~\ref{tab:app-speed}) the final pipeline takes 6.27\,s per 512\,px
 crop, against 2--42\,ms for every baseline. A 100{,}000$\times$100{,}000 pixel slide (about 38{,}000
@@ -51,7 +50,7 @@ safety rests on one segmenter (HoVer-Net) and one colon dataset (Lizard). No cli
 classifier we built failed its own pre-specified gate (Appendix~\ref{app:clinical}). The decoder smoothing analysis
 rests on two inspected crops.
 
-\textbf{Not run.} The mitosis-detection arm, the SD\,3.5 structural-ControlNet and Turbo checks, an
+\textbf{Not run.} The mitosis-detection arm, an SD\,1.5 LoRA-weight sweep under LCM, the SD\,3.5 structural-ControlNet and Turbo checks, an
 unanchored full-VAE fine-tune, a PixCell source-conditioning branch and the TCGA-BRCA colour target. Neither
 the attention-residual method~\cite{madusanka2025attentionresidual} nor the diffusion normalisers of
 Section~\ref{sec:related} were reproduced, so they are cited but not compared.
