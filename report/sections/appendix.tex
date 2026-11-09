@@ -1,6 +1,6 @@
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.8\textwidth]{ladder_grid_a06.jpg}
+\includegraphics[width=\textwidth]{ladder_grid_a06.jpg}
 \caption{The A0--A5 ladder on the outlier slide A06 (strength 0.30). As on A08 (Fig.~\ref{fig:ladder}), no
 rung approaches the target's colour.}
 \label{fig:app-ladder}
@@ -29,7 +29,7 @@ and the edges carry no colour; the source RGB channels are what let the model le
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.8\textwidth]{p1_11_h2a.jpg}
+\includegraphics[width=\textwidth]{p1_11_h2a.jpg}
 \caption{SD\,1.5 in the \HtoA{} direction on held-out crops from A08 (top) and A16 (bottom): raw Hamamatsu source, real Aperio target,
 and DDIM-inversion outputs with inversion fraction $f=1.00$ and $f=0.25$. Both drift towards magenta instead
 of the paler Aperio colour ($\dlab=-15.6$ and $-6.2$).}
@@ -38,7 +38,7 @@ of the paler Aperio colour ($\dlab=-15.6$ and $-6.2$).}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.8\textwidth]{p1_13_lcm.jpg}
+\includegraphics[width=0.9\textwidth]{p1_13_lcm.jpg}
 \caption{Few-step inference on A06 (crop origin (0,0), seed 0): raw source, generic LCM-LoRA, the
 task-specific distilled LCM, and the registered Hamamatsu target. Distillation did not improve on the generic
 adapter.}
@@ -47,7 +47,7 @@ adapter.}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.9\textwidth]{p1_17_diffdiff.jpg}
+\includegraphics[width=\textwidth]{p1_17_diffdiff.jpg}
 \caption{Differential diffusion (training crop A03\_00A\_c024): source, the per-pixel change
 map derived from edges, the differential-diffusion output, the plain source-conditioned baseline and the real
 Hamamatsu crop. On dense H\&E the protected region covers nearly the whole crop. The SSIM comparison is
@@ -65,7 +65,7 @@ structure but stays much paler than the Hamamatsu scan.}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.9\textwidth]{vae_ceiling.pdf}
+\includegraphics[width=\textwidth]{vae_ceiling.pdf}
 \caption{VAE self-reconstruction SSIM per held-out slide on Aperio (left) and Hamamatsu (right) crops, 496
 crops each. The fine-tuned decoder is highest on every slide and every decoder stays far below the lossless
 line (dotted).}
@@ -74,19 +74,25 @@ line (dotted).}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.47\textwidth]{p1_18_g12_recon.jpg}\hfill
-\includegraphics[width=0.52\textwidth]{p1_18_g12_translated.jpg}
-\caption{Decoder comparison on A06 and A08, each with a 128\,px zoom. Left: self-reconstruction by the stock,
-\texttt{ft-mse} and fine-tuned decoders, with SSIM and blue-channel shift against the input. Right: the same
-DDIM-inversion latent decoded three ways, with SSIM and windowed LAB against the real Hamamatsu scan. The
-fine-tuned decoder is the smoothest, which raises SSIM against the soft Hamamatsu target, and it shifts
-colour slightly towards pink.}
+\includegraphics[width=0.8\textwidth]{p1_18_g12_recon.jpg}
+\caption{Decoder self-reconstruction on A06 and A08, each with a 128\,px zoom: the stock, \texttt{ft-mse} and
+fine-tuned decoders, with SSIM and blue-channel shift against the input. The fine-tuned decoder is the
+smoothest and shifts colour slightly towards pink.}
+\label{fig:app-decoder-recon}
+\end{figure*}
+
+\begin{figure*}[!tbp]
+\centering
+\includegraphics[width=\textwidth]{p1_18_g12_translated.jpg}
+\caption{The same DDIM-inversion latent decoded by the stock, \texttt{ft-mse} and fine-tuned decoders, with SSIM
+and windowed LAB against the real Hamamatsu scan (A06 and A08, each with a 128\,px zoom). The fine-tuned
+decoder's smoothing raises SSIM against the soft Hamamatsu target.}
 \label{fig:app-decoder}
 \end{figure*}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.75\textwidth]{best_cases_sd15.jpg}
+\includegraphics[width=\textwidth]{best_cases_sd15.jpg}
 \caption{Selected best cases of the final SD\,1.5 pipeline (DDIM inversion + F3 fusion): one column per slide, the top
 crop by recovery on A09, A16, A08 and A06; rows are the raw source, our output and the registered target. Under each tile, LAB is its
 distance to the target, $\Delta$ the recovery and SSIM the structural similarity to the target. These are not typical: mean
@@ -96,7 +102,7 @@ recovery per slide is $+7.2$ to $+10.8$, and A06 stays paler than its target.}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.8\textwidth]{lizard_overlay.jpg}
+\includegraphics[width=0.9\textwidth]{lizard_overlay.jpg}
 \caption{Structural-safety test on a typical Lizard image (400\,px patch; Dice(A,G) 0.741, Dice(B,G) 0.651,
 ratio 0.878, the median): original, ground-truth nuclei, HoVer-Net on the original and on the normalised
 image (normalised by the LCM ladder setting, A4). HoVer-Net finds fewer nuclei after normalisation.}
@@ -105,7 +111,7 @@ image (normalised by the LCM ladder setting, A4). HoVer-Net finds fewer nuclei a
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.65\textwidth]{roundtrip.jpg}
+\includegraphics[width=0.75\textwidth]{roundtrip.jpg}
 \caption{Round trip \AtoH{}\,$\to$\,A on A06 (50-step DDIM, strength 0.20): original, forward output and the
 return trip. The return is oversaturated with distorted nuclear detail (SSIM 0.143 over 64 crops).}
 \label{fig:app-roundtrip}
@@ -113,7 +119,7 @@ return trip. The return is oversaturated with distorted nuclear detail (SSIM 0.1
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.85\textwidth]{camelyon_sdxl.jpg}
+\includegraphics[width=\textwidth]{camelyon_sdxl.jpg}
 \caption{CAMELYON17 centre~0: raw patch, the SD\,1.5 LCM ladder setting (A4; the failed cross-centre test), and
 the 144-pair SDXL model, unfused and with F3 fusion (run at 1024\,px).}
 \label{fig:app-camelyon}
@@ -138,27 +144,25 @@ source detail, and SD\,3.5 is washed out. The black strip on the Hamamatsu tile 
 
 \begin{figure*}[!tbp]
 \centering
-\begin{minipage}[t]{0.48\textwidth}
-\centering
-\includegraphics[width=\linewidth]{sdxl_h2a.jpg}
+\includegraphics[width=0.8\textwidth]{sdxl_h2a.jpg}
 \caption{SDXL \HtoA{} on A06 at 512\,px (top) and 1024\,px (bottom): real Hamamatsu source, SDXL output and raw
 Aperio target. On this crop both outputs stay closer to the source than to the pale target; the mean
 recoveries are $+9.47$ and $+9.20$.}
 \label{fig:app-sdxl-h2a}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.48\textwidth}
-\centering
-\includegraphics[width=\linewidth]{t2i_backbones.jpg}
-\caption{Pure text-to-image samples (seed 0) from SD\,1.5, SDXL at 512\,px and SDXL at 1024\,px, used only to
-read each backbone's default colour in a diagnostic of the \AtoH{}/\HtoA{} asymmetry. They are repetitive
-textures, not realistic tissue.}
-\label{fig:app-t2i}
-\end{minipage}
 \end{figure*}
 
 \begin{figure*}[!tbp]
 \centering
-\includegraphics[width=0.55\textwidth]{pixcell_floor.jpg}
+\includegraphics[width=0.8\textwidth]{t2i_backbones.jpg}
+\caption{Pure text-to-image samples (seed 0) from SD\,1.5, SDXL at 512\,px and SDXL at 1024\,px, used only to
+read each backbone's default colour in a diagnostic of the \AtoH{}/\HtoA{} asymmetry. They are repetitive
+textures, not realistic tissue.}
+\label{fig:app-t2i}
+\end{figure*}
+
+\begin{figure*}[!tbp]
+\centering
+\includegraphics[width=0.9\textwidth]{pixcell_floor.jpg}
 \caption{PixCell generation without fine-tuning from the crop's own UNI2-h embedding (A06, frame 00A, 256\,px).
 The output is plausible H\&E tissue, but nuclei and glands are not where they are in the source or target
 (SSIM 0.045).}

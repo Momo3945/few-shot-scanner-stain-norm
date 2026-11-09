@@ -2,6 +2,7 @@
 Raw Aperio source tile is cropped locally from data/mitos at the same (x,y)=(0,0), 1024px.
 Run from repo root: python docs/report/make_cluster_figures.py"""
 from pathlib import Path
+import textwrap
 from PIL import Image, ImageDraw
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -13,7 +14,8 @@ def aperio(slide):
     Image.MAX_IMAGE_PIXELS = None
     return Image.open(TIFF.format(s=slide)).convert("RGB").crop((0, 0, 1024, 1024))
 
-def panel(slide, extra, name):
+def panel(slide, extra, name, width=None):
+    """width (inches): draw at the printed width so 7 pt titles print at 7 pt; None keeps the old size."""
     c = f"{slide}_00A_x0_y0"
     tiles = [("Raw Aperio", aperio(slide)),
              ("SDXL 1024, 50 pairs", Image.open(RAW/f"sdxl1024_50pair_{c}.png")),
@@ -21,13 +23,19 @@ def panel(slide, extra, name):
              ("SDXL 144 pairs + F3 fusion", Image.open(RAW/f"sdxl_f3_fused_{c}.png"))]
     tiles += extra
     tiles.append(("Real Hamamatsu", Image.open(RAW/f"real_hamamatsu_{c}.png")))
-    fig, axs = plt.subplots(1, len(tiles), figsize=(2.6*len(tiles), 3.0))
+    if width is None:
+        fig, axs = plt.subplots(1, len(tiles), figsize=(2.6*len(tiles), 3.0))
+    else:  # constrained layout leaves room for the wrapped two-line titles
+        fig, axs = plt.subplots(1, len(tiles), figsize=(width, width / len(tiles) + 0.4), layout="constrained")
     for ax, (t, im) in zip(axs, tiles):
+        t = t if width is None else textwrap.fill(t, 18)
         ax.imshow(im.convert("RGB").resize((512, 512))); ax.set_title(t, fontsize=7); ax.axis("off")
-    plt.tight_layout(pad=0.3); fig.savefig(OUT/name, dpi=130); plt.close(fig)
+    if width is None:
+        plt.tight_layout(pad=0.3)
+    fig.savefig(OUT/name, dpi=130 if width is None else 300); plt.close(fig)
 
 panel("A08", [], "sdxl_panel_a08.jpg")
-panel("A06", [("SD3.5 probe (s=0.30)", Image.open(RAW/"sd35_A06_00A_x0_y0.png"))], "sdxl_sd35_panel_a06.jpg")
+panel("A06", [("SD3.5 probe (s=0.30)", Image.open(RAW/"sd35_A06_00A_x0_y0.png"))], "sdxl_sd35_panel_a06.jpg", width=7.16)
 
 # One labelled row: cam_raw_patch is the same centre-0 patch P2-10 used, so its SD1.5 output sits alongside
 # (previously a separate unlabelled row stacked in LaTeX, which clipped this row's titles).
@@ -36,7 +44,7 @@ tiles = [("Raw (512px)", Image.open(RAW/"cam_raw_patch.png")),
          ("SD1.5 ladder setting (A4)", Image.open(CAM/"centre0_normalised.png")),
          ("SDXL 144 pairs, unfused", Image.open(RAW/"cam_sdxl_unfused.png")),
          ("SDXL + F3 fused", Image.open(RAW/"cam_sdxl_fused.png"))]
-fig, axs = plt.subplots(1, 4, figsize=(9.6, 2.65), layout="constrained")
+fig, axs = plt.subplots(1, 4, figsize=(7.16, 2.05), layout="constrained")
 for ax, (t, im) in zip(axs, tiles):
-    ax.imshow(im.convert("RGB").resize((512, 512))); ax.set_title(t, fontsize=8); ax.axis("off")
-fig.savefig(OUT/"camelyon_sdxl.jpg", dpi=130)
+    ax.imshow(im.convert("RGB").resize((512, 512))); ax.set_title(t, fontsize=7.5); ax.axis("off")
+fig.savefig(OUT/"camelyon_sdxl.jpg", dpi=300)

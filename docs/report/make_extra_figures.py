@@ -12,6 +12,7 @@ M = Path("docs/report/cluster_raw/more"); C = Path("docs/report/cluster_raw"); O
 R = Path("docs/results")
 TIFF = "data/mitos/mitos_atypia_2014_testing_aperio/A06/frames/x20/A06_00A.tiff"
 rgb = lambda p: Image.open(p).convert("RGB")
+# Appendix figures are drawn at their printed width (inches = LaTeX width x 7.16), so fonts print at true size.
 
 
 def row(axs, tiles, fs=8):
@@ -32,7 +33,7 @@ for ax, f, t in zip(axs, ["vae_panel_a06.png", "vae_panel_a08.png"], ["A06", "A0
 save(fig, "vae_recon.jpg")
 
 # 2. Round trip A06 (A -> H -> A), 512px
-fig, axs = plt.subplots(1, 3, figsize=(7.2, 2.7), layout="constrained")  # tight_layout clipped the hat titles
+fig, axs = plt.subplots(1, 3, figsize=(5.37, 2.0), layout="constrained")  # tight_layout clipped the hat titles
 row(axs, [("Original Aperio", rgb(M / "rt_original.png")), (r"Forward $\hat H$ (A$\to$H)", rgb(M / "rt_hhat.png")),
           (r"Round trip $\hat A$ (H$\to$A)", rgb(M / "rt_ahat.png"))])
 save(fig, "roundtrip.jpg")
@@ -40,14 +41,14 @@ save(fig, "roundtrip.jpg")
 # 3. P1-13 LCM arms, A06 (0,0), 512px; target = top-left 512 of the 1024 registered Hamamatsu
 src = Image.open(TIFF).convert("RGB").crop((0, 0, 512, 512))
 tgt = rgb(C / "real_hamamatsu_A06_00A_x0_y0.png").crop((0, 0, 512, 512))
-fig, axs = plt.subplots(1, 4, figsize=(9.6, 2.7))
+fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.85))
 row(axs, [("Raw Aperio", src), ("Generic LCM-LoRA", rgb(M / "p113_generic.png")),
           ("Task-specific LCM", rgb(M / "p113_taskspecific.png")), ("Real Hamamatsu", tgt)])
 save(fig, "p1_13_lcm.jpg")
 
 # 4. P1-17 differential diffusion smoke crop (training crop A03_00A_c024)
 chg = Image.open(M / "dd_changemap.png").convert("L")
-fig, axs = plt.subplots(1, 5, figsize=(11, 2.5))
+fig, axs = plt.subplots(1, 5, figsize=(7.16, 1.75))
 row(axs, [("Source (Aperio)", rgb(M / "dd_source.png")), ("Change map", chg), ("Differential diffusion", rgb(M / "dd_output.png")),
           ("Source-cond. baseline", rgb(M / "dd_p110_baseline.png")), ("Real Hamamatsu", rgb(M / "dd_reference.png"))], fs=7)
 axs[1].images[0].set_cmap("gray")
@@ -55,10 +56,10 @@ save(fig, "p1_17_diffdiff.jpg")
 
 # 5. SDXL H2A: source = registered real Hamamatsu, target = raw Aperio
 ham = rgb(C / "real_hamamatsu_A06_00A_x0_y0.png"); aper = rgb(M / "h2a_reference.png")
-fig, axs = plt.subplots(2, 3, figsize=(7.2, 5.2), layout="constrained")
-row(axs[0], [("Real Hamamatsu (source), 512px FOV", ham.crop((0, 0, 512, 512))), ("SDXL 512px, H→A", rgb(M / "h2a_sdxl512.png")),
+fig, axs = plt.subplots(2, 3, figsize=(5.73, 4.15), layout="constrained")
+row(axs[0], [("Hamamatsu (source), 512px", ham.crop((0, 0, 512, 512))), ("SDXL 512px, H→A", rgb(M / "h2a_sdxl512.png")),
              ("Raw Aperio (target)", aper.crop((0, 0, 512, 512)))], fs=7)
-row(axs[1], [("Real Hamamatsu (source), 1024px FOV", ham), ("SDXL 1024px, H→A", rgb(M / "h2a_sdxl1024.png")), ("Raw Aperio (target)", aper)], fs=7)
+row(axs[1], [("Hamamatsu (source), 1024px", ham), ("SDXL 1024px, H→A", rgb(M / "h2a_sdxl1024.png")), ("Raw Aperio (target)", aper)], fs=7)
 save(fig, "sdxl_h2a.jpg")
 
 # 6. Lizard: HoVer-Net on original vs normalised, boundary overlay on a 400px patch
@@ -69,9 +70,9 @@ y0, x0, s = 350, 300, 400
 def ov(img, mask, col):
     o = img.copy(); m = mask.astype(bool); b = m & ~binary_erosion(m)
     o[b] = col; return o[y0:y0 + s, x0:x0 + s]
-fig, axs = plt.subplots(1, 4, figsize=(9.6, 2.7))
+fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.85))
 row(axs, [("Original image", io[y0:y0 + s, x0:x0 + s]), ("Ground truth (Lizard)", ov(io, g > 0, (0, 255, 0))),
-          ("HoVer-Net on original (A)", ov(io, mo, (255, 255, 0))), ("HoVer-Net on normalised (B)", ov(inn, mn, (0, 255, 255)))], fs=7)
+          ("HoVer-Net, original (A)", ov(io, mo, (255, 255, 0))), ("HoVer-Net, normalised (B)", ov(inn, mn, (0, 255, 255)))], fs=7)
 save(fig, "lizard_overlay.jpg")
 
 # 7. Text-to-image backbone colour defaults (6 images)
@@ -79,7 +80,7 @@ names = ["sd15_a2h", "sd15_h2a", "sdxl512_a2h", "sdxl512_h2a", "sdxl1024_a2h", "
 T2I_TITLES = {"sd15_a2h": "SD 1.5, A→H LoRA", "sd15_h2a": "SD 1.5, H→A LoRA",
               "sdxl512_a2h": "SDXL 512px, A→H LoRA", "sdxl512_h2a": "SDXL 512px, H→A LoRA",
               "sdxl1024_a2h": "SDXL 1024px, A→H LoRA", "sdxl1024_h2a": "SDXL 1024px, H→A LoRA"}
-fig, axs = plt.subplots(2, 3, figsize=(7.2, 5.2), layout="constrained")
+fig, axs = plt.subplots(2, 3, figsize=(5.73, 4.15), layout="constrained")
 for ax, n in zip(axs.T.flatten(), names):
     ax.imshow(rgb(R / f"p3_06_p3_07_h2a_extension/images/{n}/t2i_seed0.png").resize((384, 384))); ax.set_title(T2I_TITLES[n], fontsize=7); ax.axis("off")
 save(fig, "t2i_backbones.jpg")
@@ -96,20 +97,20 @@ for sl, tag in [("06", "A06 (outlier)"), ("08", "A08 (typical)")]:
     tiles = [("Aperio (input)", rgb(SW / f"source_{sl}.png"))]
     tiles += [(f"s = {s / 100:.2f} ({int(8 * s / 100)} step{'s' if int(8 * s / 100) > 1 else ''})", rgb(SW / f"a5_{sl}_{s:03d}.png"))
               for s in (20, 30, 40, 50, 70)]
-    tiles.append(("Hamamatsu (ground truth)", rgb(SW / f"reference_{sl}.png")))
-    fig, axs = plt.subplots(1, 7, figsize=(11, 1.95), layout="constrained")
-    row(axs, tiles, fs=8)
-    fig.suptitle(f"A5 strength sweep, {tag}, 8-step LCM", fontsize=8, x=0.005, ha="left")
+    tiles.append(("Hamamatsu (target)", rgb(SW / f"reference_{sl}.png")))
+    fig, axs = plt.subplots(1, 7, figsize=(7.16, 1.5), layout="constrained")
+    row(axs, tiles, fs=6.5)
+    fig.suptitle(f"A5 strength sweep, {tag}, 8-step LCM", fontsize=7, x=0.005, ha="left")
     save(fig, f"sweep_a5_{sl}.jpg")
 
 # 10. A08 at A4 (strength 0.20): SD1.5 vs SDXL with the classical baselines, rebuilt from the tiles
 # (the cluster-rendered strip's title overlaps its column labels)
 SX = R / "p3_04_sdxl_a4/images/sdxl_vs_sd15"
-fig, axs = plt.subplots(1, 7, figsize=(11, 1.9), layout="constrained")
+fig, axs = plt.subplots(1, 7, figsize=(7.16, 1.35), layout="constrained")
 row(axs, [("Aperio (input)", rgb(SX / "A08_aperio_input.png")), ("A4, SD1.5", rgb(SX / "A08_sd15_output.png")),
           ("A4, SDXL", rgb(SX / "A08_sdxl_output.png")), ("Macenko", rgb(SX / "A08_macenko_output.png")),
-          ("Reinhard", rgb(SX / "A08_reinhard_output.png")), ("Histogram matching", rgb(SX / "A08_histmatch_output.png")),
-          ("Hamamatsu (ground truth)", rgb(SX / "A08_hamamatsu_ground_truth.png"))], fs=8)
+          ("Reinhard", rgb(SX / "A08_reinhard_output.png")), ("Hist. match", rgb(SX / "A08_histmatch_output.png")),
+          ("Hamamatsu (target)", rgb(SX / "A08_hamamatsu_ground_truth.png"))], fs=6.5)
 save(fig, "sdxl_vs_sd15.jpg")
 
 # 11. P1-11 H2A fraction fix (A08/A16), re-labelled. The cluster panel is a 2x4 grid of 512px tiles (rows at
@@ -117,15 +118,15 @@ save(fig, "sdxl_vs_sd15.jpg")
 # every tile is cut to the same 484x484 window below that box and titled here instead.
 P = rgb(R / "p1_11_ddim_inversion/qualitative_h2a_fraction_fix.png")
 COLS = ["Raw Hamamatsu (source)", "Real Aperio (target)", "H→A output, f = 1.00", "H→A output, f = 0.25"]
-fig, axs = plt.subplots(2, 4, figsize=(9.6, 5.0), layout="constrained")
+fig, axs = plt.subplots(2, 4, figsize=(7.16, 3.75), layout="constrained")
 for r, (y0, slide) in enumerate([(0, "A08"), (522, "A16")]):
     for c in range(4):
         x0 = 512 * c
         axs[r, c].imshow(P.crop((x0 + 14, y0 + 28, x0 + 498, y0 + 512)))
-        axs[r, c].set_title(COLS[c], fontsize=10); axs[r, c].set_xticks([]); axs[r, c].set_yticks([])
+        axs[r, c].set_title(COLS[c], fontsize=7.5); axs[r, c].set_xticks([]); axs[r, c].set_yticks([])
         for s in axs[r, c].spines.values():
             s.set_visible(False)
-    axs[r, 0].set_ylabel(slide, fontsize=11)
+    axs[r, 0].set_ylabel(slide, fontsize=8)
 save(fig, "p1_11_h2a.jpg", dpi=150)
 
 # 12. ControlNet conditioning: raw Canny vs the A1/A3 Canny input vs our 6-channel source-conditioned input
@@ -138,14 +139,14 @@ cnp = np.asarray(rgb(R / "p1_10_source_conditioning/images/controlnet_input_p1_1
 src = cnp[34:546, 0:512]
 raw = cv2.Canny(cv2.cvtColor(src, cv2.COLOR_RGB2GRAY), 100, 200)  # textbook fixed thresholds, no blur
 otsu = extract_canny_control_image(src)[:, :, 0]
-fig = plt.figure(figsize=(10.4, 3.25), layout="constrained")
+fig = plt.figure(figsize=(7.16, 2.35), layout="constrained")
 left, right = fig.subfigures(1, 2, wspace=0.04)
-left.suptitle("Canny-only conditioning (3 channels, edges only)", fontsize=9)
-right.suptitle("Ours: source-conditioned ControlNet input (6 channels)", fontsize=9)
+left.suptitle("Canny-only conditioning (3 channels, edges only)", fontsize=7.5)
+right.suptitle("Ours: source-conditioned input (6 channels)", fontsize=7.5)
 la, ra = left.subplots(1, 2), right.subplots(1, 2)
 for ax, im, t in [(la[0], raw, f"Raw Canny, fixed 100/200\n({(raw > 0).mean():.0%} edge pixels)"),
                   (la[1], otsu, f"Otsu-adaptive Canny (A1/A3)\n({(otsu > 0).mean():.0%} edge pixels)"),
                   (ra[0], src, "Source RGB\n(channels 0-2)"),
                   (ra[1], otsu, "Otsu-adaptive Canny\n(channels 3-5)")]:
-    ax.imshow(im, cmap="gray" if im.ndim == 2 else None, vmin=0, vmax=255); ax.set_title(t, fontsize=8); ax.axis("off")
-save(fig, "controlnet_conditioning.jpg", dpi=150)
+    ax.imshow(im, cmap="gray" if im.ndim == 2 else None, vmin=0, vmax=255); ax.set_title(t, fontsize=7); ax.axis("off")
+save(fig, "controlnet_conditioning.jpg", dpi=300)

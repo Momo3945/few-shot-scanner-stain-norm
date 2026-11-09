@@ -49,15 +49,15 @@ def draw(rows, cols, tiles, labels, name, suptitle):
             ax = axs[2 * si, ci]
             ax.imshow(img); ax.set_xticks([]); ax.set_yticks([])
             ax.add_patch(Rectangle((x0, y0), Z, Z, fill=False, ec="white", lw=1.0))
-            ax.set_title(f"{rows[ci]}\n{labels[t][ci]}", fontsize=7, pad=3)
+            ax.set_title(f"{rows[ci]}\n{labels[t][ci]}", fontsize=10.5, pad=3)
             if ci == 0:
-                ax.set_ylabel(f"{t[:3]} crop (0,0)", fontsize=8)
+                ax.set_ylabel(f"{t[:3]} crop (0,0)", fontsize=11)
             az = axs[2 * si + 1, ci]
             az.imshow(img[y0:y0 + Z, x0:x0 + Z], interpolation="nearest")
             az.set_xticks([]); az.set_yticks([])
             if ci == 0:
-                az.set_ylabel(f"{t[:3]} zoom {Z}px", fontsize=8)
-    fig.suptitle(suptitle, fontsize=8.5, x=0.01, ha="left")
+                az.set_ylabel(f"{t[:3]} zoom {Z}px", fontsize=11)
+    fig.suptitle(suptitle, fontsize=11.5, x=0.01, ha="left")
     plt.tight_layout(pad=0.4, h_pad=1.4, rect=(0, 0, 1, 0.95))
     fig.savefig(OUT / name, dpi=150); plt.close(fig); print("wrote", OUT / name)
 
