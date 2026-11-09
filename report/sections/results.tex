@@ -317,11 +317,12 @@ Hamamatsu target. All SDXL outputs stay close to the Aperio colour.}
 
 \subsection{Newer backbones (exploratory probes)}
 Both newer backbones are feasible to adapt but not yet useful (Table~\ref{tab:cost}, Appendix~\ref{app:results}). An SD\,3.5-large
-rank-8 LoRA trains in about five times SD\,1.5's time and fits a 24\,GB GPU. On 20 A06 crops at 1024\,px
-(strength 0.30, without the T5 text encoder to save memory) it recovers $\dlab=+4.77$ but reaches only SSIM
-0.183, far below SD\,1.5 and SDXL; because this covers only the outlier slide it is not a general result.
+rank-8 LoRA trains in about five times SD\,1.5's time and fits a 24\,GB GPU. Its colour test is weaker than
+planned: a frame-ordering slip drew all 20 crops from the outlier A06, and it ran at 1024\,px without the T5
+text encoder, with a bf16 VAE and untuned guidance. On A06 it recovers $\dlab=+4.77$ at SSIM 0.183, more
+colour than any SD\,1.5 ladder rung there (at most $+2.38$) at the SSIM of the weakest rungs (0.19), so it is a
+feasibility signal, not a general result.
 PixCell is the cheapest backbone to adapt and its 16-channel VAE has the highest reconstruction ceiling
 (0.773, Fig.~\ref{fig:vaebb}). But generation from a crop's own UNI2-h embedding, without fine-tuning,
 scores SSIM 0.045 against the registered target and 0.036 against its own source: a single global embedding
-carries no information about where nuclei are (Fig.~\ref{fig:app-pixcell}). Using it for normalisation would
-need a source-image conditioning branch for a diffusion transformer, which was not built.
+carries no information about where nuclei are (Fig.~\ref{fig:app-pixcell}).
