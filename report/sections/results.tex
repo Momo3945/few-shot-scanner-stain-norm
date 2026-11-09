@@ -12,7 +12,7 @@ better) and SSIM against the registered Hamamatsu scan; \emph{typical} is A08, A
 trained method uses the same 50-pair A03/H03 budget. Rows marked $^\dagger$ average three seeds: sampling seeds for the img2img
 row (1{,}488 crop-seeds) and training seeds for the learned baselines. DDIM inversion is deterministic, so
 the inversion and fusion rows are single runs (496 crops); other seeds give byte-identical outputs. The raw row averages per-slide do-nothing scores over a larger set of 1{,}475 crops, pooled with the 496-crop weights.
-Bold: best normaliser per column.}
+Bold: best normaliser per column. Per-slide values: Table~\ref{tab:app-perslide}.}
 \label{tab:main}
 \small
 \begin{tabular}{llrrrrrr}
@@ -38,7 +38,7 @@ SD\,1.5 ladder & A0 frozen img2img & 32.89 & 23.65 & 95.22 & 0.285 & 0.299 & 0.1
  & A4 + LCM-LoRA (8 steps, 2 run) & 33.96 & 24.91 & 95.06 & 0.398 & 0.417 & 0.272\\
  & A5 + histopathology warm-start & 33.96 & 25.29 & 92.46 & 0.389 & 0.407 & 0.265\\
 \midrule
-This work & Source ControlNet + LoRA, img2img$^\dagger$ & 30.95 & 22.11 & 90.64 & 0.448 & 0.470 & 0.307\\
+This work & Source ControlNet + LoRA, $s=0.50$ img2img$^\dagger$ & 30.95 & 22.11 & 90.64 & 0.448 & 0.470 & 0.307\\
  & + DDIM inversion & 25.10 & 17.98 & 73.12 & 0.496 & 0.514 & 0.373\\
  & + \texttt{ft-mse} decoder & 24.53 & 16.86 & 76.32 & 0.557 & 0.574 & 0.438\\
  & + fine-tuned decoder & 25.86 & 17.95 & 79.23 & 0.616 & 0.634 & 0.498\\
