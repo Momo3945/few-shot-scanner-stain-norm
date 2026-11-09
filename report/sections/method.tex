@@ -40,13 +40,13 @@ held-out slides, so ladder numbers are, if anything, optimistic. A0 is the froze
 denoising loss on Hamamatsu crops only, so direction comes from img2img; A3 combines ControlNet and LoRA;
 A4 adds the generic LCM-LoRA (8 nominal steps, of which img2img runs
 $\lfloor 8s\rfloor=2$); A5 adds a frozen rank-32 histopathology LoRA (the proposal's ``warm-start''), trained separately on 3{,}000 unpaired
-patches (MITOS training slides, PanNuke~\cite{gamper2019pannuke} and TCGA; no held-out slide) and stacked with
+patches (MITOS training slides, PanNuke~\cite{gamper2019pannuke} and TCGA~\cite{tcga2012breast}; no held-out slide) and stacked with
 the colour LoRA at inference.
 
 \subsection{Source-conditioned translation}
 A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a
 source-conditioning branch: a ControlNet initialised from the SD\,1.5 U-Net encoder, with its conditioning
-input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges (replicated to three channels; Fig.~\ref{fig:app-controlnet}). The cloned
+input widened to six channels, the source RGB image stacked with its Otsu-adaptive~\cite{otsu1979threshold} Canny~\cite{canny1986edge} edges (replicated to three channels; Fig.~\ref{fig:app-controlnet}). The cloned
 encoder stays frozen (349M parameters); only the new conditioning encoder and the zero-initialised residual
 output layers are trained (12.6M), jointly with a new rank-8 colour LoRA on the U-Net attention projections
 (1.6M), so 14.2M parameters are trained in all. The loss is the standard noise-prediction loss on the latent
@@ -55,8 +55,8 @@ is shifted by a random offset of up to 8\,px at each step, so the model cannot r
 50 pairs, 39 train the model and 11, from five whole frames, form a validation set; training uses AdamW at
 learning rate $10^{-4}$, batch size 1 and bf16 for 4{,}000 steps (25\,min on one RTX~3090), and the
 checkpoint with the lowest validation loss (step 3{,}750) is kept.
-The \HtoA{} model is trained the same way with the roles swapped. A shuffled-source control confirms
-that the model uses the source (training-domain SSIM 0.147 against 0.047).
+The \HtoA{} model is trained the same way with the roles swapped. Pairing each crop with another crop's source as the
+condition drops training-domain SSIM from 0.147 to 0.047, so the model uses the source.
 
 At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM
@@ -157,8 +157,8 @@ source-conditioned ControlNet and an fp32 VAE (SDXL's VAE produces NaNs in fp16)
 1024\,px, without repeating the ablation ladder. Because the 1024\,px model is data-starved at 50 pairs, two
 supplementary runs use 96 nonoverlapping and 144 overlapping crop pairs from the same A03/H03 frames.
 
-Two newer backbones were probed for feasibility only. SD\,3.5-large, a transformer-based latent model with a
-16-channel VAE, was tested for LoRA training cost and colour transfer. PixCell, a 0.6B-parameter
-histopathology diffusion transformer that uses the same 16-channel VAE and is conditioned on a single UNI2-h
+Two newer backbones were probed for feasibility only. SD\,3.5-large~\cite{esser2024sd3}, a transformer-based latent model with a
+16-channel VAE, was tested for LoRA training cost and colour transfer. PixCell~\cite{yellapragada2025pixcell}, a 0.6B-parameter
+histopathology diffusion transformer that uses the same 16-channel VAE and is conditioned on a single UNI2-h~\cite{chen2024uni}
 image embedding rather than text, was tested for cost, reconstruction ceiling and zero-fine-tuning
 generation. PixCell is outside the proposal's scope and is reported as exploration only.
