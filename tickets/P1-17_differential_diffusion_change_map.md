@@ -1,5 +1,8 @@
 # P1-17 — Differential Diffusion Change-Map Inference (Spatially-Varying Strength)
 
+**Correction (2026-11-09, paper number audit): the "negative result" verdict below is not supported; the result is INCONCLUSIVE.** The six grid configs were scored on 20 training crops, but the P1-10 baseline they are compared with (0.1616 ± 0.0057, job 47235, 3 seeds) was scored on only 4 of those crops (A03_00A_c000, A03_00A_c024, A03_00A_c048, A03_00B_c001; `docs/results/p1_17_differential_diffusion/eval/p1_10_baseline_summary/per_crop.csv`, 12 rows). On those same 4 crops the grid configs score SSIM 0.184–0.195 against the baseline's 0.162 (0.159 for seed 0), i.e. +0.02–0.03, and the 4-crop smoke result (0.192) dismissed below as noise was in fact the like-for-like comparison. No matched 20-crop baseline was ever run, so neither "no gain" nor "gain" is established. The paper (Appendix A, Fig. 12) now reports it as inconclusive and not pursued, because its output is still decoded by the VAE and so cannot pass the reconstruction ceiling, which is what motivated fusion outside the U-Net (P1-16). A matched 20-crop P1-10 baseline (inference only, same crops and seeds) would settle it if ever needed.
+
+
 **Status:** ✅ CLOSED (2026-08-27) — negative result. Internal-validation
 parameter grid (radius × c_max, sigma=2/c_min=0.0 fixed) showed no real
 improvement over the plain P1-10 baseline; see full results and
