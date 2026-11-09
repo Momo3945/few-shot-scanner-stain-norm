@@ -13,6 +13,11 @@ A06 is a genuine colour outlier: its raw Aperio--Hamamatsu colour distance is 94
 the other four slides, so every result is reported pooled (ALL), on the four \emph{typical} slides, and on
 A06 alone.
 
+\textbf{Splits.} Training uses the A03/H03 pairs. Validation never uses a test slide: 11 pairs from five
+withheld A03 frames select the diffusion checkpoint, training-domain crops the fusion parameters, and 385
+non-test patches the decoder. The five held-out slides are the test set, used only for scoring except for
+the ladder strength and LCM setting (noted where used).
+
 \textbf{Metrics.} Colour fidelity is the CIELAB (LAB) Wasserstein distance between an output $X$ and the
 registered target $Y$, summed over channels,
 \begin{equation}
@@ -48,14 +53,13 @@ of the paired Hamamatsu crop, conditioned on its Aperio crop. Because the pairs 
 is shifted by a random offset of up to 8\,px at each step, so the model cannot rely on exact alignment. Of the
 50 pairs, 39 train the model and 11, from five whole frames, form a validation set; training uses AdamW at
 learning rate $10^{-4}$, batch size 1 and bf16 for 4{,}000 steps (25\,min on one RTX~3090), and the
-checkpoint with the lowest validation loss (step 3{,}750) is kept. Before this run the recipe had to overfit an
-8-pair subset, which it did by 2{,}000 steps.
+checkpoint with the lowest validation loss (step 3{,}750) is kept.
 The \HtoA{} model is trained the same way with the roles swapped. A shuffled-source control confirms
 that the model uses the source (training-domain SSIM 0.147 against 0.047).
 
 At inference, random img2img noise is replaced by deterministic DDIM inversion~\cite{song2021ddim}: the
 source latent is inverted for 50 steps (guidance 1.0, source-conditioned) and then denoised for 50 DDIM
-steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}). These inference settings are defaults, not tuned on the held-out slides.
+steps with guidance 2.0 under the same source condition (Fig.~\ref{fig:pipeline}).
 
 \begin{figure}[t]
 \centering
