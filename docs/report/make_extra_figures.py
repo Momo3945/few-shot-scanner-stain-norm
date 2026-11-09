@@ -41,7 +41,7 @@ save(fig, "roundtrip.jpg")
 # 3. P1-13 LCM arms, A06 (0,0), 512px; target = top-left 512 of the 1024 registered Hamamatsu
 src = Image.open(TIFF).convert("RGB").crop((0, 0, 512, 512))
 tgt = rgb(C / "real_hamamatsu_A06_00A_x0_y0.png").crop((0, 0, 512, 512))
-fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.85))
+fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.95), layout="constrained")  # tight_layout clipped the titles
 row(axs, [("Raw Aperio", src), ("Generic LCM-LoRA", rgb(M / "p113_generic.png")),
           ("Task-specific LCM", rgb(M / "p113_taskspecific.png")), ("Real Hamamatsu", tgt)])
 save(fig, "p1_13_lcm.jpg")
@@ -70,7 +70,7 @@ y0, x0, s = 350, 300, 400
 def ov(img, mask, col):
     o = img.copy(); m = mask.astype(bool); b = m & ~binary_erosion(m)
     o[b] = col; return o[y0:y0 + s, x0:x0 + s]
-fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.85))
+fig, axs = plt.subplots(1, 4, figsize=(6.44, 1.95), layout="constrained")  # tight_layout clipped the titles
 row(axs, [("Original image", io[y0:y0 + s, x0:x0 + s]), ("Ground truth (Lizard)", ov(io, g > 0, (0, 255, 0))),
           ("HoVer-Net, original (A)", ov(io, mo, (255, 255, 0))), ("HoVer-Net, normalised (B)", ov(inn, mn, (0, 255, 255)))], fs=7)
 save(fig, "lizard_overlay.jpg")
@@ -123,7 +123,9 @@ for r, (y0, slide) in enumerate([(0, "A08"), (522, "A16")]):
     for c in range(4):
         x0 = 512 * c
         axs[r, c].imshow(P.crop((x0 + 14, y0 + 28, x0 + 498, y0 + 512)))
-        axs[r, c].set_title(COLS[c], fontsize=7.5); axs[r, c].set_xticks([]); axs[r, c].set_yticks([])
+        if r == 0:  # same columns in both rows: title once, so row-2 titles cannot crowd row 1
+            axs[r, c].set_title(COLS[c], fontsize=7.5)
+        axs[r, c].set_xticks([]); axs[r, c].set_yticks([])
         for s in axs[r, c].spines.values():
             s.set_visible(False)
     axs[r, 0].set_ylabel(slide, fontsize=8)
