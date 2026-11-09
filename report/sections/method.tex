@@ -26,7 +26,7 @@ W_{\mathrm{LAB}}(X,Y)=\sum_{c\in\{L,a,b\}}\int_{\mathbb{R}}\bigl|F_{X_c}(t)-F_{Y
 \end{equation}
 where $F$ is the empirical cumulative distribution function of a channel. Because \eqref{eq:wlab} ignores spatial layout,
 histogram matching optimises it by construction, so we also report a windowed version averaged over
-64$\times$64 tiles (wLAB). Structure is measured by grayscale structural similarity (SSIM)~\cite{wang2004ssim} against the
+64$\times$64 tiles (wLAB). Structure is measured by greyscale structural similarity (SSIM)~\cite{wang2004ssim} against the
 registered target. Structural safety is the Relative Dice
 $\mathrm{Dice}(B,G)/\mathrm{Dice}(A,G)$ of HoVer-Net~\cite{graham2019hovernet} nuclei on 130 Lizard
 images~\cite{graham2021lizard} before ($A$) and after ($B$) normalisation against ground truth $G$, with a
@@ -46,7 +46,7 @@ the colour LoRA at inference.
 \subsection{Source-conditioned translation}
 A target-only LoRA learns the marginal $p(H)$, not the mapping $p(H\mid A)$. We therefore add a
 source-conditioning branch: a ControlNet initialised from the SD\,1.5 U-Net encoder, with its conditioning
-input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges (replicated to three channels). The cloned
+input widened to six channels, the source RGB image stacked with its Otsu-adaptive Canny edges (replicated to three channels; Fig.~\ref{fig:app-controlnet}). The cloned
 encoder stays frozen (349M parameters); only the new conditioning encoder and the zero-initialised residual
 output layers are trained (12.6M), jointly with a new rank-8 colour LoRA on the U-Net attention projections
 (1.6M), so 14.2M parameters are trained in all. The loss is the standard noise-prediction loss on the latent
@@ -135,8 +135,7 @@ construct a fused output; a bug that briefly did so (SSIM $\approx0.998$) was ca
 \textbf{Decoder fine-tune.} With the encoder frozen, so that the latent space and every trained component
 remain valid, we fine-tune only the decoder (49.5M parameters, initialised from \texttt{ft-mse}) on about
 2{,}700 H\&E patches from outside the held-out set (MITOS slides of both scanners, TCGA, PanNuke and the A03/H03 crops)
-with an L1 + 0.3\,LPIPS~\cite{zhang2018lpips} loss for 3{,}000 steps. Checkpoints are selected on whole
-validation slides outside the held-out set.
+with an L1 + 0.3\,LPIPS~\cite{zhang2018lpips} loss for 3{,}000 steps.
 
 \subsection{Baselines}
 \label{sec:baselines}

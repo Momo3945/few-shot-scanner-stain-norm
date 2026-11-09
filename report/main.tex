@@ -43,12 +43,12 @@ colour adapter recovers little colour and that ControlNet mainly improves struct
 adapter on the source image, inverting the source latent with DDIM, and fusing the learned colour change
 back onto the untouched source pixels give the best diffusion result within the 50-pair budget: SSIM 0.729 against
 the real Hamamatsu scan, close to the raw scan's 0.732 and above every classical baseline, and windowed colour closer to the target than Macenko,
-Reinhard or histogram matching on typical slides. We also show that the VAE caps every diffusion result
+Reinhard or histogram matching on typical slides. We also show that the VAE caps every unfused diffusion output
 and that a fine-tuned decoder raises SSIM mainly by smoothing. Two learned nondiffusion baselines
 trained on the same 50 pairs, ParamNet and StainGAN, outperform every diffusion configuration on colour
 and SSIM. On the Relative Dice structure-safety gate, ParamNet (1.003) and our fused pipeline (0.994)
-pass, while the unfused diffusion outputs do not. Few-step LCM inference does not
-match 50-step DDIM quality.
+pass, while the unfused diffusion outputs do not. No SD\,1.5 configuration brings the CAMELYON17 centres
+closer together, and few-step LCM inference does not match 50-step DDIM quality.
 \end{abstract}
 
 \begin{IEEEkeywords}

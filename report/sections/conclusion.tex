@@ -5,8 +5,7 @@ A frozen Stable Diffusion 1.5 model adapted from 50 coordinate-corresponding pai
 to Hamamatsu scans (the reverse fails on SD\,1.5), but only after replacing the planned recipe: a target-only colour LoRA with ControlNet and
 LCM barely moves colour, while source conditioning, DDIM inversion and fusion of the learned colour change
 onto the source pixels reach SSIM 0.729 and beat the classical baselines on typical-slide colour. The VAE
-bottleneck explains most of the gap to the raw scan, and fine-tuning its decoder raises SSIM mainly by
-smoothing. Learned nondiffusion baselines trained on the same 50 pairs remain better on colour and SSIM,
+bottleneck explains most of the gap to the raw scan. Learned nondiffusion baselines trained on the same 50 pairs remain better on colour and SSIM,
 and only ParamNet and the fused pipeline pass the Relative Dice test. Few-step LCM is 12.4$\times$ faster but does not hold 50-step quality. For
 few-shot scanner normalisation, a well-chosen colour map currently beats a resynthesising generative
 model, and diffusion is most useful as a source of colour change that fusion projects back onto the

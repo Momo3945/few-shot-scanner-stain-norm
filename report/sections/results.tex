@@ -53,7 +53,7 @@ A06 (Fig.~\ref{fig:ladder}), although on typical slides every rung's colour beat
 $\dlab=+2.25$ pooled, and on typical slides its LAB distance falls from 25.41 to 22.96. ControlNet raises
 SSIM by about 0.10 (A0 0.285 to A1 0.389) but does not move colour. LCM-LoRA (A4) and the histopathology
 warm-start (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance, the size of run-to-run noise, so rank makes no measurable difference.
-Sweeps show why denoising strength is a poor control knob: with 8 LCM steps, strengths 0.50 and 0.60 give
+Sweeps (Fig.~\ref{fig:app-sweep}) show why denoising strength is a poor control knob: with 8 LCM steps, strengths 0.50 and 0.60 give
 byte-identical outputs, because the number of steps actually run is $\lfloor 8s\rfloor$. Larger strengths
 help the outlier slide A06 (the warm-started rung reaches $\dlab=+24.4$ at 0.70) but damage typical slides
 (slide A08 $-7.0$), so no
@@ -72,7 +72,7 @@ Conditioning on the source image gives a real but modest gain over the ladder ($
 Replacing random img2img noise with DDIM inversion is the largest single improvement: LAB distance falls to
 25.10 pooled and 17.98 on typical slides, every held-out slide moves towards the target (A06 recovery
 $+21.7$), and SSIM rises to 0.496. In the reverse direction (\HtoA) the same model fails
-($\dlab=-15.6$, a magenta drift), so the gain is direction-dependent. Replacing the Canny half of the
+($\dlab=-15.6$, a magenta drift; Fig.~\ref{fig:app-h2a}), so the gain is direction-dependent. Replacing the Canny half of the
 condition with HoVer-Net nuclear outlines, the planned final structural signal, does not help: fused SSIM is
 unchanged (0.729) and windowed LAB is 1.3 worse (Appendix~\ref{app:hovernet}).
 
@@ -99,13 +99,12 @@ crops. Every VAE stays well below the lossless value of 1.0 (dotted).}
 
 Decoding the DDIM-inversion latents with the better decoders raises translated SSIM from 0.496 to 0.557
 (\texttt{ft-mse}) and 0.616 (fine-tuned), winning on every crop. The fine-tune costs colour, though:
-typical-slide LAB distance rises from 16.86 to 17.95 and A06 worsens to 79.2. Visual inspection explains
+typical-slide LAB distance rises from 16.86 to 17.95 and A06 worsens to 79.2. Visual inspection (Figs.~\ref{fig:app-decoder-recon} and~\ref{fig:app-decoder}) explains
 part of the SSIM gain. On two inspected crops the fine-tuned decoder keeps only 21--30\% of the input's
 fine-detail energy (Laplacian variance), against 52--59\% for \texttt{ft-mse}, and shifts the blue channel
 by 3--5 levels. The real Hamamatsu scans are themselves soft, at 18--24\% of the Aperio source's detail,
 so much of the translated SSIM gain comes from matching the target scanner's softness rather than from
-recovering structure. On unseen CAMELYON17 centres it still beats \texttt{ft-mse} on SSIM but loses 1.5\,dB of
-PSNR to a colour shift (Appendix~\ref{app:decoder-cam}).
+recovering structure. It also shifts colour on unseen CAMELYON17 centres (Appendix~\ref{app:decoder-cam}).
 
 \subsection{Detail fusion}
 \textbf{Choosing the variant.} Table~\ref{tab:fusion} compares the three fusion rules and the F3
@@ -158,10 +157,9 @@ frozen configuration.}
 and 0.746 on typical slides, essentially the raw scan's 0.732 and 0.748 and above every classical baseline, while keeping most of the colour shift:
 typical-slide LAB distance is 18.11 (raw 25.41) and windowed LAB 18.65, closer to the target than Macenko
 (21.88), Reinhard (27.42) or histogram matching (31.90). Fig.~\ref{fig:f3} shows the process. A06 benefits
-least: fusion gives back 10.5 of the inversion's colour gain there (LAB 73.1 to 83.6). Fusion also absorbs other structural
-gains: a three-member self-ensemble raises unfused SSIM from 0.496 to 0.543 but adds nothing after fusion,
-and the fine-tuned decoder adds nothing either while worsening fused
-windowed LAB from 27.08 to 27.74. In the failed \HtoA{} direction, fusion applied unchanged raises SSIM from
+least (Fig.~\ref{fig:app-f3}): fusion gives back 10.5 of the inversion's colour gain there (LAB 73.1 to 83.6). Fusion also absorbs other structural
+gains: neither a three-member self-ensemble (unfused SSIM 0.496 to 0.543) nor the fine-tuned decoder adds
+anything after fusion. In the failed \HtoA{} direction, fusion applied unchanged raises SSIM from
 0.548 to 0.730 and shrinks the colour loss from $\dlab=-15.6$ to $-5.3$, although colour is still worse
 than doing nothing. It also transfers to SDXL with the same frozen parameters (Table~\ref{tab:sdxl}).
 
@@ -261,7 +259,7 @@ setting (6 nominal steps at strength 0.70, so 4 run, the H4 test; guidance 2.0; 
 $+21.7$ for 50-step DDIM inversion, and A08 0.515/$+3.0$ against 0.537/$+7.2$. It is 12.4$\times$ faster
 (0.50\,s against 6.27\,s per crop, Table~\ref{tab:app-speed}). The likely limit is the sampler, not the step
 count: our LCM sampler re-noises at every step, so it does not use the DDIM inversion that gave our largest gain. LCM with inversion was not tested. Distilling a task-specific
-LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule.
+LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule (Fig.~\ref{fig:app-lcm}).
 
 \subsection{Portability to SDXL}
 SDXL transfers the method only with source conditioning and more data than the few-shot budget
@@ -274,7 +272,8 @@ the 144-pair model (SSIM 0.318 correct, 0.114 shuffled, 0.109 zero) confirms tha
 fusion transfers unchanged (SSIM 0.732), and with the 144-pair model SDXL passes the CAMELYON17 test with a
 small effect ($\Delta D=-2.35$ $[-2.97, -1.57]$,
 9 of 10 centre pairs closer; $-0.67$ $[-0.96, -0.34]$, 8 of 10, with F3 fusion). In
-the \HtoA{} direction, where SD\,1.5 fails ($\dlab=-15.6$), SDXL improves LAB colour at both resolutions, at SSIM 0.36--0.39.
+the \HtoA{} direction, where SD\,1.5 fails ($\dlab=-15.6$), SDXL improves LAB colour at both resolutions (Fig.~\ref{fig:app-sdxl-h2a}), at SSIM 0.36--0.39; with F3 fusion the 1024\,px model keeps a
+gain on every slide ($\dlab=+5.69$) at SSIM 0.731.
 
 \begin{table}[t]
 \centering
@@ -302,6 +301,7 @@ Source-cond., 1024\,px, 50 pairs & 39.43 & 30.85 & 98.32 & 0.431 & 0.313\\
 Raw Hamamatsu (\HtoA{} ref.) & 34.37 & 25.41 & 94.84 & -- & --\\
 \HtoA{}, 512\,px & 24.90 & 17.33 & 75.99 & 0.355 & 0.239\\
 \HtoA{}, 1024\,px & 25.17 & 16.68 & 82.47 & 0.386 & 0.274\\
+\quad 1024\,px + F3 fusion & 28.68 & 19.68 & 89.50 & 0.731 & 0.637\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -319,7 +319,7 @@ Hamamatsu target. All SDXL outputs stay close to the Aperio colour.}
 Both newer backbones are feasible to adapt but not yet useful (Table~\ref{tab:cost}, Appendix~\ref{app:results}). An SD\,3.5-large
 rank-8 LoRA trains in about five times SD\,1.5's time and fits a 24\,GB GPU. Its colour test is weaker than
 planned: a frame-ordering slip drew all 20 crops from the outlier A06, and it ran at 1024\,px without the T5
-text encoder, with a bf16 VAE and untuned guidance. On A06 it recovers $\dlab=+4.77$ at SSIM 0.183, more
+text encoder, with a bf16 VAE and untuned guidance. On A06 (Fig.~\ref{fig:app-sd35}) it recovers $\dlab=+4.77$ at SSIM 0.183, more
 colour than any SD\,1.5 ladder rung there (at most $+2.38$) at the SSIM of the weakest rungs (0.19), so it is a
 feasibility signal, not a general result.
 PixCell is the cheapest backbone to adapt and its 16-channel VAE has the highest reconstruction ceiling
