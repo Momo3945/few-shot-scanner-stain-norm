@@ -47,7 +47,7 @@ Learned & StainNet$^\dagger$ & 37.59 & 53.02 & 46.57 & 42.98 & 58.95 & 0.539 & 0
 SD\,1.5 ladder & A2 colour LoRA & 93.92 & 22.78 & 25.58 & 21.36 & 22.15 & 0.191 & 0.302 & 0.275 & 0.286 & 0.329 & 14.87 & 35.00\\
  & A3 ControlNet + LoRA & 94.39 & 23.37 & 25.67 & 21.66 & 22.62 & 0.259 & 0.408 & 0.372 & 0.363 & 0.438 & 15.72 & 31.99\\
  & A4 + LCM-LoRA & 95.06 & 25.31 & 26.72 & 23.39 & 24.16 & 0.272 & 0.421 & 0.389 & 0.370 & 0.449 & 15.57 & 32.60\\
- & A5 + warm-start & 92.46 & 26.54 & 25.11 & 23.37 & 25.29 & 0.265 & 0.411 & 0.380 & 0.364 & 0.438 & 15.38 & 33.29\\
+ & A5 + hist.\ LoRA & 92.46 & 26.54 & 25.11 & 23.37 & 25.29 & 0.265 & 0.411 & 0.380 & 0.364 & 0.438 & 15.38 & 33.29\\
 \midrule
 This work & Source-cond.\ img2img$^\dagger$ & 90.64 & 22.17 & 23.95 & 21.67 & 21.14 & 0.307 & 0.482 & 0.417 & 0.458 & 0.497 & 16.94 & 27.81\\
  & + DDIM inversion & 73.12 & 18.12 & 17.81 & 21.27 & 16.67 & 0.373 & 0.537 & 0.477 & 0.498 & 0.527 & 16.79 & 28.97\\
@@ -230,7 +230,7 @@ Full VAE, $\lambda=10$ & 0.650 & 0.780 & 0.613 & 25.00 & 0.729 & 28.01\\
 
 \subsection{SDXL diagnostics and the decision gate}
 \textbf{Decision gate.} At the end of the ablation the LCM rung (A4) was chosen as the base for SDXL,
-and the warm-started rung (A5) was also transferred because it beat A4 on slide A06 by 2.6--8.7 in LAB distance, far above
+and the histopathology-LoRA rung (A5) was also transferred because it beat A4 on slide A06 by 2.6--8.7 in LAB distance, far above
 the 0.1--0.3 run-to-run noise floor.
 
 \textbf{Why native-1024 SDXL fails at 50 pairs.} Five diagnostics were run on the 50-pair 1024\,px model.

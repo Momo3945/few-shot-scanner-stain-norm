@@ -34,8 +34,8 @@ distillation is worse. The proposal's SSIM $\geq 0.85$ bar is unreachable even f
 \end{tabular}
 \end{table}
 
-\textbf{Why the learned baselines win.} ParamNet and StainNet apply a colour map to the input pixels, and
-StainGAN's CycleGAN generator keeps a wide feature map; none of them passes the image through a 48$\times$ compressing four-channel latent. Every diffusion output is resynthesised by the VAE, which alone limits SSIM to
+\textbf{Why the learned baselines win.} ParamNet applies a colour map to the input pixels, and
+StainGAN's CycleGAN generator keeps a wide feature map; neither passes the image through a 48$\times$ compressing four-channel latent. Every diffusion output is resynthesised by the VAE, which alone limits SSIM to
 0.576--0.646 on Aperio crops (Section~\ref{sec:vae}). F3 fusion in effect turns the diffusion model back
 into a colour map applied to the source. With 50 pairs, the strong image prior
 of a diffusion model does not compensate for the information it loses in its own bottleneck.

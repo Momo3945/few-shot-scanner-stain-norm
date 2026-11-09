@@ -1,7 +1,7 @@
 \section{Results}
 \label{sec:results}
 
-Table~\ref{tab:main} gathers every \AtoH{} configuration on the held-out set. Where we quote a recovery
+Table~\ref{tab:main} gathers every SD\,1.5 \AtoH{} configuration and baseline on the held-out set. Where we quote a recovery
 $\dlab$ below, it is $W_{\mathrm{LAB}}(\text{raw},\text{target})-W_{\mathrm{LAB}}(\text{output},\text{target})$
 on the slide in question, so positive means closer to the real scanner than doing nothing.
 
@@ -36,7 +36,7 @@ SD\,1.5 ladder & A0 frozen img2img & 32.89 & 23.65 & 95.22 & 0.285 & 0.299 & 0.1
  & A2 + colour LoRA (rank 8) & 32.12 & 22.96 & 93.92 & 0.289 & 0.304 & 0.191\\
  & A3 ControlNet + LoRA & 32.52 & 23.35 & 94.39 & 0.386 & 0.404 & 0.259\\
  & A4 + LCM-LoRA (8 steps, 2 run) & 33.96 & 24.91 & 95.06 & 0.398 & 0.417 & 0.272\\
- & A5 + histopathology warm-start & 33.96 & 25.29 & 92.46 & 0.389 & 0.407 & 0.265\\
+ & A5 + histopathology LoRA & 33.96 & 25.29 & 92.46 & 0.389 & 0.407 & 0.265\\
 \midrule
 This work & Source ControlNet + LoRA, $s=0.50$ img2img$^\dagger$ & 30.95 & 22.11 & 90.64 & 0.448 & 0.470 & 0.307\\
  & + DDIM inversion & 25.10 & 17.98 & 73.12 & 0.496 & 0.514 & 0.373\\
@@ -52,10 +52,10 @@ No rung comes close to the classical baselines on structure (SSIM 0.29--0.40 aga
 A06 (Fig.~\ref{fig:ladder}), although on typical slides every rung's colour beats Reinhard and histogram matching. The colour LoRA (A2) recovers only
 $\dlab=+2.25$ pooled, and on typical slides its LAB distance falls from 25.41 to 22.96. ControlNet raises
 SSIM by about 0.10 (A0 0.285 to A1 0.389) but does not move colour. LCM-LoRA (A4) and the histopathology
-warm-start (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance, the size of run-to-run noise, so rank makes no measurable difference.
+LoRA (A5) cancel the small colour gain. Ranks 4 and 8 differ by only 0.1--0.3 in LAB distance, the size of run-to-run noise, so rank makes no measurable difference.
 Sweeps (Fig.~\ref{fig:app-sweep}) show why denoising strength is a poor control knob: with 8 LCM steps, strengths 0.50 and 0.60 give
 byte-identical outputs, because the number of steps actually run is $\lfloor 8s\rfloor$. Larger strengths
-help the outlier slide A06 (the warm-started rung reaches $\dlab=+24.4$ at 0.70) but damage typical slides
+help the outlier slide A06 (the histopathology-LoRA rung reaches $\dlab=+24.4$ at 0.70) but damage typical slides
 (slide A08 $-7.0$), so no
 single strength is usable.
 
@@ -262,8 +262,8 @@ count: our LCM sampler re-noises at every step, so it does not use the DDIM inve
 LCM from the source-conditioned teacher was worse than the generic adapter under a pre-committed rule (Fig.~\ref{fig:app-lcm}).
 
 \subsection{Portability to SDXL}
-SDXL transfers the method only with source conditioning and more data than the few-shot budget
-(Table~\ref{tab:sdxl}, Fig.~\ref{fig:sdxl}). The ladder configuration (A4) and its warm-started variant (A5) move colour away from
+SDXL transfers the method only with source conditioning, and at its native 1024\,px only with more data than the few-shot budget
+(Table~\ref{tab:sdxl}, Fig.~\ref{fig:sdxl}). The ladder configuration (A4) and its histopathology-LoRA variant (A5) move colour away from
 the target, despite SDXL's higher SSIM. Source conditioning works at 512\,px, but natively at 1024\,px the
 50-pair model is data-starved: it recovers less colour than doing nothing on every slide. With 96 pairs
 recovery turns positive (pooled LAB 39.43 to 32.51), but 144 overlapping crops of the same frames add only
@@ -291,7 +291,7 @@ Configuration & ALL & typ. & A06 & ALL & A06\\
 \midrule
 Raw Aperio & 34.37 & 25.41 & 94.84 & 0.732 & 0.627\\
 A4, strength 0.20 & 39.44 & 30.70 & 98.42 & 0.527 & 0.386\\
-A5 warm-start, 0.20 & 39.14 & 30.36 & 98.40 & 0.526 & 0.385\\
+A5 hist.\ LoRA, 0.20 & 39.14 & 30.36 & 98.40 & 0.526 & 0.385\\
 Source-cond., 512\,px, 50 pairs & 32.62 & 23.81 & 92.14 & 0.392 & 0.257\\
 Source-cond., 1024\,px, 50 pairs & 39.43 & 30.85 & 98.32 & 0.431 & 0.313\\
 \quad 96 pairs & 32.51 & 23.79 & 92.29 & 0.442 & 0.322\\

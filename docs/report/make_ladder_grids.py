@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 Q = Path("docs/results/qualitative"); OUT = Path("docs/report/figures")
 TITLES = ["Raw Aperio (source)", "A0 frozen img2img", "A1 + ControlNet", "A2 + colour LoRA",
-          "A3 ControlNet + LoRA", "A4 + LCM-LoRA", "A5 + hist. warm-start", "Real Hamamatsu (target)"]
+          "A3 ControlNet + LoRA", "A4 + LCM-LoRA", "A5 + hist. LoRA", "Real Hamamatsu (target)"]
 FILES = ["source", "a0", "a1", "a2", "a3", "a4", "a5", "reference"]
 
 for folder, name in [("a08_typical", "ladder_grid_a08"), ("a06_outlier", "ladder_grid_a06"),
